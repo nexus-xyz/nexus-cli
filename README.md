@@ -16,9 +16,9 @@ A high-performance command-line interface for contributing proofs to the Nexus n
     </figcaption>
 </figure>
 
-## The Nexus Network
+## Nexus Network
 
-The [Nexus Network](https://docs.nexus.xyz/network) is a global distributed prover network that unites the world's computers to power a new and better Internet: the Verifiable Internet.
+[Nexus](https://nexus.xyz/) is a global distributed prover network that unites the world's computers to power a new and better Internet: the Verifiable Internet.
 
 There have been several testnets so far:
 - Testnet 0: [October 08 – 28, 2024](https://blog.nexus.xyz/nexus-launches-worlds-first-open-prover-network/)
