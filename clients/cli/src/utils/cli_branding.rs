@@ -30,13 +30,13 @@ pub fn print_banner() {
     };
     println!(
         "{} {} {}\n",
-        "Welcome to the".bright_white(),
+        "  Welcome to the".bright_white(),
         "Nexus Network CLI".bright_cyan().bold(),
         version.bright_white()
     );
     println!(
         "{}",
-        "Use the CLI to contribute to the massively-parallelized Nexus proof network."
+        "  Use the CLI to contribute to the massively-parallelized Nexus proof network."
             .bright_white()
     );
 }
