@@ -31,12 +31,11 @@ pub fn print_banner() {
     println!(
         "{} {} {}\n",
         "Welcome to the".bright_white(),
-        "Nexus Network CLI".bright_cyan().bold(),
+        "Nexus CLI".bright_cyan().bold(),
         version.bright_white()
     );
     println!(
         "{}",
-        "The Nexus network is a massively-parallelized proof network for executing and proving the \x1b]8;;https://docs.nexus.org\x1b\\Nexus zkVM\x1b]8;;\x1b\\."
-            .bright_white()
+        "Use the CLI to contribute to the massively-parallelized Nexus proof network."
     );
 }

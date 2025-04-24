@@ -2,7 +2,7 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-green.svg)](https://github.com/nexus-xyz/nexus-cli/blob/main/LICENSE-APACHE)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/nexus-xyz/nexus-cli/blob/main/LICENSE-MIT)
 
-# Nexus Network CLI
+# Nexus CLI
 
 A high-performance command-line interface for contributing proofs to the Nexus network.
 
