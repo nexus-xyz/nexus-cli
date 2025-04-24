@@ -1,6 +1,6 @@
-[![Release](https://img.shields.io/github/v/release/nexus-xyz/network-api.svg)](https://github.com/nexus-xyz/network-api/releases)
-[![License](https://img.shields.io/badge/License-Apache_2.0-green.svg)](https://github.com/nexus-xyz/network-api/blob/main/LICENSE-APACHE)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/nexus-xyz/network-api/blob/main/LICENSE-MIT)
+[![Release](https://img.shields.io/github/v/release/nexus-xyz/nexus-cli.svg)](https://github.com/nexus-xyz/nexus-cli/releases)
+[![License](https://img.shields.io/badge/License-Apache_2.0-green.svg)](https://github.com/nexus-xyz/nexus-cli/blob/main/LICENSE-APACHE)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/nexus-xyz/nexus-cli/blob/main/LICENSE-MIT)
 
 # Nexus Network CLI
 
@@ -16,9 +16,9 @@ A high-performance command-line interface for contributing proofs to the Nexus n
     </figcaption>
 </figure>
 
-## The Nexus Network
+## Nexus Network
 
-The [Nexus Network](https://docs.nexus.xyz/network) is a global distributed prover network that unites the world's computers to power a new and better Internet: the Verifiable Internet.
+[Nexus](https://nexus.xyz/) is a global distributed prover network that unites the world's computers to power a new and better Internet: the Verifiable Internet.
 
 There have been several testnets so far:
 - Testnet 0: [October 08 – 28, 2024](https://blog.nexus.xyz/nexus-launches-worlds-first-open-prover-network/)
@@ -67,8 +67,8 @@ This combination of bash and Rust is a bit brittle in CI environments. Consider 
 
 1. **Build from source**:
    ```bash
-   git clone https://github.com/nexus-xyz/network-api
-   cd network-api/clients/cli
+   git clone https://github.com/nexus-xyz/nexus-cli
+   cd nexus-cli/clients/cli
    cargo build --release
    ./target/release/nexus-network start --env beta
    ```
@@ -107,7 +107,7 @@ If you don’t have Rust installed, you will be prompted to install it (unless `
 
 ```bash
 sudo apt update && sudo apt upgrade
-sudo apt install build-essential pkg-config libssl-dev git-all protobuf-compiler
+sudo apt install build-essential pkg-config libssl-dev git-all
 ```
 
 ### macOS
@@ -131,7 +131,7 @@ Use of the CLI is subject to the [Terms of Use](https://nexus.xyz/terms-of-use).
 NONINTERACTIVE=1 sh install.sh
 ```
 
-or set `NONINTERACTIVE=1` before invoking the script.
+or `export NONINTERACTIVE=1` before invoking the curl installer.
 
 ---
 
@@ -161,14 +161,14 @@ following format:
 
 - [Network FAQ](https://docs.nexus.xyz/layer-1/network-devnet/faq)  
 - [Discord Community](https://discord.gg/nexus-xyz)  
-- Technical issues? [Open an issue](https://github.com/nexus-xyz/network-api/issues)
+- Technical issues? [Open an issue](https://github.com/nexus-xyz/nexus-cli/issues)
 
 ---
 
 ## Repository Structure
 
 ```txt
-network-api/
+nexus-cli/
 ├── assets/       # Media for documentation
 ├── clients/
 │   └── cli/      # Main CLI implementation

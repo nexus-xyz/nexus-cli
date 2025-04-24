@@ -1,6 +1,6 @@
-# Contributing to the Nexus network
+# Contributing to the Nexus CLI
 
-The Nexus network is contributor-friendly. 
+The Nexus CLI is contributor-friendly. 
 We welcome all contributions, no matter your experience with Rust or cryptography.
 
 This document will help you get started. But first, **thank you for your interest in contributing!** We immensely appreciate quality contributions. This guide is intended to help you navigate the process.
@@ -9,7 +9,7 @@ The [Discord][discord] is always available for any concerns you may have that ar
 
 ### Code of Conduct
 
-The Nexus network project adheres to the [Rust Code of Conduct][rust-coc]. This code of conduct describes the _minimum_ behavior
+The Nexus CLI project adheres to the [Rust Code of Conduct][rust-coc]. This code of conduct describes the _minimum_ behavior
 expected from all contributors.
 
 Instances of violations of the Code of Conduct can be reported by contacting the Nexus team.
@@ -55,7 +55,7 @@ If you have examples of other tools with the feature you are requesting, please 
 
 ## Resolving Issues
 
-Pull requests are the way concrete changes are made to the code, documentation, and dependencies of the Nexus network.
+Pull requests are the way concrete changes are made to the code, documentation, and dependencies of the Nexus CLI.
 
 Before making a large change, it is usually a good idea to first open an issue describing the change to solicit feedback and guidance. 
 This will increase the likelihood of the PR getting merged. Striking up a discussion on the [Discord][discord] to let the community know
@@ -72,7 +72,7 @@ request right away, others may have more detailed comments or feedback. This is 
 to evaluate whether the changes are correct and necessary.
 
 Remember to **always be aware of the person behind the code**. _How_ you communicate during reviews (of your code or others!) can have a significant impact on the success
-of the pull request. We never want the cost of a change that makes the Nexus network better to be a valued contributor not
+of the pull request. We never want the cost of a change that makes the Nexus CLI better to be a valued contributor not
 wanting to have anything to do with the project ever again. The goal is not just having good code. It's having a positive community that continues to turn good code into better code.
 
 #### Abandoned or stale pull requests
@@ -95,7 +95,7 @@ cargo build --features build_proto
 
 [rust-coc]: https://github.com/rust-lang/rust/blob/master/CODE_OF_CONDUCT.md
 
-[gh]: https://github.com/nexus-xyz/network-api
+[gh]: https://github.com/nexus-xyz/nexus-cli
 
 [discord]: https://discord.com/invite/nexus-xyz
 

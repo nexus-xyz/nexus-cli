@@ -55,7 +55,7 @@ To request an API key, contact us at growth@nexus.xyz.
 
 ## Modifying source
 
-The curl command in the quick start section downloads this repo to $HOME/.nexus/network-api
+The curl command in the quick start section downloads this repo to $HOME/.nexus/nexus-cli
 and automatically runs it. If you want to modify the CLI, it's better to clone the GitHub
 repo somewhere else.
 
