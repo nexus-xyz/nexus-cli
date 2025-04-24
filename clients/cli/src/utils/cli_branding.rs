@@ -36,6 +36,7 @@ pub fn print_banner() {
     );
     println!(
         "{}",
-        "Use the CLI to contribute to the massively-parallelized Nexus proof network.".bright_white()
+        "Use the CLI to contribute to the massively-parallelized Nexus proof network."
+            .bright_white()
     );
 }
