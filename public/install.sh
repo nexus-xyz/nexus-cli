@@ -65,7 +65,7 @@ if [ "$GIT_IS_AVAILABLE" != 0 ]; then
 fi
 
 # -----------------------------------------------------------------------------
-# 6) Clone or update the network-api repository in $NEXUS_HOME.
+# 6) Clone or update the nexus-cli repository in $NEXUS_HOME.
 # -----------------------------------------------------------------------------
 REPO_PATH="$NEXUS_HOME/nexus-cli"
 if [ -d "$REPO_PATH" ]; then
