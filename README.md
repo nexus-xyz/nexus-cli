@@ -152,7 +152,7 @@ following format:
 ## Current Limitations
 
 - Only the latest CLI version is supported.
-- No prebuilt binaries yet.
+- Prebuilt binaries are not yet available.
 - To submit programs to the network for proving, contact [growth@nexus.xyz](mailto:growth@nexus.xyz).
 
 ---
