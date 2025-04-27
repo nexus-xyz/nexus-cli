@@ -5,7 +5,9 @@ use crate::config;
 use crate::flops;
 use crate::orchestrator_client::OrchestratorClient;
 use crate::setup;
+use crate::stats::Stats;
 use crate::utils;
+use crate::utils::stats_display;
 use colored::Colorize;
 use sha3::{Digest, Keccak256};
 use log::{error, warn};
@@ -137,6 +139,8 @@ pub async fn start_prover(
     // Print the banner at startup
     utils::cli_branding::print_banner();
 
+    let mut stats = Stats::new();
+
     println!(
         "\n===== {} =====\n",
         "Setting up CLI configuration"
@@ -156,6 +160,10 @@ pub async fn start_prover(
                     .underline()
                     .bright_cyan()
             );
+            
+            stats.update();
+            stats_display::display_stats(&stats);
+            
             let client_id = format!("{:x}", md5::compute(b"anonymous"));
             let mut proof_count = 1;
 
@@ -198,6 +206,15 @@ pub async fn start_prover(
                 }
 
                 proof_count += 1;
+                
+                stats.increment_proof_count();
+                
+                if stats.proofs_completed % 10 == 0 {
+                    stats_display::display_stats(&stats);
+                } else {
+                    stats_display::display_compact_stats(&stats);
+                }
+                
                 analytics::track(
                     "cli_proof_anon_v2".to_string(),
                     format!("Completed anon proof iteration #{}", proof_count),
@@ -224,13 +241,13 @@ pub async fn start_prover(
                     .underline()
                     .bright_cyan()
             );
-            let flops = flops::measure_flops();
-            let flops_formatted = format!("{:.2}", flops);
-            let flops_str = format!("{} FLOPS", flops_formatted);
+            
+            stats.update();
+            
             println!(
-                "{}: {}",
+                "{}: {} GFLOPS",
                 "Computational capacity of this node".bold(),
-                flops_str.bright_cyan()
+                format!("{:.2}", stats.flops).bright_cyan()
             );
             println!(
                 "{}: {}",
@@ -242,6 +259,8 @@ pub async fn start_prover(
                 "Environment".bold(),
                 environment.to_string().bright_cyan()
             );
+            
+            stats_display::display_stats(&stats);
 
             let client_id = format!("{:x}", md5::compute(node_id.as_bytes()));
             let mut proof_count = 1;
@@ -289,6 +308,15 @@ pub async fn start_prover(
                 }
 
                 proof_count += 1;
+                
+                stats.increment_proof_count();
+                
+                if stats.proofs_completed % 10 == 0 {
+                    stats_display::display_stats(&stats);
+                } else {
+                    stats_display::display_compact_stats(&stats);
+                }
+                
                 analytics::track(
                     "cli_proof_node_v2".to_string(),
                     format!("Completed proof iteration #{}", proof_count),

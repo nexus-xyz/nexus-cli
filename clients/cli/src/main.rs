@@ -11,6 +11,7 @@ mod node_id_manager;
 mod orchestrator_client;
 mod prover;
 mod setup;
+mod stats;
 mod utils;
 
 // Update the import path to use the proto module
