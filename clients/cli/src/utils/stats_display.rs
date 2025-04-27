@@ -38,12 +38,12 @@ pub fn display_stats(stats: &Stats) {
         format!("{:.2}", stats.flops).bright_cyan());
     
     let memory_bar = create_progress_bar(stats.memory_utilization, 20);
-    println!("{}: {} MB / {} MB {} {:.1}%", 
+    println!("{}: {} MB / {} MB {} {}", 
         "Memory usage".bold(),
         format!("{:.2}", stats.program_memory_mb).bright_cyan(),
         format!("{:.2}", stats.total_memory_mb).bright_cyan(),
         memory_bar,
-        (stats.memory_utilization * 100.0).bright_cyan());
+        format!("{:.1}%", stats.memory_utilization * 100.0).bright_cyan());
     
     println!("{}: {}", 
         "Time online".bold(), 
@@ -61,10 +61,10 @@ pub fn display_stats(stats: &Stats) {
 }
 
 pub fn display_compact_stats(stats: &Stats) {
-    println!("Stats: {} GFLOPS | Mem: {:.1}% | Online: {} | Proofs: {} ({:.2}/hr)",
+    println!("Stats: {} GFLOPS | Mem: {} | Online: {} | Proofs: {} ({})",
         format!("{:.2}", stats.flops).bright_cyan(),
-        (stats.memory_utilization * 100.0).bright_cyan(),
+        format!("{:.1}%", stats.memory_utilization * 100.0).bright_cyan(),
         format_duration(stats.time_online).bright_cyan(),
         stats.proofs_completed.to_string().bright_cyan(),
-        stats.proofs_per_hour.bright_cyan());
+        format!("{:.2}/hr", stats.proofs_per_hour).bright_cyan());
 }
