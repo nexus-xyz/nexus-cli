@@ -44,6 +44,9 @@ pub fn format_memory_usage() -> String {
     let program_mb = mb_i32_to_f32(program_memory);
     let total_mb = mb_i32_to_f32(total_memory);
     let utilization = program_mb / total_mb * 100.0;
-    
-    format!("{:.2} MB / {:.2} MB ({:.1}%)", program_mb, total_mb, utilization)
+
+    format!(
+        "{:.2} MB / {:.2} MB ({:.1}%)",
+        program_mb, total_mb, utilization
+    )
 }
