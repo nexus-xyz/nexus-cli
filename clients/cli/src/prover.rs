@@ -2,7 +2,6 @@ use nexus_sdk::{stwo::seq::Stwo, Local, Prover, Viewable};
 
 use crate::analytics;
 use crate::config;
-use crate::flops;
 use crate::orchestrator_client::OrchestratorClient;
 use crate::setup;
 use crate::stats::Stats;

@@ -32,6 +32,7 @@ pub fn get_memory_info() -> (i32, i32) {
     )
 }
 
+#[allow(dead_code)]
 pub fn calculate_memory_utilization() -> f32 {
     let (program_memory, total_memory) = get_memory_info();
     let program_mb = mb_i32_to_f32(program_memory);
@@ -39,6 +40,7 @@ pub fn calculate_memory_utilization() -> f32 {
     program_mb / total_mb
 }
 
+#[allow(dead_code)]
 pub fn format_memory_usage() -> String {
     let (program_memory, total_memory) = get_memory_info();
     let program_mb = mb_i32_to_f32(program_memory);
