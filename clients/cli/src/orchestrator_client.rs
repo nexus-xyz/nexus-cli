@@ -126,7 +126,7 @@ impl OrchestratorClient {
         proof: Vec<u8>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let (program_memory, total_memory) = get_memory_info();
-        let flops = measure_flops();
+        let flops = measure_flops()?;
 
         let request = SubmitProofRequest {
             task_id: task_id.to_string(),

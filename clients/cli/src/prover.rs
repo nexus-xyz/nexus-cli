@@ -224,7 +224,7 @@ pub async fn start_prover(
                     .underline()
                     .bright_cyan()
             );
-            let flops = flops::measure_flops();
+            let flops = flops::measure_flops()?;
             let flops_formatted = format!("{:.2}", flops);
             let flops_str = format!("{} FLOPS", flops_formatted);
             println!(

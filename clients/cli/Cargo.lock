@@ -1242,7 +1242,6 @@ dependencies = [
  "log",
  "md5",
  "nexus-sdk",
- "num_cpus",
  "postcard",
  "prost 0.13.1",
  "prost-build 0.13.1",

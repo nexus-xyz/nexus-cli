@@ -1,13 +1,14 @@
 use rayon::prelude::*;
 use std::hint::black_box;
 use std::time::Instant;
+use std::thread::available_parallelism;
 
 const NTESTS: u64 = 1_000_000;
 const OPERATIONS_PER_ITERATION: u64 = 4; // sin, add, multiply, divide
 const NUM_REPEATS: usize = 5; // Number of repeats to average the results
 
-pub fn measure_flops() -> f32 {
-    let num_cores = num_cpus::get() as u64;
+pub fn measure_flops() -> Result<f32, Box<dyn std::error::Error>> {
+    let num_cores: u64 = available_parallelism()?.get().try_into()?;
     println!("Using {} logical cores for FLOPS measurement", num_cores);
 
     let avg_flops: f64 = (0..NUM_REPEATS)
@@ -30,5 +31,5 @@ pub fn measure_flops() -> f32 {
         .sum::<f64>()
         / NUM_REPEATS as f64; // Average the FLOPS over all repeats
 
-    (avg_flops / 1e9) as f32 // Convert to GFLOP/s and cast to f32
+    Ok((avg_flops / 1e9) as f32) // Convert to GFLOP/s and cast to f32
 }
