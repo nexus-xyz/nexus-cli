@@ -42,7 +42,7 @@ incremental = true
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }
 prost = "0.13"
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { default-features = false, version = "0.12", features = ["json"] }
 tokio = { version = "1.38", features = ["full"] }
 home = "0.5.9"
 iana-time-zone = "0.1.60"
@@ -54,10 +54,9 @@ serde_json = { version = "1.0.138" }
 sysinfo = "0.33.1"
 nexus-sdk = { git = "https://github.com/nexus-xyz/nexus-zkvm", tag = "0.3.1" }
 rayon = "1.10"
-num_cpus = "1.16"
 sha3 = "0.10.8"
 log = "0.4.26"
-postcard = "1.1.1"
+postcard = { default-features = false, version = "1.1.1" }
 
 [build-dependencies]
 
