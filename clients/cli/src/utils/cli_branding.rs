@@ -9,11 +9,9 @@ pub const LOGO_NAME: &str = r#"
   ╚═╝  ╚═══╝  ╚══════╝  ╚═╝  ╚═╝   ╚═════╝   ╚══════╝
 "#;
 
-
-
 pub fn print_banner() {
-     // Add ASCII cube logo first
-     let cube_logo = r#"
+    // Add ASCII cube logo first
+    let cube_logo = r#"
        _______
       /      /\
      /______/  \
