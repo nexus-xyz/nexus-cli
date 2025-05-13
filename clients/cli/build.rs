@@ -88,7 +88,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("Generated file saved to: {}", generated_file_path);
 
     // Check if the generated file exists
-    if !fs::metadata(&generated_file_path).is_ok() {
+    if fs::metadata(&generated_file_path).is_err() {
         return Err("Generated file does not exist".into());
     }
 
