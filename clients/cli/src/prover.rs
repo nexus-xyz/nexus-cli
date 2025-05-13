@@ -7,8 +7,8 @@ use crate::orchestrator_client::OrchestratorClient;
 use crate::setup;
 use crate::utils;
 use colored::Colorize;
-use sha3::{Digest, Keccak256};
 use log::{error, warn};
+use sha3::{Digest, Keccak256};
 use std::time::Duration;
 
 /// Proves a program with a given node ID
@@ -24,45 +24,48 @@ async fn authenticated_proving(
         Ok(task) => {
             println!("Successfully fetched task from Nexus Orchestrator.");
             task
-        },
+        }
         Err(_) => {
             println!("Using local inputs.");
             return anonymous_proving();
-        },
+        }
     };
 
-    let public_input: u32 = proof_task.public_inputs.first().cloned().unwrap_or_default() as u32;
+    let public_input: u32 = proof_task
+        .public_inputs
+        .first()
+        .cloned()
+        .unwrap_or_default() as u32;
 
     println!("Compiling guest program...");
     let elf_file_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("assets")
         .join("fib_input");
-    let prover =
-        match Stwo::<Local>::new_from_file(&elf_file_path){
-            Ok(prover) => prover,
-            Err(e) => {
-                error!("Failed to load guest program: {}", e);
-                return Err(e.into())
-            }
-        };
+    let prover = match Stwo::<Local>::new_from_file(&elf_file_path) {
+        Ok(prover) => prover,
+        Err(e) => {
+            error!("Failed to load guest program: {}", e);
+            return Err(e.into());
+        }
+    };
 
     println!("Creating ZK proof with inputs...");
-    let (view, proof) = match prover
-        .prove_with_input::<(), u32>(&(), &public_input){
-            Ok(result) => result,
-            Err(e) => {
-                error!("Failed to run prover: {}", e);
-                return Err(e.into());
-            }
-        };
+    let (view, proof) = match prover.prove_with_input::<(), u32>(&(), &public_input) {
+        Ok(result) => result,
+        Err(e) => {
+            error!("Failed to run prover: {}", e);
+            return Err(e.into());
+        }
+    };
 
-    let code = view.exit_code()
+    let code = view
+        .exit_code()
         .map(|u| u as i32) // convert on success
         .unwrap_or_else(|_err| {
             eprintln!("Failed to retrieve exit code: {:?}", _err);
             -1
         });
-    
+
     assert_eq!(code, 0, "Unexpected exit code!");
 
     let proof_bytes: Vec<u8> = match postcard::to_allocvec(&proof) {
@@ -78,11 +81,12 @@ async fn authenticated_proving(
     println!("Submitting ZK proof to Nexus Orchestrator...");
     if let Err(e) = client
         .submit_proof(&proof_task.task_id, &proof_hash, proof_bytes)
-        .await{
-            error!("Failed to submit proof: {}", e);
-            return Err(e);
-        }
-    
+        .await
+    {
+        error!("Failed to submit proof: {}", e);
+        return Err(e);
+    }
+
     println!("{}", "ZK proof successfully submitted".green());
     Ok(())
 }
@@ -97,11 +101,10 @@ fn anonymous_proving() -> Result<(), Box<dyn std::error::Error>> {
         .join("assets")
         .join("fib_input");
 
-    let prover = Stwo::<Local>::new_from_file(&elf_file_path)
-        .map_err(|e| {
-            error!("Failed to load guest program: {}", e);
-            e
-        })?;
+    let prover = Stwo::<Local>::new_from_file(&elf_file_path).map_err(|e| {
+        error!("Failed to load guest program: {}", e);
+        e
+    })?;
 
     //3. Run the prover
     println!("Creating ZK proof (anonymous)...");
@@ -110,7 +113,7 @@ fn anonymous_proving() -> Result<(), Box<dyn std::error::Error>> {
         .map_err(|e| {
             error!("Failed to run prover: {}", e);
             e
-    })?;
+        })?;
 
     let exit_code = view.exit_code().expect("Failed to retrieve exit code");
     if exit_code != 0 {
@@ -263,7 +266,10 @@ pub async fn start_prover(
                 let mut success = false;
 
                 while attempt <= max_attempts {
-                    println!("Attempt #{} for authenticated proving (node_id={})", attempt, node_id);
+                    println!(
+                        "Attempt #{} for authenticated proving (node_id={})",
+                        attempt, node_id
+                    );
                     match authenticated_proving(&node_id, environment).await {
                         Ok(_) => {
                             println!("Proving succeeded on attempt #{attempt}!");

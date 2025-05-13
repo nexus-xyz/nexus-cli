@@ -1,7 +1,7 @@
 use rayon::prelude::*;
 use std::hint::black_box;
-use std::time::Instant;
 use std::thread::available_parallelism;
+use std::time::Instant;
 
 const NTESTS: u64 = 1_000_000;
 const OPERATIONS_PER_ITERATION: u64 = 4; // sin, add, multiply, divide

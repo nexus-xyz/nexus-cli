@@ -4,7 +4,6 @@ use std::fs;
 use std::process::Command;
 use std::{env, path::Path};
 
-
 /// Compiles the protobuf files into Rust code using prost-build.
 fn main() -> Result<(), Box<dyn Error>> {
     // Skip proto compilation unless build_proto feature is enabled.
