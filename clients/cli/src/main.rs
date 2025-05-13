@@ -2,7 +2,6 @@
 
 mod analytics;
 mod config;
-// mod prover;
 mod flops;
 mod memory_stats;
 #[path = "proto/nexus.orchestrator.rs"]
