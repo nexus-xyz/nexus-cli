@@ -1,5 +1,8 @@
 name: Release
 
+# Trigger the workflow on:
+# - A push event that creates a tag starting with 'v' (e.g., v1.0.0)
+# - A manual trigger via the GitHub Actions UI, with an optional input
 on:
   push:
     tags:
@@ -14,11 +17,13 @@ on:
 
 jobs:
   build:
+    # Define a job to build binaries for multiple OS targets
     name: Build for ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
+        # Map each OS to its Rust target and desired artifact name
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
@@ -31,19 +36,23 @@ jobs:
             artifact_name: nexus-network-windows.exe
 
     steps:
+      # Check out the repository source code
       - uses: actions/checkout@v4
 
+      # Set up the Rust toolchain for the specified target
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
           target: ${{ matrix.target }}
 
+      # Build the release binary for the specified target
       - name: Build
         run: cargo build --release
         env:
           RUSTFLAGS: "-C target-feature=+crt-static"
 
+      # Upload the built binary as an artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -51,18 +60,22 @@ jobs:
           path: target/release/nexus-network${{ matrix.os == 'windows-latest' && '.exe' || '' }}
 
   release:
+    # Define a separate job to create the GitHub release
     name: Create Release
     needs: build
     if: github.event.inputs.create_release == 'true' || github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
+      # Check out the repo again (needed to include metadata like tags)
       - uses: actions/checkout@v4
 
+      # Download all build artifacts uploaded by the matrix build
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
 
+      # Use the `gh-release` action to publish a release with the downloaded binaries
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v2
