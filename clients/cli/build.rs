@@ -23,6 +23,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let generated_file_path = format!("{}/nexus.orchestrator.rs", out_dir);
     if !Path::new(&generated_file_path).exists() {
         println!("cargo:warning=Generated file not found, re-running build script.");
+        // Checking a file that does not exist (i.e., NULL) always triggers a rerun
         println!("cargo:rerun-if-changed=NULL");
     }
 
