@@ -9,7 +9,22 @@ pub const LOGO_NAME: &str = r#"
   ╚═╝  ╚═══╝  ╚══════╝  ╚═╝  ╚═╝   ╚═════╝   ╚══════╝
 "#;
 
+
+
 pub fn print_banner() {
+     // Add ASCII cube logo first
+     let cube_logo = r#"
+       _______
+      /      /\
+     /______/  \
+     \      \  /
+      \______\/
+     "#;
+
+    for line in cube_logo.lines() {
+        println!("{}", line.bright_blue());
+    }
+
     // Split the logo into lines and color them differently
     let logo_lines: Vec<&str> = LOGO_NAME.lines().collect();
     for line in logo_lines {
