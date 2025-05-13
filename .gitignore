@@ -72,3 +72,5 @@ target/
 
 # MacOS Files
 .DS_Store
+
+.idea

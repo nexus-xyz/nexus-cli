@@ -8,3 +8,5 @@ target/
 
 # Generated protobuf files
 **/src/proto/*.rs
+
+.idea
