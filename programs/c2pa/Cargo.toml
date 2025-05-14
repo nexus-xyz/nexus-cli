@@ -8,6 +8,8 @@ crate-type = ["cdylib"]
 
 [dependencies]
 nexus-rt = { git = "https://github.com/nexus-xyz/nexus-zkvm", tag = "0.3.2", default-features = false }
+nexus-sdk = { git = "https://github.com/nexus-xyz/nexus-zkvm", tag = "0.3.2", default-features = false }
+libm = "0.2.8" # For floating point operations in no_std environment
 
 [profile.dev]
 panic = "abort"
