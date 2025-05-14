@@ -89,7 +89,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            artifacts/nexus-network-macos-arm64
+            nexus-network-macos-arm64
           # files: |
           #   artifacts/nexus-network-linux-x86_64
           #  artifacts/nexus-network-linux-arm64
