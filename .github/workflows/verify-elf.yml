@@ -1,0 +1,39 @@
+name: Verify ELF matches source
+
+on:
+  push:
+    paths:
+      - 'clients/cli/src/programs/**'
+      - 'clients/cli/assets/c2pa'
+  pull_request:
+    paths:
+      - 'clients/cli/src/programs/**'
+      - 'clients/cli/assets/c2pa'
+
+jobs:
+  verify-elf:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: riscv32im-unknown-none-elf
+          override: true
+
+      - name: Build ELF
+        run: |
+          cd clients/cli/src/programs
+          cargo build --release --target riscv32im-unknown-none-elf
+
+      - name: Compare ELF files
+        run: |
+          GENERATED="clients/cli/target/riscv32im-unknown-none-elf/release/c2pa"
+          CHECKED_IN="clients/cli/assets/c2pa"
+          if ! cmp -s "$GENERATED" "$CHECKED_IN"; then
+            echo "Error: Generated ELF file does not match checked-in version"
+            echo "Please rebuild the ELF file and commit the changes"
+            exit 1
+          fi 
