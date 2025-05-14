@@ -1,6 +1,6 @@
 [package]
-name = "nexus-network"
-version = "0.7.1"
+name = "nexus-cli"
+version = "0.1.0"
 edition = "2021"
 rust-version = "1.75"
 build = "build.rs"
@@ -11,6 +11,7 @@ build_proto = []
 [workspace]
 members = [
     "examples",
+    "src/programs",
 ]
 
 [workspace.package]

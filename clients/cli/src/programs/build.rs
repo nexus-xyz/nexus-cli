@@ -3,7 +3,6 @@ use std::path::Path;
 use std::process::Command;
 
 fn main() {
-    let out_dir = env::var("OUT_DIR").unwrap();
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
     
     // Compile the default program
@@ -12,8 +11,8 @@ fn main() {
             "build",
             "--release",
             "--target", "riscv32im-unknown-none-elf",
-            "--manifest-path", "src/programs/Cargo.toml",
         ])
+        .current_dir(&manifest_dir)
         .status()
         .expect("Failed to compile default program");
 
@@ -27,6 +26,8 @@ fn main() {
         .join("c2pa");
 
     let elf_dest = Path::new(&manifest_dir)
+        .parent().unwrap() // src
+        .parent().unwrap() // cli
         .join("assets")
         .join("c2pa");
 

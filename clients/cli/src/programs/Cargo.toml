@@ -9,6 +9,13 @@ path = "c2pa.rs"
 
 [dependencies]
 risc0-zkvm = { version = "0.19", default-features = false }
+serde = { version = "1.0", default-features = false, features = ["derive", "alloc"] }
+serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
+hex = { version = "0.4", default-features = false, features = ["alloc"] }
+
+[dev-dependencies]
+ed25519-dalek = "1.0"
+rand = "0.7"
 
 [profile.release]
 opt-level = 3
@@ -19,4 +26,12 @@ lto = true
 panic = 'abort'
 incremental = false
 codegen-units = 1
-rpath = false 
+rpath = false
+
+[features]
+default = ["std"]
+std = [
+    "serde/std",
+    "serde_json/std",
+    "hex/std",
+] 
