@@ -1,5 +1,5 @@
 [package]
-name = "nexus-default-programs"
+name = "nexus-programs"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,30 +8,34 @@ name = "c2pa"
 path = "c2pa.rs"
 
 [dependencies]
-risc0-zkvm = { version = "0.19", default-features = false }
-serde = { version = "1.0", default-features = false, features = ["derive", "alloc"] }
-serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
-hex = { version = "0.4", default-features = false, features = ["alloc"] }
+nexus-sdk = { git = "https://github.com/nexus-xyz/nexus-zkvm", tag = "0.3.1", features = ["guest"] }
+sha3 = "0.10.8"
+hex = { version = "0.4.3", default-features = false }
+serde = { version = "1.0.217", features = ["derive"], default-features = false }
+serde_json = { version = "1.0.138", default-features = false, features = ["alloc"] }
 
 [dev-dependencies]
-ed25519-dalek = "1.0"
-rand = "0.7"
+ed25519-dalek = "1.0.1"
+rand = "0.7.3"
+std = { version = "1.0", package = "std" }
 
-[profile.release]
-opt-level = 3
-debug = false
-debug-assertions = false
-overflow-checks = false
-lto = true
-panic = 'abort'
-incremental = false
-codegen-units = 1
-rpath = false
+[lib]
+name = "nexus_programs"
+path = "src/lib.rs"
 
 [features]
 default = ["std"]
 std = [
     "serde/std",
-    "serde_json/std",
     "hex/std",
-] 
+]
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true 

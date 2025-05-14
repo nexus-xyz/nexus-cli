@@ -1,4 +1,4 @@
-name: ci
+name: CI
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
 
 jobs:
   build:
-    name: Lint CLI and run cargotests
+    name: Build, Test and Lint
     runs-on: ubuntu-latest
 
     steps:
@@ -21,8 +21,10 @@ jobs:
             clients/cli
             proto
 
-      - name: Set up Rust
+      - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
 
       - name: Set up Rust cache
         uses: Swatinem/rust-cache@v2
@@ -34,27 +36,27 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y protobuf-compiler
 
-      - name: Format
+      - name: Check formatting
         working-directory: clients/cli
         run: |
-          rustfmt src/**/*.rs --check --edition 2021
+          cargo fmt --all -- --check
 
       - name: Build
         working-directory: clients/cli
         run: |
           cargo build --profile=ci-build
 
-      - name: Run cargo clippy on /src directory only (not /examples)
+      - name: Run clippy
         working-directory: clients/cli
         run: |
-          cargo clippy --profile=ci-build --no-deps --package nexus-network -- -D warnings
+          cargo clippy --profile=ci-build --all-targets --all-features -- -D warnings
 
-      - name: Test
+      - name: Run tests
         working-directory: clients/cli
         run: |
-          cargo test --profile=ci-build --tests
+          cargo test --profile=ci-build --all-features --all-targets
 
-      - name: Ensure checked in generated files are up to date
+      - name: Check for uncommitted changes
         run: |
           if [ -n "$(git status --porcelain)" ]; then \
               echo "There are uncommitted changes in working tree after building."; \
