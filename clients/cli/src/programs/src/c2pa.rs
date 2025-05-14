@@ -1,8 +1,14 @@
 #![no_std]
 #![no_main]
 
+extern crate alloc;
+
+use alloc::{string::{String, ToString}, vec, vec::Vec};
+use core::{marker::Sized, result::Result, option::Option};
+use core::result::{Result::Ok, Result::Err};
 use nexus_sdk::guest::{self, env};
 use serde::{Deserialize, Serialize};
+use serde::__private::{from_utf8_lossy, Result as SerdeResult};
 use sha3::{Digest, Keccak256};
 
 // Types
