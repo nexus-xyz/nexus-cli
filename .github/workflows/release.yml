@@ -46,7 +46,7 @@ jobs:
           components: rustfmt
 
 
-      - name: Verify toolchain
+      - name: Verify toolchain (debug)
         run: |
           echo "Rust version: $(rustc --version)"
           echo "Rustfmt version: $(rustfmt --version)"
@@ -61,12 +61,24 @@ jobs:
         env:
           RUSTFLAGS: "-C target-feature=+crt-static"
 
-      # Upload the built binary as an artifact
+      # Rename the binary to indicate the target OS
+      - name: Rename binary
+        run: |
+          cp clients/cli/target/release/nexus-network clients/cli/target/release/${{ matrix.artifact_name }}
+
+      # Upload the binary as an artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: clients/cli/target/release/nexus-network${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+          path: clients/cli/target/release/${{ matrix.artifact_name }}
+
+#      # Upload the built binary as an artifact
+#      - name: Upload artifact
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: ${{ matrix.artifact_name }}
+#          path: clients/cli/target/release/nexus-network${{ matrix.os == 'windows-latest' && '.exe' || '' }}
 
 
   release:
@@ -84,8 +96,9 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts
+          merge-multiple: true # Merge multiple artifacts into a single directory
 
-      - name: List downloaded artifacts
+      - name: List downloaded artifacts (debug)
         run: ls -R artifacts
 
       # Use the `gh-release` action to publish a release with the downloaded binaries
@@ -94,7 +107,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            artifacts/nexus-network-macos-arm64/nexus-network
+            artifacts/nexus-network-macos-arm64
           # files: |
           #   artifacts/nexus-network-linux-x86_64
           #  artifacts/nexus-network-linux-arm64
