@@ -1,0 +1,20 @@
+[package]
+name = "c2pa"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+nexus-rt = { git = "https://github.com/nexus-xyz/nexus-zkvm", tag = "0.3.2", default-features = false }
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true 

@@ -1,0 +1,14 @@
+[workspace]
+resolver = "2"
+members = [
+    "c2pa",
+]
+
+[workspace.package]
+edition = "2021"
+version = "0.1.0"
+authors = ["The Nexus Team <hello@nexus.xyz>"]
+homepage = "https://nexus.xyz/"
+keywords = ["nexus", "zero-knowledge", "zkvm", "cryptography", "proofs"]
+categories = ["cryptography"]
+publish = false 
