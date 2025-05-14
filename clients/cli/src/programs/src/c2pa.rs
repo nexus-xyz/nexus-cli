@@ -11,9 +11,14 @@ use core::{
     ops::{FnOnce, Drop, Deref, DerefMut},
     default::Default,
     mem::drop,
+    convert::TryInto,
 };
 use nexus_sdk::guest::{self, env};
 use sha3::{Digest, Keccak256};
+
+// Import serde traits
+use core::result::Result::Ok;
+use core::result::Result::Err;
 
 // Types
 #[derive(Debug, Clone)]
@@ -127,22 +132,16 @@ impl Challenge {
         bytes.extend_from_slice(&self.nonce.to_be_bytes());
         bytes.extend_from_slice(&self.timestamp.to_be_bytes());
         bytes.extend_from_slice(self.orchestrator_id.as_bytes());
-        bytes.extend_from_slice(b"\0");
         bytes
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, &'static str> {
         if bytes.len() < 16 {
-            return Err("Challenge data too short");
+            return Err("Invalid byte length for Challenge");
         }
-
-        let nonce = u64::from_be_bytes(bytes[0..8].try_into().unwrap());
-        let timestamp = u64::from_be_bytes(bytes[8..16].try_into().unwrap());
-        
-        let orchestrator_id = String::from_utf8(bytes[16..].split(|&b| b == 0).next()
-            .ok_or("Missing orchestrator_id")?.to_vec())
-            .map_err(|_| "Invalid orchestrator_id")?;
-
+        let nonce = u64::from_be_bytes(bytes[0..8].try_into().map_err(|_| "Invalid nonce bytes")?);
+        let timestamp = u64::from_be_bytes(bytes[8..16].try_into().map_err(|_| "Invalid timestamp bytes")?);
+        let orchestrator_id = String::from_utf8(bytes[16..].to_vec()).map_err(|_| "Invalid orchestrator_id bytes")?;
         Ok(Self {
             nonce,
             timestamp,
