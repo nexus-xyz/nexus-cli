@@ -78,7 +78,14 @@ jobs:
       # Rename the binary to indicate the target OS
       - name: Rename binary
         run: |
-          cp clients/cli/target/release/nexus-network clients/cli/target/release/${{ matrix.artifact_name }}
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            cp clients/cli/target/release/nexus-network clients/cli/target/release/${{ matrix.artifact_name }}
+          else
+            cp clients/cli/target/${{ matrix.target }}/release/nexus-network clients/cli/target/release/${{ matrix.artifact_name }}
+          fi
+#      - name: Rename binary
+#        run: |
+#          cp clients/cli/target/release/nexus-network clients/cli/target/release/${{ matrix.artifact_name }}
 
       # Upload the binary as an artifact
       - name: Upload artifact
