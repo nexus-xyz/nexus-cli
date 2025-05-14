@@ -41,13 +41,15 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
+          toolchain: nightly-2025-01-02
           target: ${{ matrix.target }}
+          components: rustfmt
 
 
       - name: Verify toolchain
         run: |
           echo "Rust version: $(rustc --version)"
+          echo "Rustfmt version: $(rustfmt --version)"
           echo "Cargo version: $(cargo --version)"
           echo "Target: $(rustc --print target)"
           echo "Host: $(rustc --print host)" 
