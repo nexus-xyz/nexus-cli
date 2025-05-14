@@ -3,18 +3,13 @@
 
 extern crate alloc;
 
-use alloc::{string::{String, ToString}, vec, vec::Vec, collections::BTreeSet, boxed::Box};
-use core::{marker::{Sized, Copy}, result::Result, option::Option, fmt};
-use core::result::{Result::Ok, Result::Err};
-use core::option::{Option::Some, Option::None};
-use core::iter::{Iterator, IntoIterator};
+use alloc::{string::{String, ToString}, vec, vec::Vec, collections::BTreeSet};
+use core::{marker::Sized, result::Result, option::Option};
 use nexus_sdk::guest::{self, env};
-use serde::{Deserialize, Serialize};
-use serde::__private::{from_utf8_lossy, Result as SerdeResult};
 use sha3::{Digest, Keccak256};
 
 // Types
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Clone)]
 pub struct C2PAManifest {
     pub original_hash: String,
     pub compressed_hash: String,
@@ -26,14 +21,92 @@ pub struct C2PAManifest {
     pub version: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+impl C2PAManifest {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(self.original_hash.as_bytes());
+        bytes.extend_from_slice(b"\0");
+        bytes.extend_from_slice(self.compressed_hash.as_bytes());
+        bytes.extend_from_slice(b"\0");
+        bytes.extend_from_slice(&self.timestamp.to_be_bytes());
+        bytes.extend_from_slice(self.signature.as_bytes());
+        bytes.extend_from_slice(b"\0");
+        bytes.extend_from_slice(self.public_key.as_bytes());
+        bytes.extend_from_slice(b"\0");
+        bytes.extend_from_slice(self.compression_algorithm.as_bytes());
+        bytes.extend_from_slice(b"\0");
+        bytes.extend_from_slice(self.software_agent.as_bytes());
+        bytes.extend_from_slice(b"\0");
+        bytes.extend_from_slice(self.version.as_bytes());
+        bytes.extend_from_slice(b"\0");
+        bytes
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, &'static str> {
+        let mut fields = bytes.split(|&b| b == 0);
+        
+        let original_hash = String::from_utf8(fields.next().ok_or("Missing original_hash")?.to_vec())
+            .map_err(|_| "Invalid original_hash")?;
+        let compressed_hash = String::from_utf8(fields.next().ok_or("Missing compressed_hash")?.to_vec())
+            .map_err(|_| "Invalid compressed_hash")?;
+        let timestamp_bytes = fields.next().ok_or("Missing timestamp")?;
+        if timestamp_bytes.len() != 8 {
+            return Err("Invalid timestamp length");
+        }
+        let timestamp = u64::from_be_bytes(timestamp_bytes.try_into().unwrap());
+        let signature = String::from_utf8(fields.next().ok_or("Missing signature")?.to_vec())
+            .map_err(|_| "Invalid signature")?;
+        let public_key = String::from_utf8(fields.next().ok_or("Missing public_key")?.to_vec())
+            .map_err(|_| "Invalid public_key")?;
+        let compression_algorithm = String::from_utf8(fields.next().ok_or("Missing compression_algorithm")?.to_vec())
+            .map_err(|_| "Invalid compression_algorithm")?;
+        let software_agent = String::from_utf8(fields.next().ok_or("Missing software_agent")?.to_vec())
+            .map_err(|_| "Invalid software_agent")?;
+        let version = String::from_utf8(fields.next().ok_or("Missing version")?.to_vec())
+            .map_err(|_| "Invalid version")?;
+
+        Ok(Self {
+            original_hash,
+            compressed_hash,
+            timestamp,
+            signature,
+            public_key,
+            compression_algorithm,
+            software_agent,
+            version,
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct CompressionParams {
     pub target_width: u32,
     pub target_height: u32,
     pub quality: u8,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+impl CompressionParams {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::with_capacity(9);
+        bytes.extend_from_slice(&self.target_width.to_be_bytes());
+        bytes.extend_from_slice(&self.target_height.to_be_bytes());
+        bytes.push(self.quality);
+        bytes
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, &'static str> {
+        if bytes.len() != 9 {
+            return Err("Invalid compression params length");
+        }
+
+        Ok(Self {
+            target_width: u32::from_be_bytes(bytes[0..4].try_into().unwrap()),
+            target_height: u32::from_be_bytes(bytes[4..8].try_into().unwrap()),
+            quality: bytes[8],
+        })
+    }
+}
+
 pub struct ProgramInput {
     pub original_image: Vec<u8>,
     pub compression_params: CompressionParams,
@@ -41,17 +114,130 @@ pub struct ProgramInput {
     pub server_nonce: u64,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+impl ProgramInput {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        
+        // Original image length + data
+        bytes.extend_from_slice(&(self.original_image.len() as u32).to_be_bytes());
+        bytes.extend_from_slice(&self.original_image);
+        
+        // Compression params
+        bytes.extend_from_slice(&self.compression_params.to_bytes());
+        
+        // Manifest
+        let manifest_bytes = self.manifest.to_bytes();
+        bytes.extend_from_slice(&(manifest_bytes.len() as u32).to_be_bytes());
+        bytes.extend_from_slice(&manifest_bytes);
+        
+        // Server nonce
+        bytes.extend_from_slice(&self.server_nonce.to_be_bytes());
+        
+        bytes
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, &'static str> {
+        let mut pos = 0;
+        
+        // Original image
+        if bytes.len() < 4 {
+            return Err("Input too short for image length");
+        }
+        let image_len = u32::from_be_bytes(bytes[0..4].try_into().unwrap()) as usize;
+        pos += 4;
+        
+        if bytes.len() < pos + image_len {
+            return Err("Input too short for image data");
+        }
+        let original_image = bytes[pos..pos + image_len].to_vec();
+        pos += image_len;
+        
+        // Compression params
+        if bytes.len() < pos + 9 {
+            return Err("Input too short for compression params");
+        }
+        let compression_params = CompressionParams::from_bytes(&bytes[pos..pos + 9])?;
+        pos += 9;
+        
+        // Manifest
+        if bytes.len() < pos + 4 {
+            return Err("Input too short for manifest length");
+        }
+        let manifest_len = u32::from_be_bytes(bytes[pos..pos + 4].try_into().unwrap()) as usize;
+        pos += 4;
+        
+        if bytes.len() < pos + manifest_len {
+            return Err("Input too short for manifest data");
+        }
+        let manifest = C2PAManifest::from_bytes(&bytes[pos..pos + manifest_len])?;
+        pos += manifest_len;
+        
+        // Server nonce
+        if bytes.len() < pos + 8 {
+            return Err("Input too short for server nonce");
+        }
+        let server_nonce = u64::from_be_bytes(bytes[pos..pos + 8].try_into().unwrap());
+        
+        Ok(Self {
+            original_image,
+            compression_params,
+            manifest,
+            server_nonce,
+        })
+    }
+}
+
 pub struct ProgramOutput {
     pub success: bool,
     pub error_message: Option<String>,
 }
 
-#[derive(Debug)]
-pub struct Image {
-    pub width: u32,
-    pub height: u32,
-    pub data: Vec<u8>,
+impl ProgramOutput {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        bytes.push(self.success as u8);
+        
+        match &self.error_message {
+            Some(msg) => {
+                bytes.push(1);
+                bytes.extend_from_slice(&(msg.len() as u32).to_be_bytes());
+                bytes.extend_from_slice(msg.as_bytes());
+            }
+            None => {
+                bytes.push(0);
+            }
+        }
+        
+        bytes
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, &'static str> {
+        if bytes.len() < 2 {
+            return Err("Output too short");
+        }
+        
+        let success = bytes[0] != 0;
+        let has_error = bytes[1] != 0;
+        
+        let error_message = if has_error {
+            if bytes.len() < 6 {
+                return Err("Output too short for error message length");
+            }
+            let msg_len = u32::from_be_bytes(bytes[2..6].try_into().unwrap()) as usize;
+            if bytes.len() < 6 + msg_len {
+                return Err("Output too short for error message");
+            }
+            Some(String::from_utf8(bytes[6..6 + msg_len].to_vec())
+                .map_err(|_| "Invalid error message")?)
+        } else {
+            None
+        };
+        
+        Ok(Self {
+            success,
+            error_message,
+        })
+    }
 }
 
 // Helper functions
@@ -172,8 +358,21 @@ pub fn process_image_and_manifest(input: ProgramInput) -> Result<ProgramOutput, 
 guest::entry!(main);
 
 fn main() {
-    // Read the input
-    let input: ProgramInput = guest::read();
+    // Read the input bytes
+    let input_bytes: Vec<u8> = guest::read();
+    
+    // Parse the input
+    let input = match ProgramInput::from_bytes(&input_bytes) {
+        Ok(input) => input,
+        Err(err) => {
+            let output = ProgramOutput {
+                success: false,
+                error_message: Some(err.to_string()),
+            };
+            guest::commit(&output.to_bytes());
+            return;
+        }
+    };
     
     // Process the image and manifest
     let output = match process_image_and_manifest(input) {
@@ -185,7 +384,7 @@ fn main() {
     };
     
     // Commit the output
-    guest::commit(&output);
+    guest::commit(&output.to_bytes());
 }
 
 #[cfg(test)]
