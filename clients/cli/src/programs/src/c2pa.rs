@@ -3,9 +3,11 @@
 
 extern crate alloc;
 
-use alloc::{string::{String, ToString}, vec, vec::Vec};
-use core::{marker::Sized, result::Result, option::Option};
+use alloc::{string::{String, ToString}, vec, vec::Vec, collections::BTreeSet, boxed::Box};
+use core::{marker::{Sized, Copy}, result::Result, option::Option, fmt};
 use core::result::{Result::Ok, Result::Err};
+use core::option::{Option::Some, Option::None};
+use core::iter::{Iterator, IntoIterator};
 use nexus_sdk::guest::{self, env};
 use serde::{Deserialize, Serialize};
 use serde::__private::{from_utf8_lossy, Result as SerdeResult};
@@ -273,8 +275,8 @@ mod tests {
 
         // Verify that the compressed image has reduced quality
         // by checking if the unique color count is less than the original
-        let mut original_colors = std::collections::HashSet::new();
-        let mut compressed_colors = std::collections::HashSet::new();
+        let mut original_colors = BTreeSet::new();
+        let mut compressed_colors = BTreeSet::new();
 
         for chunk in image.data.chunks(3) {
             original_colors.insert((chunk[0], chunk[1], chunk[2]));

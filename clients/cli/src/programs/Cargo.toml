@@ -9,14 +9,14 @@ path = "c2pa.rs"
 
 [dependencies]
 nexus-sdk = { git = "https://github.com/nexus-xyz/nexus-zkvm", tag = "0.3.1" }
-sha3 = "0.10.8"
+sha3 = { version = "0.10.8", default-features = false }
 hex = { version = "0.4.3", default-features = false }
 serde = { version = "1.0.217", features = ["derive", "alloc"], default-features = false }
 serde_json = { version = "1.0.138", default-features = false, features = ["alloc"] }
 
 [dev-dependencies]
-ed25519-dalek = "1.0.1"
-rand = "0.7.3"
+ed25519-dalek = { version = "1.0.1", default-features = false }
+rand = { version = "0.7.3", default-features = false }
 
 [lib]
 name = "nexus_programs"
@@ -27,6 +27,9 @@ default = ["std"]
 std = [
     "serde/std",
     "hex/std",
+    "sha3/std",
+    "ed25519-dalek/std",
+    "rand/std",
 ]
 
 [profile.dev]
