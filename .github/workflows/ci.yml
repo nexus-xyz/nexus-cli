@@ -27,7 +27,7 @@ jobs:
         with:
           toolchain: nightly-2025-01-02
           target: ${{ matrix.target }}
-          components: rustfmt
+          components: rustfmt, clippy
 
       - name: Set up Rust cache
         uses: Swatinem/rust-cache@v2
