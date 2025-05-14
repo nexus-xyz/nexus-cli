@@ -49,7 +49,6 @@ jobs:
           target: ${{ matrix.target }}
           components: rustfmt
 
-
       - name: Debug Rust environment
         run: |
           echo "Rust version: $(rustc --version --verbose)"
@@ -57,13 +56,6 @@ jobs:
           echo "Rustup installed targets: $(rustup target list --installed)"
           echo "Rustup active toolchain: $(rustup show active-toolchain)"
           echo "Host target: $(rustc -vV | grep host)"
-
-#      # Build the release binary for the specified target
-#      - name: Build CLI binary
-#        working-directory: clients/cli
-#        run: cargo build --release
-#        env:
-#          RUSTFLAGS: "-C target-feature=+crt-static"
 
       # Build the release binary for the specified target
       - name: Build CLI binary
@@ -83,9 +75,6 @@ jobs:
           else
             cp clients/cli/target/${{ matrix.target }}/release/nexus-network clients/cli/target/release/${{ matrix.artifact_name }}
           fi
-#      - name: Rename binary
-#        run: |
-#          cp clients/cli/target/release/nexus-network clients/cli/target/release/${{ matrix.artifact_name }}
 
       # Upload the binary as an artifact
       - name: Upload artifact
@@ -93,14 +82,6 @@ jobs:
         with:
           name: ${{ matrix.artifact_name }}
           path: clients/cli/target/release/${{ matrix.artifact_name }}
-
-#      # Upload the built binary as an artifact
-#      - name: Upload artifact
-#        uses: actions/upload-artifact@v4
-#        with:
-#          name: ${{ matrix.artifact_name }}
-#          path: clients/cli/target/release/nexus-network${{ matrix.os == 'windows-latest' && '.exe' || '' }}
-
 
   release:
     # Define a separate job to create the GitHub release
@@ -130,12 +111,6 @@ jobs:
           files: |
             artifacts/nexus-network-macos-arm64
             artifacts/nexus-network-linux-x86_64
-          # files: |
-          #   artifacts/nexus-network-linux-x86_64
-          #  artifacts/nexus-network-linux-arm64
-          #  artifacts/nexus-network-macos-x86_64
-          #  artifacts/nexus-network-macos-arm64
-          #  artifacts/nexus-network-windows-x86_64.exe
           draft: false
           prerelease: false
           generate_release_notes: true
