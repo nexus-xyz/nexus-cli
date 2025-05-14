@@ -71,7 +71,7 @@ jobs:
         working-directory: clients/cli
         run: |
           if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
-            RUSTFLAGS="-C target-feature=+crt-static" cargo build --release
+            cargo build --release
           else
             cargo build --release --target=${{ matrix.target }}
           fi
