@@ -4,7 +4,14 @@
 extern crate alloc;
 
 use alloc::{string::{String, ToString}, vec, vec::Vec, collections::BTreeSet};
-use core::{marker::Sized, result::Result, option::Option};
+use core::{
+    marker::{Sized, Send, Sync},
+    result::Result,
+    option::Option,
+    ops::{FnOnce, Drop, Deref, DerefMut},
+    default::Default,
+    mem::drop,
+};
 use nexus_sdk::guest::{self, env};
 use sha3::{Digest, Keccak256};
 
@@ -107,11 +114,70 @@ impl CompressionParams {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct Challenge {
+    pub nonce: u64,
+    pub timestamp: u64,
+    pub orchestrator_id: String,
+}
+
+impl Challenge {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&self.nonce.to_be_bytes());
+        bytes.extend_from_slice(&self.timestamp.to_be_bytes());
+        bytes.extend_from_slice(self.orchestrator_id.as_bytes());
+        bytes.extend_from_slice(b"\0");
+        bytes
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, &'static str> {
+        if bytes.len() < 16 {
+            return Err("Challenge data too short");
+        }
+
+        let nonce = u64::from_be_bytes(bytes[0..8].try_into().unwrap());
+        let timestamp = u64::from_be_bytes(bytes[8..16].try_into().unwrap());
+        
+        let orchestrator_id = String::from_utf8(bytes[16..].split(|&b| b == 0).next()
+            .ok_or("Missing orchestrator_id")?.to_vec())
+            .map_err(|_| "Invalid orchestrator_id")?;
+
+        Ok(Self {
+            nonce,
+            timestamp,
+            orchestrator_id,
+        })
+    }
+
+    pub fn validate(&self) -> Result<(), &'static str> {
+        let current_time = guest::get_timestamp();
+        
+        // Ensure the challenge hasn't expired (5 minute window)
+        const CHALLENGE_WINDOW: u64 = 300; // 5 minutes in seconds
+        if self.timestamp + CHALLENGE_WINDOW < current_time {
+            return Err("Challenge has expired");
+        }
+        
+        // Ensure the challenge is not from the future
+        if self.timestamp > current_time {
+            return Err("Challenge timestamp is in the future");
+        }
+
+        // Ensure nonce is not zero
+        if self.nonce == 0 {
+            return Err("Invalid challenge nonce");
+        }
+
+        Ok(())
+    }
+}
+
 pub struct ProgramInput {
     pub original_image: Vec<u8>,
     pub compression_params: CompressionParams,
     pub manifest: C2PAManifest,
-    pub server_nonce: u64,
+    pub challenge: Challenge,
 }
 
 impl ProgramInput {
@@ -130,8 +196,10 @@ impl ProgramInput {
         bytes.extend_from_slice(&(manifest_bytes.len() as u32).to_be_bytes());
         bytes.extend_from_slice(&manifest_bytes);
         
-        // Server nonce
-        bytes.extend_from_slice(&self.server_nonce.to_be_bytes());
+        // Challenge
+        let challenge_bytes = self.challenge.to_bytes();
+        bytes.extend_from_slice(&(challenge_bytes.len() as u32).to_be_bytes());
+        bytes.extend_from_slice(&challenge_bytes);
         
         bytes
     }
@@ -172,17 +240,23 @@ impl ProgramInput {
         let manifest = C2PAManifest::from_bytes(&bytes[pos..pos + manifest_len])?;
         pos += manifest_len;
         
-        // Server nonce
-        if bytes.len() < pos + 8 {
-            return Err("Input too short for server nonce");
+        // Challenge
+        if bytes.len() < pos + 4 {
+            return Err("Input too short for challenge length");
         }
-        let server_nonce = u64::from_be_bytes(bytes[pos..pos + 8].try_into().unwrap());
+        let challenge_len = u32::from_be_bytes(bytes[pos..pos + 4].try_into().unwrap()) as usize;
+        pos += 4;
+        
+        if bytes.len() < pos + challenge_len {
+            return Err("Input too short for challenge data");
+        }
+        let challenge = Challenge::from_bytes(&bytes[pos..pos + challenge_len])?;
         
         Ok(Self {
             original_image,
             compression_params,
             manifest,
-            server_nonce,
+            challenge,
         })
     }
 }
@@ -238,6 +312,13 @@ impl ProgramOutput {
             error_message,
         })
     }
+}
+
+#[derive(Debug)]
+pub struct Image {
+    pub width: u32,
+    pub height: u32,
+    pub data: Vec<u8>,
 }
 
 // Helper functions
@@ -318,6 +399,9 @@ pub fn image_to_bytes(image: &Image) -> Vec<u8> {
 }
 
 pub fn process_image_and_manifest(input: ProgramInput) -> Result<ProgramOutput, &'static str> {
+    // Validate the challenge first
+    input.challenge.validate()?;
+    
     // Parse and validate the original image
     let image = parse_image(&input.original_image)?;
     
@@ -341,11 +425,6 @@ pub fn process_image_and_manifest(input: ProgramInput) -> Result<ProgramOutput, 
     let current_time = guest::get_timestamp();
     if input.manifest.timestamp > current_time {
         return Err("Future timestamp not allowed");
-    }
-    
-    // Verify the server nonce
-    if input.server_nonce == 0 {
-        return Err("Invalid server nonce");
     }
     
     Ok(ProgramOutput {
@@ -392,41 +471,59 @@ mod tests {
     use super::*;
     use crate::test_utils::{create_standard_test_image, create_standard_test_manifest};
 
+    fn create_test_challenge() -> Challenge {
+        Challenge {
+            nonce: 12345,
+            timestamp: guest::get_timestamp(),
+            orchestrator_id: "test-orchestrator".to_string(),
+        }
+    }
+
+    #[test]
+    fn test_challenge_validation() {
+        let mut challenge = create_test_challenge();
+        assert!(challenge.validate().is_ok());
+
+        // Test expired challenge
+        challenge.timestamp = guest::get_timestamp() - 301; // 5 minutes + 1 second ago
+        assert!(challenge.validate().is_err());
+
+        // Test future challenge
+        challenge.timestamp = guest::get_timestamp() + 1;
+        assert!(challenge.validate().is_err());
+
+        // Test invalid nonce
+        challenge.timestamp = guest::get_timestamp();
+        challenge.nonce = 0;
+        assert!(challenge.validate().is_err());
+    }
+
     #[test]
     fn test_image_compression() {
-        // Use standard test image
         let original_image = create_standard_test_image();
-        
-        // Create compression parameters
         let params = CompressionParams {
-            target_width: 16,  // Half size
+            target_width: 16,
             target_height: 16,
             quality: 90,
         };
 
-        // Parse original image
         let image = parse_image(&original_image).unwrap();
-        
-        // Compress image
         let compressed = compress_image(&image, &params).unwrap();
         let compressed_bytes = image_to_bytes(&compressed);
 
-        // Create manifest with standard timestamp
         let timestamp = 1234567890;
         let manifest = create_standard_test_manifest(&original_image, &compressed_bytes, timestamp);
+        let challenge = create_test_challenge();
 
-        // Create program input
         let input = ProgramInput {
             original_image,
             compression_params: params,
             manifest,
-            server_nonce: 12345,
+            challenge,
         };
 
-        // Run the program
         let result = process_image_and_manifest(input);
         assert!(result.is_ok());
-
         let output = result.unwrap();
         assert!(output.success);
         assert!(output.error_message.is_none());
@@ -449,11 +546,13 @@ mod tests {
         // Create manifest with wrong timestamp to invalidate signature
         let manifest = create_standard_test_manifest(&original_image, &compressed_bytes, 9999999999);
 
+        let challenge = create_test_challenge();
+
         let input = ProgramInput {
             original_image,
             compression_params: params,
             manifest,
-            server_nonce: 12345,
+            challenge,
         };
 
         let result = process_image_and_manifest(input);
@@ -520,39 +619,13 @@ mod tests {
         let future_timestamp = guest::get_timestamp() + 1000000;
         let manifest = create_standard_test_manifest(&original_image, &compressed_bytes, future_timestamp);
 
+        let challenge = create_test_challenge();
+
         let input = ProgramInput {
             original_image,
             compression_params: params,
             manifest,
-            server_nonce: 12345,
-        };
-
-        let result = process_image_and_manifest(input);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_server_nonce_validation() {
-        let original_image = create_standard_test_image();
-        
-        let params = CompressionParams {
-            target_width: 16,
-            target_height: 16,
-            quality: 90,
-        };
-
-        let image = parse_image(&original_image).unwrap();
-        let compressed = compress_image(&image, &params).unwrap();
-        let compressed_bytes = image_to_bytes(&compressed);
-
-        let manifest = create_standard_test_manifest(&original_image, &compressed_bytes, 1234567890);
-
-        // Test with invalid nonce
-        let input = ProgramInput {
-            original_image,
-            compression_params: params,
-            manifest,
-            server_nonce: 0, // Invalid nonce
+            challenge,
         };
 
         let result = process_image_and_manifest(input);

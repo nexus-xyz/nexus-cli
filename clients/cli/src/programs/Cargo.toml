@@ -8,9 +8,10 @@ name = "c2pa"
 path = "c2pa.rs"
 
 [dependencies]
-nexus-sdk = { git = "https://github.com/nexus-xyz/nexus-zkvm", tag = "0.3.1" }
+nexus-sdk = { git = "https://github.com/nexus-xyz/nexus-zkvm", tag = "0.3.1", default-features = false, features = ["no_std"] }
 sha3 = { version = "0.10.8", default-features = false }
 hex = { version = "0.4.3", default-features = false }
+once_cell = { version = "1.19.0", default-features = false, features = ["alloc"] }
 
 [dev-dependencies]
 ed25519-dalek = { version = "1.0.1", default-features = false }
@@ -27,6 +28,8 @@ std = [
     "sha3/std",
     "ed25519-dalek/std",
     "rand/std",
+    "once_cell/std",
+    "nexus-sdk/std"
 ]
 
 [profile.dev]

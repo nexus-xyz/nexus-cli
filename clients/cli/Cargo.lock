@@ -1357,6 +1357,7 @@ dependencies = [
  "ed25519-dalek",
  "hex",
  "nexus-sdk",
+ "once_cell",
  "rand 0.7.3",
  "sha3",
 ]
