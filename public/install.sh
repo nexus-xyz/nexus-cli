@@ -68,8 +68,8 @@ case "$(uname -s)" in
             *)
                 echo "${RED}Unsupported architecture: $(uname -m)${NC}"
                 echo "Please build from source:"
-                echo "  git clone https://github.com/nexus-xyz/network-api.git"
-                echo "  cd network-api/clients/cli"
+                echo "  git clone https://github.com/nexus-xyz/nexus-cli.git"
+                echo "  cd nexus-cli/clients/cli"
                 echo "  cargo build --release"
                 exit 1
                 ;;
@@ -91,8 +91,8 @@ case "$(uname -s)" in
             *)
                 echo "${RED}Unsupported architecture: $(uname -m)${NC}"
                 echo "Please build from source:"
-                echo "  git clone https://github.com/nexus-xyz/network-api.git"
-                echo "  cd network-api/clients/cli"
+                echo "  git clone https://github.com/nexus-xyz/nexus-cli.git"
+                echo "  cd nexus-cli/clients/cli"
                 echo "  cargo build --release"
                 exit 1
                 ;;
@@ -108,8 +108,8 @@ case "$(uname -s)" in
             *)
                 echo "${RED}Unsupported architecture: $(uname -m)${NC}"
                 echo "Please build from source:"
-                echo "  git clone https://github.com/nexus-xyz/network-api.git"
-                echo "  cd network-api/clients/cli"
+                echo "  git clone https://github.com/nexus-xyz/nexus-cli.git"
+                echo "  cd nexus-cli/clients/cli"
                 echo "  cargo build --release"
                 exit 1
                 ;;
@@ -118,23 +118,23 @@ case "$(uname -s)" in
     *)
         echo "${RED}Unsupported platform: $(uname -s)${NC}"
         echo "Please build from source:"
-        echo "  git clone https://github.com/nexus-xyz/network-api.git"
-        echo "  cd network-api/clients/cli"
+        echo "  git clone https://github.com/nexus-xyz/nexus-cli.git"
+        echo "  cd nexus-cli/clients/cli"
         echo "  cargo build --release"
         exit 1
         ;;
 esac
 
 # Get the latest release URL
-LATEST_RELEASE_URL=$(curl -s https://api.github.com/repos/nexus-xyz/network-api/releases/latest |
+LATEST_RELEASE_URL=$(curl -s https://api.github.com/repos/nexus-xyz/nexus-cli/releases/latest |
     grep "browser_download_url.*$BINARY_NAME" |
     cut -d '"' -f 4)
 
 if [ -z "$LATEST_RELEASE_URL" ]; then
     echo "${RED}Could not find a precompiled binary for $PLATFORM-$ARCH${NC}"
     echo "Please build from source:"
-    echo "  git clone https://github.com/nexus-xyz/network-api.git"
-    echo "  cd network-api/clients/cli"
+    echo "  git clone https://github.com/nexus-xyz/nexus-cli.git"
+    echo "  cd nexus-cli/clients/cli"
     echo "  cargo build --release"
     exit 1
 fi
