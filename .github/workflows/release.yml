@@ -51,20 +51,30 @@ jobs:
           components: rustfmt
 
 
-      - name: Verify toolchain (debug)
+      - name: Debug Rust environment
         run: |
-          echo "Rust version: $(rustc --version)"
-          echo "Rustfmt version: $(rustfmt --version)"
+          echo "Rust version: $(rustc --version --verbose)"
           echo "Cargo version: $(cargo --version)"
-          echo "Target: $(rustc --print target)"
-          echo "Host: $(rustc --print host)" 
+          echo "Rustup installed targets: $(rustup target list --installed)"
+          echo "Rustup active toolchain: $(rustup show active-toolchain)"
+          echo "Host target: $(rustc -vV | grep host)"
+
+#      # Build the release binary for the specified target
+#      - name: Build CLI binary
+#        working-directory: clients/cli
+#        run: cargo build --release
+#        env:
+#          RUSTFLAGS: "-C target-feature=+crt-static"
 
       # Build the release binary for the specified target
       - name: Build CLI binary
         working-directory: clients/cli
-        run: cargo build --release
-        env:
-          RUSTFLAGS: "-C target-feature=+crt-static"
+        run: |
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            RUSTFLAGS="-C target-feature=+crt-static" cargo build --release
+          else
+            cargo build --release --target=${{ matrix.target }}
+          fi
 
       # Rename the binary to indicate the target OS
       - name: Rename binary
