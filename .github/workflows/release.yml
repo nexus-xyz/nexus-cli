@@ -22,7 +22,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-latest] # todo: ubuntu-latest, windows-latest
         # Map each OS to its Rust target and desired artifact name
         include:
           # macOS ARM64
