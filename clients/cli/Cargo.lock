@@ -503,6 +503,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "22ec99545bb0ed0ea7bb9b8e1e9122ea386ff8a48c0922e43f36d45ab09e0e80"
 
 [[package]]
+name = "crunchy"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "43da5946c66ffcc7745f48db692ffbb10a83bfe0afd96235c5c2a4fb23994929"
+
+[[package]]
 name = "crypto"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1139,6 +1145,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1286,7 +1301,7 @@ dependencies = [
  "iana-time-zone",
  "log",
  "md5",
- "nexus-sdk",
+ "nexus-sdk 0.3.1",
  "postcard",
  "prost 0.13.1",
  "prost-build 0.13.1",
@@ -1311,12 +1326,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "nexus-common"
+version = "0.3.2"
+source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.2#7b6597a4cf8c0d5c5149aa3053187ae47aaec86d"
+dependencies = [
+ "rrs-lib",
+ "serde",
+ "thiserror 2.0.11",
+ "variant_count",
+]
+
+[[package]]
 name = "nexus-core"
 version = "0.3.1"
 source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.1#56ab8e5b953de45903ae9dfde498e8413a9c611b"
 dependencies = [
- "nexus-vm",
- "nexus-vm-prover",
+ "nexus-vm 0.3.1",
+ "nexus-vm-prover 0.3.1",
+]
+
+[[package]]
+name = "nexus-core"
+version = "0.3.2"
+source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.2#7b6597a4cf8c0d5c5149aa3053187ae47aaec86d"
+dependencies = [
+ "nexus-vm 0.3.2",
+ "nexus-vm-prover 0.3.2",
 ]
 
 [[package]]
@@ -1324,7 +1359,21 @@ name = "nexus-precompile-macros"
 version = "0.1.0"
 source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.1#56ab8e5b953de45903ae9dfde498e8413a9c611b"
 dependencies = [
- "nexus-common",
+ "nexus-common 0.3.1",
+ "proc-macro-crate 3.2.0",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_json",
+ "syn 2.0.96",
+]
+
+[[package]]
+name = "nexus-precompile-macros"
+version = "0.1.0"
+source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.2#7b6597a4cf8c0d5c5149aa3053187ae47aaec86d"
+dependencies = [
+ "nexus-common 0.3.2",
  "proc-macro-crate 3.2.0",
  "proc-macro2",
  "quote",
@@ -1338,8 +1387,17 @@ name = "nexus-precompiles"
 version = "0.3.1"
 source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.1#56ab8e5b953de45903ae9dfde498e8413a9c611b"
 dependencies = [
- "nexus-common",
- "nexus-precompile-macros",
+ "nexus-common 0.3.1",
+ "nexus-precompile-macros 0.1.0 (git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.1)",
+]
+
+[[package]]
+name = "nexus-precompiles"
+version = "0.3.2"
+source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.2#7b6597a4cf8c0d5c5149aa3053187ae47aaec86d"
+dependencies = [
+ "nexus-common 0.3.2",
+ "nexus-precompile-macros 0.1.0 (git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.2)",
 ]
 
 [[package]]
@@ -1351,12 +1409,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "nexus-profiler"
+version = "0.3.2"
+source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.2#7b6597a4cf8c0d5c5149aa3053187ae47aaec86d"
+dependencies = [
+ "pprof",
+]
+
+[[package]]
 name = "nexus-programs"
 version = "0.1.0"
 dependencies = [
  "ed25519-dalek",
  "hex",
- "nexus-sdk",
+ "nexus-sdk 0.3.2",
  "once_cell",
  "rand 0.7.3",
  "sha3",
@@ -1390,9 +1456,25 @@ source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.1#56ab8e5b953de459
 dependencies = [
  "crypto",
  "crypto-common",
- "nexus-common",
- "nexus-core",
- "nexus-sdk-macros",
+ "nexus-common 0.3.1",
+ "nexus-core 0.3.1",
+ "nexus-sdk-macros 0.3.1",
+ "postcard",
+ "serde",
+ "thiserror 1.0.63",
+ "uuid",
+]
+
+[[package]]
+name = "nexus-sdk"
+version = "0.3.2"
+source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.2#7b6597a4cf8c0d5c5149aa3053187ae47aaec86d"
+dependencies = [
+ "crypto",
+ "crypto-common",
+ "nexus-common 0.3.2",
+ "nexus-core 0.3.2",
+ "nexus-sdk-macros 0.3.2",
  "postcard",
  "serde",
  "thiserror 1.0.63",
@@ -1404,7 +1486,19 @@ name = "nexus-sdk-macros"
 version = "0.3.1"
 source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.1#56ab8e5b953de45903ae9dfde498e8413a9c611b"
 dependencies = [
- "nexus-profiler",
+ "nexus-profiler 0.3.1",
+ "proc-macro-crate 3.2.0",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "nexus-sdk-macros"
+version = "0.3.2"
+source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.2#7b6597a4cf8c0d5c5149aa3053187ae47aaec86d"
+dependencies = [
+ "nexus-profiler 0.3.2",
  "proc-macro-crate 3.2.0",
  "proc-macro2",
  "quote",
@@ -1417,8 +1511,8 @@ version = "0.3.1"
 source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.1#56ab8e5b953de45903ae9dfde498e8413a9c611b"
 dependencies = [
  "elf",
- "nexus-common",
- "nexus-precompiles",
+ "nexus-common 0.3.1",
+ "nexus-precompiles 0.3.1",
  "num-derive",
  "num-traits",
  "once_cell",
@@ -1434,25 +1528,79 @@ dependencies = [
 ]
 
 [[package]]
+name = "nexus-vm"
+version = "0.3.2"
+source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.2#7b6597a4cf8c0d5c5149aa3053187ae47aaec86d"
+dependencies = [
+ "elf",
+ "itertools 0.14.0",
+ "nexus-common 0.3.2",
+ "nexus-precompiles 0.3.2",
+ "num-derive",
+ "num-traits",
+ "once_cell",
+ "rangemap",
+ "rrs-lib",
+ "rustc-hash",
+ "serde",
+ "serde_arrays",
+ "tempfile",
+ "thiserror 2.0.11",
+ "tiny-keccak",
+ "tracing",
+ "tracing-subscriber",
+ "tracing-test",
+ "variant_count",
+]
+
+[[package]]
 name = "nexus-vm-prover"
 version = "0.3.1"
 source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.1#56ab8e5b953de45903ae9dfde498e8413a9c611b"
 dependencies = [
  "impl-trait-for-tuples",
  "itertools 0.13.0",
- "nexus-common",
- "nexus-vm",
- "nexus-vm-prover-macros",
+ "nexus-common 0.3.1",
+ "nexus-vm 0.3.1",
+ "nexus-vm-prover-macros 0.3.1",
  "num-traits",
  "rayon",
  "serde",
- "stwo-prover",
+ "stwo-prover 0.1.1 (git+https://github.com/starkware-libs/stwo?rev=a194fad)",
+]
+
+[[package]]
+name = "nexus-vm-prover"
+version = "0.3.2"
+source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.2#7b6597a4cf8c0d5c5149aa3053187ae47aaec86d"
+dependencies = [
+ "impl-trait-for-tuples",
+ "itertools 0.13.0",
+ "nexus-common 0.3.2",
+ "nexus-vm 0.3.2",
+ "nexus-vm-prover-macros 0.3.2",
+ "num-traits",
+ "rayon",
+ "serde",
+ "stwo-prover 0.1.1 (git+https://github.com/starkware-libs/stwo?rev=61d1f6b)",
+ "tiny-keccak",
 ]
 
 [[package]]
 name = "nexus-vm-prover-macros"
 version = "0.3.1"
 source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.1#56ab8e5b953de45903ae9dfde498e8413a9c611b"
+dependencies = [
+ "convert_case",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "nexus-vm-prover-macros"
+version = "0.3.2"
+source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.2#7b6597a4cf8c0d5c5149aa3053187ae47aaec86d"
 dependencies = [
  "convert_case",
  "proc-macro2",
@@ -1988,6 +2136,9 @@ name = "rangemap"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f60fcc7d6849342eff22c4350c8b9a989ee8ceabc4b481253e8946b9fe83d684"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "rayon"
@@ -2147,6 +2298,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "719b953e2095829ee67db738b3bfa9fa368c94900df327b3f07fe6e794d2fe1f"
 
 [[package]]
+name = "rustc-hash"
+version = "2.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "357703d41365b4b27c590e3ed91eabb1b663f07c4c084095e60cbed4362dff0d"
+
+[[package]]
 name = "rustc_version"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2265,6 +2422,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "02fc4265df13d6fa1d00ecff087228cc0a2b5f3c0e87e258d8b94a156e984c70"
 dependencies = [
  "serde_derive",
+]
+
+[[package]]
+name = "serde_arrays"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "94a16b99c5ea4fe3daccd14853ad260ec00ea043b2708d1fd1da3106dcd8d9df"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -2469,6 +2635,27 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 [[package]]
 name = "stwo-prover"
 version = "0.1.1"
+source = "git+https://github.com/starkware-libs/stwo?rev=61d1f6b#61d1f6bf6d2913e6951b837526c2ce1f7f661414"
+dependencies = [
+ "blake2",
+ "blake3",
+ "bytemuck",
+ "cfg-if",
+ "educe",
+ "hex",
+ "itertools 0.12.1",
+ "num-traits",
+ "rand 0.8.5",
+ "serde",
+ "starknet-crypto",
+ "starknet-ff",
+ "thiserror 1.0.63",
+ "tracing",
+]
+
+[[package]]
+name = "stwo-prover"
+version = "0.1.1"
 source = "git+https://github.com/starkware-libs/stwo?rev=a194fad#a194fad63ea75d93e5fe5a4ef50029dccadc51c1"
 dependencies = [
  "blake2",
@@ -2641,6 +2828,15 @@ checksum = "8b9ef9bad013ada3808854ceac7b46812a6465ba368859a37e2100283d2d719c"
 dependencies = [
  "cfg-if",
  "once_cell",
+]
+
+[[package]]
+name = "tiny-keccak"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c9d3793400a45f954c52e73d068316d76b6f4e36977e3fcebb13a2721e80237"
+dependencies = [
+ "crunchy",
 ]
 
 [[package]]
