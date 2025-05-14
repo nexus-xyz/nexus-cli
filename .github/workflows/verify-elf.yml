@@ -14,26 +14,47 @@ jobs:
   verify-elf:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v4
         with:
-          toolchain: stable
+          sparse-checkout: |
+            clients/cli
+            proto
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
           target: riscv32im-unknown-none-elf
-          override: true
+          components: rustfmt, clippy
 
-      - name: Build ELF
+      - name: Set up Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ./clients/cli
+
+      - name: Build and verify ELF
+        working-directory: clients/cli/src/programs
         run: |
-          cd clients/cli/src/programs
+          # Build the ELF file
           cargo build --release --target riscv32im-unknown-none-elf
-
-      - name: Compare ELF files
-        run: |
-          GENERATED="clients/cli/target/riscv32im-unknown-none-elf/release/c2pa"
-          CHECKED_IN="clients/cli/assets/c2pa"
+          
+          # Get paths
+          GENERATED="../../target/riscv32im-unknown-none-elf/release/c2pa"
+          CHECKED_IN="../../assets/c2pa"
+          
+          # Compare ELF files
           if ! cmp -s "$GENERATED" "$CHECKED_IN"; then
             echo "Error: Generated ELF file does not match checked-in version"
             echo "Please rebuild the ELF file and commit the changes"
+            
+            # Show diff stats for debugging
+            echo "Size difference:"
+            ls -l "$GENERATED" "$CHECKED_IN"
+            
+            # Show binary diff summary
+            echo "Binary diff summary:"
+            cmp -l "$GENERATED" "$CHECKED_IN" | head -n 5
+            
             exit 1
+          else
+            echo "✓ ELF verification passed: Generated file matches checked-in version"
           fi 
