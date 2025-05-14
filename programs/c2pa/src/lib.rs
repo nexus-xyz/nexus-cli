@@ -8,21 +8,21 @@ mod compression;
 use alloc::{string::String, vec::Vec};
 use nexus_rt::println;
 use nexus_sdk::{precompile, ed25519};
-use compression::{CompressionParams, verify_compression};
+pub use compression::{CompressionParams, compress_image, verify_compression};
 
 // C2PA manifest structure
 #[derive(Default)]
-struct C2paManifest {
-    original_hash: [u8; 32],
-    compressed_hash: [u8; 32],
-    timestamp: u64,
-    signature: Vec<u8>,
-    public_key: [u8; 32],
-    compression_params: CompressionParams,
+pub struct C2paManifest {
+    pub original_hash: [u8; 32],
+    pub compressed_hash: [u8; 32],
+    pub timestamp: u64,
+    pub signature: Vec<u8>,
+    pub public_key: [u8; 32],
+    pub compression_params: CompressionParams,
 }
 
 impl C2paManifest {
-    fn verify(&self, nonce: u64) -> bool {
+    pub fn verify(&self, nonce: u64) -> bool {
         // Build signing payload
         let mut payload = Vec::new();
         payload.extend_from_slice(&self.original_hash);
@@ -42,7 +42,7 @@ impl C2paManifest {
         ed25519::verify(&payload_hash, &self.signature, &self.public_key)
     }
 
-    fn parse(data: &[u8]) -> Option<Self> {
+    pub fn parse(data: &[u8]) -> Option<Self> {
         if data.len() < 113 { // 32 + 32 + 8 + 32 + 1 + 8 bytes minimum
             return None;
         }

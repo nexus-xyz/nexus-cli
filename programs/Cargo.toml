@@ -11,4 +11,9 @@ authors = ["The Nexus Team <hello@nexus.xyz>"]
 homepage = "https://nexus.xyz/"
 keywords = ["nexus", "zero-knowledge", "zkvm", "cryptography", "proofs"]
 categories = ["cryptography"]
-publish = false 
+publish = false
+
+[workspace.dependencies]
+nexus-rt = { git = "https://github.com/nexus-xyz/nexus-zkvm", tag = "0.3.2", default-features = false }
+nexus-sdk = { git = "https://github.com/nexus-xyz/nexus-zkvm", tag = "0.3.2", default-features = false }
+libm = "0.2.8" 
