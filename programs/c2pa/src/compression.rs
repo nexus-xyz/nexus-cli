@@ -2,6 +2,7 @@
 
 use alloc::vec::Vec;
 
+#[derive(Default)]
 pub struct CompressionParams {
     pub target_width: u32,
     pub target_height: u32,
@@ -20,7 +21,7 @@ impl CompressionParams {
 }
 
 pub fn compress_image(
-    original: &[u8],
+    _original: &[u8],
     params: &CompressionParams,
 ) -> Option<Vec<u8>> {
     if !params.validate() {

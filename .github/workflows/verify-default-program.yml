@@ -1,0 +1,102 @@
+name: Verify Default Program
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'programs/c2pa/**'
+      - '.github/workflows/verify-default-program.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'programs/c2pa/**'
+      - '.github/workflows/verify-default-program.yml'
+
+env:
+  CARGO_TERM_COLOR: always
+  DEFAULT_PROGRAM_PATH: clients/cli/src/default_program.elf
+
+jobs:
+  verify-elf:
+    name: Verify Default Program ELF
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: wasm32-unknown-unknown
+          override: true
+          components: rustfmt, clippy
+      
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Check formatting
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+      
+      - name: Run clippy
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --all-targets --all-features -- -D warnings
+      
+      - name: Run tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --all-features --workspace
+      
+      - name: Build default program
+        run: |
+          cd programs/c2pa
+          cargo build --release --target wasm32-unknown-unknown
+          
+      - name: Compare ELF files
+        run: |
+          # Get hash of newly built program
+          NEW_HASH=$(sha256sum target/wasm32-unknown-unknown/release/c2pa.wasm | cut -d ' ' -f 1)
+          
+          # Get hash of existing default program
+          OLD_HASH=$(sha256sum $DEFAULT_PROGRAM_PATH | cut -d ' ' -f 1)
+          
+          if [ "$NEW_HASH" != "$OLD_HASH" ]; then
+            echo "❌ Default program mismatch!"
+            echo "Expected: $OLD_HASH"
+            echo "Got:      $NEW_HASH"
+            echo ""
+            echo "The compiled program differs from the default program checked into the CLI."
+            echo "This could mean:"
+            echo "1. You made changes to the C2PA program but didn't update the default program"
+            echo "2. The build environment produced different output"
+            echo ""
+            echo "To fix:"
+            echo "1. If changes were intentional, copy the new program to the CLI:"
+            echo "   cp target/wasm32-unknown-unknown/release/c2pa.wasm $DEFAULT_PROGRAM_PATH"
+            echo "2. Commit both the program changes and the new default program"
+            exit 1
+          fi
+          
+          echo "✅ Default program verified!"
+          
+      - name: Upload artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: program-artifacts
+          path: |
+            target/wasm32-unknown-unknown/release/c2pa.wasm
+            ${{ env.DEFAULT_PROGRAM_PATH }}
+          retention-days: 7 

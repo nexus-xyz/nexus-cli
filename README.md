@@ -7,17 +7,74 @@
 
 A high-performance command-line interface for contributing proofs to the Nexus network.
 
-<figure>
-    <a href="https://beta.nexus.xyz/">
-        <img src="assets/images/nexus-network-image.png" alt="Nexus Network visualization showing a distributed network of interconnected nodes with a 'Launch Network' button in the center">
-    </a>
-    <figcaption>
-        <strong>Verifiable Computation on a Global Scale</strong><br>
-        We're building a global distributed prover network to unite the world's computers and power a new and better Internet: the Verifiable Internet. Connect to the beta and give it a try today.
-    </figcaption>
-</figure>
+## Repository Structure
 
-## Nexus Network
+```txt
+nexus-cli/
+├── programs/          # Default zkVM programs
+│   └── c2pa/         # C2PA image verification program
+├── clients/
+│   └── cli/          # Main CLI implementation
+├── proto/            # Shared network interface definition
+└── public/           # Files hosted at cli.nexus.xyz
+```
+
+## Programs
+
+The [programs](programs/) directory contains the default zkVM programs that ship with the CLI:
+
+- [C2PA Image Verification](programs/c2pa/README.md) - Verifies image compression with C2PA manifests
+
+## CLI Documentation
+
+For CLI installation and usage instructions, see the sections below.
+
+# Nexus CLI and Programs
+
+This repository contains the Nexus command-line interface (CLI) and a collection of zkVM programs.
+
+## Programs
+
+### [C2PA Image Compression Verification](programs/c2pa/README.md)
+
+A zkVM program that verifies image compression while maintaining C2PA manifest integrity. This program demonstrates:
+- Zero-knowledge proof generation for image transformations
+- C2PA manifest validation
+- Cryptographic verification of content provenance
+- Integration with public knowledge repositories (NASA, Wikimedia)
+
+## Development
+
+### Prerequisites
+
+- Rust toolchain (latest stable)
+- Git
+
+### Building
+
+```bash
+cargo build --release
+```
+
+### Testing
+
+```bash
+cargo test --workspace
+```
+
+### Contributing
+
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a new Pull Request
+
+## License
+
+This project is licensed under the same terms as the Nexus zkVM project.
+
+# Nexus Network
 
 [Nexus](https://nexus.xyz/) is a global distributed prover network that unites the world's computers to power a new and better Internet: the Verifiable Internet.
 
@@ -38,9 +95,9 @@ For the simplest one-command install (especially for local testing or personal u
 curl https://cli.nexus.xyz/ | sh
 ```
 
-**Note:** This script automatically installs Rust if you don’t have it and prompts for Terms of Use in an interactive shell.
+**Note:** This script automatically installs Rust if you don't have it and prompts for Terms of Use in an interactive shell.
 
-Alternatively, if you’ve already downloaded `install.sh`:
+Alternatively, if you've already downloaded `install.sh`:
 
 ```bash
 ./install.sh
@@ -88,7 +145,7 @@ Building from source or running a downloaded script gives you more control over 
 
 If you want to simulate `curl https://cli.nexus.xyz/ | sh` **locally**:
 
-1. In the project’s root directory, start a local server:
+1. In the project's root directory, start a local server:
    ```sh
    python3 -m http.server 8080
    ```
@@ -98,7 +155,7 @@ If you want to simulate `curl https://cli.nexus.xyz/ | sh` **locally**:
    ```
 3. Observe the script output and verify installation logic.
 
-If you don’t have Rust installed, you will be prompted to install it (unless `NONINTERACTIVE=1` is set).
+If you don't have Rust installed, you will be prompted to install it (unless `NONINTERACTIVE=1` is set).
 
 ---
 
@@ -138,7 +195,7 @@ or `export NONINTERACTIVE=1` before invoking the curl installer.
 
 ## Node ID
 
-During the CLI’s startup, you’ll be asked for your node ID. To skip prompts in a
+During the CLI's startup, you'll be asked for your node ID. To skip prompts in a
 non-interactive environment, manually create a `~/.nexus/config.json` in the
 following format:
 
@@ -163,19 +220,6 @@ following format:
 - [Network FAQ](https://docs.nexus.xyz/layer-1/network-devnet/faq)  
 - [Discord Community](https://discord.gg/nexus-xyz)  
 - Technical issues? [Open an issue](https://github.com/nexus-xyz/nexus-cli/issues)
-
----
-
-## Repository Structure
-
-```txt
-nexus-cli/
-├── assets/       # Media for documentation
-├── clients/
-│   └── cli/      # Main CLI implementation
-├── proto/        # Shared network interface definition
-└── public/       # Files hosted at cli.nexus.xyz
-```
 
 ---
 
