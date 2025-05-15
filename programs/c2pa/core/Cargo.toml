@@ -1,16 +1,16 @@
 [package]
 name = "c2pa-core"
-version.workspace = true
-edition.workspace = true
+version = "0.1.0"
+edition = "2021"
 
 [features]
 default = ["pure-rust"]
-pure-rust = ["ed25519-dalek"]
-zkvm = ["nexus-sdk"]
+pure-rust = []
+zkvm = []
 
 [dependencies]
-ed25519-dalek = { version = "2.1.0", default-features = false, optional = true }
-nexus-sdk = { workspace = true, optional = true }
+ed25519-dalek = { version = "2.1.0", default-features = false }
+cfg-if = "1.0"
 
 [dev-dependencies]
 test-case = "3.3.1" 

@@ -1,5 +1,7 @@
 #![no_std]
 
+use cfg_if::cfg_if;
+
 #[cfg(feature = "pure-rust")]
 use ed25519_dalek::{Verifier, VerifyingKey, Signature};
 
@@ -22,27 +24,28 @@ pub fn verify_signature(message: &[u8], signature: &[u8], public_key: &[u8]) -> 
         return false;
     }
 
-    #[cfg(feature = "pure-rust")]
-    {
-        // Convert the raw bytes to the appropriate types
-        let verifying_key = match VerifyingKey::from_bytes(public_key) {
-            Ok(key) => key,
-            Err(_) => return false,
-        };
+    cfg_if! {
+        if #[cfg(feature = "pure-rust")] {
+            // Convert the raw bytes to the appropriate types
+            let verifying_key = match VerifyingKey::from_bytes(public_key) {
+                Ok(key) => key,
+                Err(_) => return false,
+            };
 
-        let sig = match Signature::from_bytes(signature) {
-            Ok(sig) => sig,
-            Err(_) => return false,
-        };
+            let sig = match Signature::from_bytes(signature) {
+                Ok(sig) => sig,
+                Err(_) => return false,
+            };
 
-        // Verify the signature using pure Rust implementation
-        verifying_key.verify(message, &sig).is_ok()
-    }
-
-    #[cfg(feature = "zkvm")]
-    {
-        // Use the zkVM precompile for verification
-        ed25519::verify(message, signature, public_key)
+            // Verify the signature using pure Rust implementation
+            verifying_key.verify(message, &sig).is_ok()
+        } else if #[cfg(feature = "zkvm")] {
+            // Use the zkVM precompile for verification
+            ed25519::verify(message, signature, public_key)
+        } else {
+            // No implementation enabled
+            false
+        }
     }
 }
 

@@ -9,7 +9,7 @@ crate-type = ["rlib"]
 [dependencies]
 nexus-rt.workspace = true
 nexus-sdk.workspace = true
-c2pa-core = { path = "../core", features = ["zkvm"] }
+c2pa = { path = "..", features = ["zkvm"] }
 
 [profile.dev]
 panic = "abort"

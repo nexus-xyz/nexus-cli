@@ -2,7 +2,7 @@
 #![no_main]
 
 use nexus_sdk::precompiles::input;
-use c2pa_core::verify_signature;
+use c2pa::verify_signature;
 
 #[nexus_rt::main]
 pub fn main() -> i32 {
