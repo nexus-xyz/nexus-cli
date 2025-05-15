@@ -14,7 +14,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  DEFAULT_PROGRAM_PATH: clients/cli/src/default_program.elf
+  DEFAULT_PROGRAM_PATH: clients/cli/src/programs/default_program.elf
 
 jobs:
   verify-elf:
@@ -28,7 +28,7 @@ jobs:
         with:
           profile: minimal
           toolchain: stable
-          target: wasm32-unknown-unknown
+          target: riscv32im-unknown-none-elf
           override: true
           components: rustfmt, clippy
       
@@ -59,12 +59,14 @@ jobs:
       - name: Build default program
         run: |
           cd programs/c2pa
-          cargo build --release --target wasm32-unknown-unknown
+          cargo build --release --target riscv32im-unknown-none-elf
+          mkdir -p ../../clients/cli/src/programs
+          cp target/riscv32im-unknown-none-elf/release/c2pa ../../clients/cli/src/programs/default_program.elf
           
-      - name: Compare ELF files
+      - name: Compare program files
         run: |
           # Get hash of newly built program
-          NEW_HASH=$(sha256sum target/wasm32-unknown-unknown/release/c2pa.wasm | cut -d ' ' -f 1)
+          NEW_HASH=$(sha256sum programs/c2pa/target/riscv32im-unknown-none-elf/release/c2pa | cut -d ' ' -f 1)
           
           # Get hash of existing default program
           OLD_HASH=$(sha256sum $DEFAULT_PROGRAM_PATH | cut -d ' ' -f 1)
@@ -81,7 +83,7 @@ jobs:
             echo ""
             echo "To fix:"
             echo "1. If changes were intentional, copy the new program to the CLI:"
-            echo "   cp target/wasm32-unknown-unknown/release/c2pa.wasm $DEFAULT_PROGRAM_PATH"
+            echo "   cp programs/c2pa/target/riscv32im-unknown-none-elf/release/c2pa $DEFAULT_PROGRAM_PATH"
             echo "2. Commit both the program changes and the new default program"
             exit 1
           fi
@@ -94,6 +96,6 @@ jobs:
         with:
           name: program-artifacts
           path: |
-            target/wasm32-unknown-unknown/release/c2pa.wasm
+            programs/c2pa/target/riscv32im-unknown-none-elf/release/c2pa
             ${{ env.DEFAULT_PROGRAM_PATH }}
           retention-days: 7 

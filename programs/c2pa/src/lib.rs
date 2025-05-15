@@ -177,7 +177,4 @@ fn main() {
     }
     
     println!("Verification successful!");
-}
-
-// This empty lib.rs file is needed because we specified it in Cargo.toml
-// We'll add shared functionality here as we build up the C2PA program 
+} 
