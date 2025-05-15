@@ -1,9 +1,9 @@
 #![cfg(test)]
+#![no_std]
 
 extern crate alloc;
 
 use alloc::vec::Vec;
-use nexus_rt::println;
 use nexus_sdk::{precompiles::keccak256, precompiles::ed25519, Local, Prover, Viewable};
 use nexus_sdk::stwo::seq::Stwo;
 
