@@ -1,5 +1,5 @@
 [workspace]
-members = ["c2pa"]
+members = ["c2pa/core", "c2pa/guest"]
 resolver = "2"
 
 [workspace.package]

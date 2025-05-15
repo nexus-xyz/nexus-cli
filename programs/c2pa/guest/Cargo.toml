@@ -1,5 +1,5 @@
 [package]
-name = "c2pa"
+name = "c2pa-guest"
 version.workspace = true
 edition.workspace = true
 
@@ -9,7 +9,7 @@ crate-type = ["rlib"]
 [dependencies]
 nexus-rt.workspace = true
 nexus-sdk.workspace = true
-c2pa-core = { path = "../c2pa-core" }
+c2pa-core = { path = "../core" }
 
 [profile.dev]
 panic = "abort"
