@@ -16,10 +16,11 @@ version.workspace = true
 edition.workspace = true
 
 [lib]
+path = "src/lib.rs"
 crate-type = ["rlib"]
 
 [dependencies]
-c2pa-core = { path = "../c2pa-core" }
+c2pa-core = { path = "./core" }
 
 [profile.dev]
 panic = "abort"
