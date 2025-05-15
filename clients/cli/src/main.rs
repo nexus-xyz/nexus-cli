@@ -15,6 +15,7 @@ mod utils;
 // Update the import path to use the proto module
 use clap::{Parser, Subcommand};
 use log::error;
+use crate::orchestrator_client::OrchestratorClient;
 use crate::prover::start_prover;
 use crate::setup::SetupResult;
 
@@ -50,20 +51,6 @@ enum Command {
     Logout,
 }
 
-// #[derive(Parser, Debug)]
-// struct Args {
-//     /// Hostname at which Orchestrator can be reached
-//     hostname: String,
-//
-//     /// Port over which to communicate with Orchestrator
-//     #[arg(short, long, default_value_t = 443u16)]
-//     port: u16,
-//
-//     /// Whether to hang up after the first proof
-//     #[arg(short, long, default_value_t = false)]
-//     just_once: bool,
-// }
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
@@ -71,18 +58,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     match cli.command {
         Command::Start { env, num_threads } => {
             utils::cli_branding::print_banner();
-            let env = &config::Environment::from_args(env.as_ref());
+
+            let orchestrator_client = {
+                let environment = config::Environment::from_args(env.as_ref());
+                OrchestratorClient::new(environment)
+            };
             
             // Run initial setup
             match setup::run_initial_setup().await {
                 SetupResult::Anonymous => {
                     println!("Proving anonymously...");
-                    start_prover(env, None, num_threads).await?;
+                    start_prover(orchestrator_client, None, num_threads).await?;
                 }
                 SetupResult::Connected(node_id) => {
                     println!("Proving with existing node id: {}", node_id);
                     let node_id: u64 = node_id.parse().expect(format!("invalid node id {}", node_id).as_str());
-                    start_prover(env, Some(node_id), num_threads).await?;
+                    start_prover(orchestrator_client, Some(node_id), num_threads).await?;
                 }
                 SetupResult::Invalid => {
                     error!("Invalid setup option selected.");
