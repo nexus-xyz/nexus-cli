@@ -14,6 +14,7 @@ mod utils;
 
 // Update the import path to use the proto module
 use clap::{Parser, Subcommand};
+use colored::Colorize;
 use log::error;
 use crate::orchestrator_client::OrchestratorClient;
 use crate::prover::start_prover;
@@ -51,6 +52,7 @@ enum Command {
     Logout,
 }
 
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
@@ -58,22 +60,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     match cli.command {
         Command::Start { env, num_threads } => {
             utils::cli_branding::print_banner();
+            println!(
+                "{}: {}",
+                "Computational capacity of this node".bold(),
+                format!("{:.2} GFLOPS", flops::measure_flops()).bright_cyan()
+            );
 
-            let orchestrator_client = {
-                let environment = config::Environment::from_args(env.as_ref());
-                OrchestratorClient::new(environment)
-            };
+            let environment = config::Environment::from_args(env.as_ref());
             
             // Run initial setup
             match setup::run_initial_setup().await {
                 SetupResult::Anonymous => {
                     println!("Proving anonymously...");
-                    start_prover(orchestrator_client, None, num_threads).await?;
+                    start_prover(environment, None, num_threads).await?;
                 }
                 SetupResult::Connected(node_id) => {
                     println!("Proving with existing node id: {}", node_id);
                     let node_id: u64 = node_id.parse().expect(format!("invalid node id {}", node_id).as_str());
-                    start_prover(orchestrator_client, Some(node_id), num_threads).await?;
+                    start_prover(environment, Some(node_id), num_threads).await?;
                 }
                 SetupResult::Invalid => {
                     error!("Invalid setup option selected.");
