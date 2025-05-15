@@ -7,8 +7,8 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-nexus-rt = { workspace = true, default-features = false, features = ["minimal"] }
-nexus-sdk = { workspace = true, default-features = false, features = ["minimal"] }
+nexus-rt = { git = "https://github.com/nexus-xyz/nexus-zkvm", tag = "0.3.2", default-features = false, features = ["minimal"] }
+nexus-sdk = { git = "https://github.com/nexus-xyz/nexus-zkvm", tag = "0.3.2", default-features = false, features = ["minimal"] }
 
 [dependencies.uuid]
 version = "1.16.0"
