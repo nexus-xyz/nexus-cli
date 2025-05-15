@@ -14,6 +14,11 @@ categories = ["cryptography"]
 publish = false
 
 [workspace.dependencies]
-nexus-rt = { git = "https://github.com/nexus-xyz/nexus-zkvm", tag = "0.3.2", default-features = false }
-nexus-sdk = { git = "https://github.com/nexus-xyz/nexus-zkvm", tag = "0.3.2", default-features = false }
-libm = "0.2.8" 
+nexus-rt = { git = "https://github.com/nexus-xyz/nexus-zkvm", tag = "0.3.2", default-features = false, features = ["minimal"] }
+nexus-sdk = { git = "https://github.com/nexus-xyz/nexus-zkvm", tag = "0.3.2", default-features = false, features = ["minimal"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+uuid = { version = "1.16.0", features = ["js", "v4"], default-features = false }
+
+[patch.crates-io]
+uuid = { version = "1.16.0", default-features = false } 

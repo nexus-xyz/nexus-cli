@@ -7,9 +7,13 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-nexus-rt = { workspace = true }
-nexus-sdk = { workspace = true }
-libm = { workspace = true }
+nexus-rt = { workspace = true, default-features = false, features = ["minimal"] }
+nexus-sdk = { workspace = true, default-features = false, features = ["minimal"] }
+
+[dependencies.uuid]
+version = "1.16.0"
+default-features = false
+features = ["js", "v4"]
 
 [profile.dev]
 panic = "abort"
