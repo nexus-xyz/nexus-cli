@@ -62,8 +62,7 @@ fn test_compression() {
         quality: 80,
     };
 
-    let compressed = c2pa::compress_image(&original, &params)
-        .expect("Compression failed");
+    let compressed = c2pa::compress_image(&original, &params).expect("Compression failed");
 
     assert!(compressed.len() < original.len());
     assert!(c2pa::verify_compression(&original, &compressed, &params));
@@ -78,8 +77,7 @@ fn test_compression_verify_dimensions() {
         quality: 80,
     };
 
-    let compressed = c2pa::compress_image(&original, &params)
-        .expect("Compression failed");
+    let compressed = c2pa::compress_image(&original, &params).expect("Compression failed");
 
     // Try to verify with wrong dimensions
     let wrong_params = CompressionParams {
@@ -87,7 +85,11 @@ fn test_compression_verify_dimensions() {
         target_height: 480,
         quality: 80,
     };
-    assert!(!c2pa::verify_compression(&original, &compressed, &wrong_params));
+    assert!(!c2pa::verify_compression(
+        &original,
+        &compressed,
+        &wrong_params
+    ));
 }
 
 #[test]
@@ -99,8 +101,7 @@ fn test_compression_verify_quality() {
         quality: 80,
     };
 
-    let compressed = c2pa::compress_image(&original, &params)
-        .expect("Compression failed");
+    let compressed = c2pa::compress_image(&original, &params).expect("Compression failed");
 
     // Try to verify with wrong quality
     let wrong_params = CompressionParams {
@@ -108,7 +109,11 @@ fn test_compression_verify_quality() {
         target_height: 600,
         quality: 90,
     };
-    assert!(!c2pa::verify_compression(&original, &compressed, &wrong_params));
+    assert!(!c2pa::verify_compression(
+        &original,
+        &compressed,
+        &wrong_params
+    ));
 }
 
 #[test]
@@ -121,4 +126,4 @@ fn test_compression_invalid_params() {
     };
 
     assert!(c2pa::compress_image(&original, &invalid_params).is_none());
-} 
+}
