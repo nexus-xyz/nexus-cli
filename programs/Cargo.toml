@@ -1,5 +1,5 @@
 [workspace]
-members = ["c2pa/core", "c2pa/guest"]
+members = ["c2pa/core", "c2pa/guest", "c2pa/runner"]
 resolver = "2"
 
 [workspace.package]
@@ -7,9 +7,8 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace.dependencies]
-nexus-rt = { git = "https://github.com/nexus-xyz/nexus-zkvm", tag = "0.3.2", default-features = false, features = ["minimal"] }
-nexus-sdk = { git = "https://github.com/nexus-xyz/nexus-zkvm", tag = "0.3.2", default-features = false, features = ["minimal"] }
-uuid = { version = "1.16.0", default-features = false, features = ["js", "v4"] }
+nexus-rt = { git = "https://github.com/nexus-xyz/nexus-zkvm", tag = "0.3.2", default-features = false, features = [] }
+nexus-sdk = { git = "https://github.com/nexus-xyz/nexus-zkvm", tag = "0.3.2", default-features = false, features = [] }
 
 [profile.ci-build]
 inherits = "release"

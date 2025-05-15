@@ -1,0 +1,118 @@
+name: C2PA Program
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'programs/c2pa/**'
+      - '.github/workflows/c2pa.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'programs/c2pa/**'
+      - '.github/workflows/c2pa.yml'
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  test-core:
+    name: Test Core Library
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          components: rustfmt, clippy
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ./programs/c2pa/core
+
+      - name: Check formatting
+        working-directory: programs/c2pa/core
+        run: cargo fmt --all -- --check
+
+      - name: Run clippy
+        working-directory: programs/c2pa/core
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Run tests (pure-rust)
+        working-directory: programs/c2pa/core
+        run: cargo test --features pure-rust
+
+      - name: Verify no-std compatibility
+        working-directory: programs/c2pa/core
+        run: cargo check --target riscv32im-unknown-none-elf -Z build-std=core,alloc
+
+  build-guest:
+    name: Build Guest Program
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          components: rust-src
+          targets: riscv32im-unknown-none-elf
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ./programs/c2pa
+
+      - name: Build guest program
+        run: |
+          cd programs/c2pa
+          cargo build -p c2pa-guest --target riscv32im-unknown-none-elf -Z build-std=core,alloc --profile ci-build
+
+      - name: Build and verify default program
+        run: |
+          cd programs/c2pa
+          cargo build --release --target riscv32im-unknown-none-elf
+          mkdir -p ../../clients/cli/src/programs
+          cp target/riscv32im-unknown-none-elf/release/c2pa ../../clients/cli/src/programs/default_program.elf
+
+      - name: Compare program files
+        run: |
+          # Get hash of newly built program
+          NEW_HASH=$(sha256sum programs/c2pa/target/riscv32im-unknown-none-elf/release/c2pa | cut -d ' ' -f 1)
+          
+          # Get hash of existing default program
+          OLD_HASH=$(sha256sum clients/cli/src/programs/default_program.elf | cut -d ' ' -f 1)
+          
+          if [ "$NEW_HASH" != "$OLD_HASH" ]; then
+            echo "❌ Default program mismatch!"
+            echo "Expected: $OLD_HASH"
+            echo "Got:      $NEW_HASH"
+            echo ""
+            echo "The compiled program differs from the default program checked into the CLI."
+            echo "This could mean:"
+            echo "1. You made changes to the C2PA program but didn't update the default program"
+            echo "2. The build environment produced different output"
+            echo ""
+            echo "To fix:"
+            echo "1. If changes were intentional, copy the new program to the CLI:"
+            echo "   cp programs/c2pa/target/riscv32im-unknown-none-elf/release/c2pa clients/cli/src/programs/default_program.elf"
+            echo "2. Commit both the program changes and the new default program"
+            exit 1
+          fi
+          
+          echo "✅ Default program verified!"
+
+      - name: Upload artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: program-artifacts
+          path: |
+            programs/c2pa/target/riscv32im-unknown-none-elf/release/c2pa
+            clients/cli/src/programs/default_program.elf
+          retention-days: 7 

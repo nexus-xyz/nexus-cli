@@ -1,0 +1,7 @@
+[package]
+name = "c2pa-runner"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+c2pa-core = { path = "../core" } 

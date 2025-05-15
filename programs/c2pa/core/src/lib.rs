@@ -1,5 +1,9 @@
 #![no_std]
 
+#[cfg(feature = "pure-rust")]
+use ed25519_dalek::{Verifier, VerifyingKey, Signature};
+
+#[cfg(feature = "zkvm")]
 use nexus_sdk::precompiles::ed25519;
 
 /// Verify an Ed25519 signature over a message
@@ -18,8 +22,28 @@ pub fn verify_signature(message: &[u8], signature: &[u8], public_key: &[u8]) -> 
         return false;
     }
 
-    // Use the zkVM precompile for verification
-    ed25519::verify(message, signature, public_key)
+    #[cfg(feature = "pure-rust")]
+    {
+        // Convert the raw bytes to the appropriate types
+        let verifying_key = match VerifyingKey::from_bytes(public_key) {
+            Ok(key) => key,
+            Err(_) => return false,
+        };
+
+        let sig = match Signature::from_bytes(signature) {
+            Ok(sig) => sig,
+            Err(_) => return false,
+        };
+
+        // Verify the signature using pure Rust implementation
+        verifying_key.verify(message, &sig).is_ok()
+    }
+
+    #[cfg(feature = "zkvm")]
+    {
+        // Use the zkVM precompile for verification
+        ed25519::verify(message, signature, public_key)
+    }
 }
 
 #[cfg(test)]
@@ -40,5 +64,25 @@ mod tests {
         let signature = [0u8; 64];
         let wrong_length_public_key = [0u8; 16];
         assert!(!verify_signature(message, &signature, &wrong_length_public_key));
+    }
+
+    #[cfg(feature = "pure-rust")]
+    #[test]
+    fn test_verify_valid_signature() {
+        use ed25519_dalek::{SigningKey, VerifyingKey};
+        use rand::rngs::OsRng;
+
+        let mut rng = OsRng;
+        let signing_key = SigningKey::generate(&mut rng);
+        let verifying_key = VerifyingKey::from(&signing_key);
+        
+        let message = b"Hello, world!";
+        let signature = signing_key.sign(message);
+        
+        assert!(verify_signature(
+            message,
+            signature.to_bytes().as_ref(),
+            verifying_key.to_bytes().as_ref()
+        ));
     }
 } 
