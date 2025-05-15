@@ -43,7 +43,7 @@ jobs:
       
       - name: Check formatting
         run: |
-          cd programs
+          cd programs/c2pa
           cargo fmt --all -- --check
       
       - name: Run clippy
