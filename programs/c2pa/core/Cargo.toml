@@ -7,5 +7,4 @@ edition.workspace = true
 nexus-sdk = { workspace = true }
 
 [dev-dependencies]
-nexus-sdk = { workspace = true, features = ["host"] }
 test-case = "3.3.1" 

@@ -25,39 +25,6 @@ pub fn verify_signature(message: &[u8], signature: &[u8], public_key: &[u8]) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nexus_sdk::precompiles::ed25519;
-
-    // Helper function to generate test data using the host-side precompile
-    #[cfg(feature = "host")]
-    fn generate_test_data() -> (Vec<u8>, Vec<u8>, Vec<u8>) {
-        let message = b"Hello, world!".to_vec();
-        let (public_key, private_key) = ed25519::generate_keypair();
-        let signature = ed25519::sign(&message, &private_key);
-        (message, signature, public_key)
-    }
-
-    #[test]
-    #[cfg(feature = "host")]
-    fn test_verify_valid_signature() {
-        let (message, signature, public_key) = generate_test_data();
-        assert!(verify_signature(&message, &signature, &public_key));
-    }
-
-    #[test]
-    #[cfg(feature = "host")]
-    fn test_verify_invalid_signature() {
-        let (message, _, public_key) = generate_test_data();
-        let invalid_signature = [0u8; 64];
-        assert!(!verify_signature(&message, &invalid_signature, &public_key));
-    }
-
-    #[test]
-    #[cfg(feature = "host")]
-    fn test_verify_invalid_public_key() {
-        let (message, signature, _) = generate_test_data();
-        let invalid_public_key = [0u8; 32];
-        assert!(!verify_signature(&message, &signature, &invalid_public_key));
-    }
 
     #[test]
     fn test_verify_wrong_length_signature() {

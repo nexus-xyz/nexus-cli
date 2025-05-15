@@ -1,3 +1,15 @@
+[workspace]
+members = ["core", "guest"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+
+[workspace.dependencies]
+nexus-rt = { git = "https://github.com/nexus-xyz/nexus-zkvm", tag = "0.3.2", default-features = false, features = ["minimal"] }
+nexus-sdk = { git = "https://github.com/nexus-xyz/nexus-zkvm", tag = "0.3.2", default-features = false, features = ["minimal"] }
+
 [package]
 name = "c2pa"
 version.workspace = true
@@ -7,8 +19,6 @@ edition.workspace = true
 crate-type = ["rlib"]
 
 [dependencies]
-nexus-rt.workspace = true
-nexus-sdk.workspace = true
 c2pa-core = { path = "../c2pa-core" }
 
 [profile.dev]
