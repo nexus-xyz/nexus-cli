@@ -1,0 +1,42 @@
+name: Rust
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: nightly
+        components: rust-src
+        targets: riscv32im-unknown-none-elf
+
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+
+    - name: Build guest program for zkVM
+      run: |
+        cd programs
+        cargo +nightly build -p c2pa-guest --target riscv32im-unknown-none-elf -Z build-std=core,alloc --profile ci-build
+
+    - name: Run core library tests
+      run: |
+        cd programs/c2pa/core
+        cargo test --features host
+
+    - name: Verify no-std compatibility
+      run: |
+        cd programs/c2pa/core
+        cargo check --target riscv32im-unknown-none-elf -Z build-std=core,alloc 

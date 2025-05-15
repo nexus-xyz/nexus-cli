@@ -1,0 +1,24 @@
+[workspace]
+members = ["c2pa/core", "c2pa/guest", "c2pa/runner"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+
+[workspace.dependencies]
+nexus-rt = { git = "https://github.com/nexus-xyz/nexus-zkvm", tag = "0.3.2", default-features = false, features = [] }
+nexus-sdk = { git = "https://github.com/nexus-xyz/nexus-zkvm", tag = "0.3.2", default-features = false, features = [] }
+
+[profile.ci-build]
+inherits = "release"
+opt-level = 3
+debug = false
+strip = true
+debug-assertions = false
+overflow-checks = false
+lto = true
+panic = "abort"
+incremental = false
+codegen-units = 1
+rpath = false 

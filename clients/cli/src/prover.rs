@@ -40,7 +40,7 @@ async fn authenticated_proving(
     println!("Compiling guest program...");
     let elf_file_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("assets")
-        .join("fib_input");
+        .join("c2pa");
     let prover = match Stwo::<Local>::new_from_file(&elf_file_path) {
         Ok(prover) => prover,
         Err(e) => {
@@ -99,7 +99,7 @@ fn anonymous_proving() -> Result<(), Box<dyn std::error::Error>> {
     println!("Compiling guest program...");
     let elf_file_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("assets")
-        .join("fib_input");
+        .join("c2pa");
 
     let prover = Stwo::<Local>::new_from_file(&elf_file_path).map_err(|e| {
         error!("Failed to load guest program: {}", e);

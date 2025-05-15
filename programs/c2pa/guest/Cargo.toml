@@ -1,0 +1,25 @@
+[package]
+name = "c2pa-guest"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+nexus-rt.workspace = true
+nexus-sdk.workspace = true
+c2pa = { path = "..", features = ["zkvm"] }
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+
+[profile.ci-build]
+inherits = "workspace.ci-build" 
