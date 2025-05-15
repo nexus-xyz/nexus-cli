@@ -98,6 +98,10 @@ pub async fn run_initial_setup() -> SetupResult {
             node_id
         );
 
+        if std::env::var_os("NONINTERACTIVE").is_some() {
+            return SetupResult::Connected(node_id);
+        }
+
         //ask the user if they want to use the existing config
         println!("Do you want to use the existing user account? [Y/n]");
         let mut use_existing_config = String::new();

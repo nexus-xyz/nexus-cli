@@ -1,5 +1,8 @@
 name: Release
 
+# Trigger the workflow on:
+# - A push event that creates a tag starting with 'v' (e.g., v1.0.0)
+# - A manual trigger via the GitHub Actions UI, with an optional input
 on:
   push:
     tags:
@@ -14,63 +17,100 @@ on:
 
 jobs:
   build:
+    # Define a job to build binaries for multiple OS targets
     name: Build for ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        # Map each OS to its Rust target and desired artifact name
         include:
+          # macOS ARM64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact_name: nexus-network-macos-arm64
+
+          # Ubuntu x86_64
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            artifact_name: nexus-network-linux
-          - os: macos-latest
-            target: x86_64-apple-darwin
-            artifact_name: nexus-network-macos
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            artifact_name: nexus-network-windows.exe
+            artifact_name: nexus-network-linux-x86_64
+
+          # TODO: Windows
 
     steps:
-      - uses: actions/checkout@v4
+      # Check out the repository source code
+      - name: Checkout source
+        uses: actions/checkout@v4
 
+      # Set up the Rust toolchain for the specified target
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
+          toolchain: nightly-2025-01-02
           target: ${{ matrix.target }}
+          components: rustfmt
 
-      - name: Build
-        run: cargo build --release
-        env:
-          RUSTFLAGS: "-C target-feature=+crt-static"
+      - name: Debug Rust environment
+        run: |
+          echo "Rust version: $(rustc --version --verbose)"
+          echo "Cargo version: $(cargo --version)"
+          echo "Rustup installed targets: $(rustup target list --installed)"
+          echo "Rustup active toolchain: $(rustup show active-toolchain)"
+          echo "Host target: $(rustc -vV | grep host)"
 
+      # Build the release binary for the specified target
+      - name: Build CLI binary
+        working-directory: clients/cli
+        run: |
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            cargo build --release
+          else
+            cargo build --release --target=${{ matrix.target }}
+          fi
+
+      # Rename the binary to indicate the target OS
+      - name: Rename binary
+        run: |
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            cp clients/cli/target/release/nexus-network clients/cli/target/release/${{ matrix.artifact_name }}
+          else
+            cp clients/cli/target/${{ matrix.target }}/release/nexus-network clients/cli/target/release/${{ matrix.artifact_name }}
+          fi
+
+      # Upload the binary as an artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: target/release/nexus-network${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+          path: clients/cli/target/release/${{ matrix.artifact_name }}
 
   release:
+    # Define a separate job to create the GitHub release
     name: Create Release
     needs: build
     if: github.event.inputs.create_release == 'true' || github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
+      # Check out the repo again (needed to include metadata like tags)
       - uses: actions/checkout@v4
 
+      # Download all build artifacts uploaded by the matrix build
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
+          merge-multiple: true # Merge multiple artifacts into a single directory
 
+      - name: List downloaded artifacts (debug)
+        run: ls -R artifacts
+
+      # Use the `gh-release` action to publish a release with the downloaded binaries
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            artifacts/nexus-network-linux
-            artifacts/nexus-network-macos
-            artifacts/nexus-network-windows.exe
+            artifacts/nexus-network-macos-arm64
+            artifacts/nexus-network-linux-x86_64
           draft: false
           prerelease: false
           generate_release_notes: true
