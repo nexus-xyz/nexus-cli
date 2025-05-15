@@ -8,6 +8,11 @@ use ed25519_dalek::{Verifier, VerifyingKey, Signature};
 #[cfg(feature = "zkvm")]
 use nexus_sdk::precompiles::ed25519;
 
+#[cfg(feature = "pure-rust")]
+fn as_fixed_array<const N: usize>(slice: &[u8]) -> Option<&[u8; N]> {
+    if slice.len() == N { Some(slice.try_into().unwrap()) } else { None }
+}
+
 /// Verify an Ed25519 signature over a message
 /// 
 /// # Arguments
@@ -26,17 +31,17 @@ pub fn verify_signature(message: &[u8], signature: &[u8], public_key: &[u8]) -> 
 
     cfg_if! {
         if #[cfg(feature = "pure-rust")] {
+            // Convert raw slices into fixed-size arrays (or return false if conversion fails)
+            let (pub_arr, sig_arr) = match (as_fixed_array::<32>(public_key), as_fixed_array::<64>(signature)) {
+                (Some(p), Some(s)) => (p, s),
+                _ => return false,
+            };
             // Convert the raw bytes to the appropriate types
-            let verifying_key = match VerifyingKey::from_bytes(public_key) {
+            let verifying_key = match VerifyingKey::from_bytes(pub_arr) {
                 Ok(key) => key,
                 Err(_) => return false,
             };
-
-            let sig = match Signature::from_bytes(signature) {
-                Ok(sig) => sig,
-                Err(_) => return false,
-            };
-
+            let sig = Signature::from_bytes(sig_arr);
             // Verify the signature using pure Rust implementation
             verifying_key.verify(message, &sig).is_ok()
         } else if #[cfg(feature = "zkvm")] {
