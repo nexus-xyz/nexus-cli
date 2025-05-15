@@ -1,15 +1,12 @@
+#![no_std]
 #![cfg(test)]
 
-use c2pa::CompressionParams;
+extern crate alloc;
 
-fn create_test_image(width: u32, height: u32) -> Vec<u8> {
-    let size = (width * height * 3) as usize;
-    let mut image = Vec::with_capacity(size);
-    for i in 0..size {
-        image.push((i % 255) as u8);
-    }
-    image
-}
+use alloc::vec::Vec;
+use c2pa::CompressionParams;
+mod test_utils;
+use test_utils::create_test_image_data;
 
 #[test]
 fn test_compression_params_validation() {
@@ -58,7 +55,7 @@ fn test_compression_params_validation() {
 
 #[test]
 fn test_compression() {
-    let original = create_test_image(1920, 1080);
+    let original = create_test_image_data(1920, 1080);
     let params = CompressionParams {
         target_width: 800,
         target_height: 600,
@@ -74,7 +71,7 @@ fn test_compression() {
 
 #[test]
 fn test_compression_verify_dimensions() {
-    let original = create_test_image(1920, 1080);
+    let original = create_test_image_data(1920, 1080);
     let params = CompressionParams {
         target_width: 800,
         target_height: 600,
@@ -95,7 +92,7 @@ fn test_compression_verify_dimensions() {
 
 #[test]
 fn test_compression_verify_quality() {
-    let original = create_test_image(1920, 1080);
+    let original = create_test_image_data(1920, 1080);
     let params = CompressionParams {
         target_width: 800,
         target_height: 600,
@@ -116,7 +113,7 @@ fn test_compression_verify_quality() {
 
 #[test]
 fn test_compression_invalid_params() {
-    let original = create_test_image(1920, 1080);
+    let original = create_test_image_data(1920, 1080);
     let invalid_params = CompressionParams {
         target_width: 0,
         target_height: 600,
