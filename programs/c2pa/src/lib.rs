@@ -5,9 +5,9 @@ extern crate alloc;
 
 mod compression;
 
-use alloc::{string::String, vec::Vec};
+use alloc::vec::Vec;
 use nexus_rt::println;
-use nexus_sdk::{precompile, ed25519};
+use nexus_sdk::{precompiles::keccak256, precompiles::ed25519};
 pub use compression::{CompressionParams, compress_image, verify_compression};
 
 // C2PA manifest structure
@@ -36,7 +36,7 @@ impl C2paManifest {
         payload.extend_from_slice(&[self.compression_params.quality]);
         
         // Hash the payload
-        let payload_hash = precompile::keccak256(&payload);
+        let payload_hash = keccak256(&payload);
         
         // Verify signature
         ed25519::verify(&payload_hash, &self.signature, &self.public_key)
@@ -102,7 +102,7 @@ fn main() {
     println!("C2PA Manifest Validation Program");
 
     // Get public inputs
-    let public_inputs = nexus_rt::public_inputs();
+    let public_inputs = nexus_rt::inputs::public();
     if public_inputs.len() < 74 { // 32 + 32 + 8 + 2 bytes minimum
         println!("Invalid public inputs length");
         return;
@@ -127,7 +127,7 @@ fn main() {
     let nonce = u64::from_be_bytes(nonce_bytes);
     
     // Get private inputs (original image and manifest)
-    let private_inputs = nexus_rt::private_inputs();
+    let private_inputs = nexus_rt::inputs::private();
     
     // Parse manifest from private inputs
     let manifest_data_len = private_inputs[0] as usize;
@@ -167,8 +167,8 @@ fn main() {
     }
     
     // Verify hashes match
-    let calc_original_hash = precompile::keccak256(original_image);
-    let calc_compressed_hash = precompile::keccak256(compressed_image);
+    let calc_original_hash = keccak256(original_image);
+    let calc_compressed_hash = keccak256(compressed_image);
     
     if calc_original_hash != manifest.original_hash || 
        calc_compressed_hash != manifest.compressed_hash {
