@@ -10,8 +10,7 @@ build_proto = []
 
 [workspace]
 members = [
-    "examples",
-    "src/programs",
+    "examples"
 ]
 
 [workspace.package]
