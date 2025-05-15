@@ -7,9 +7,13 @@ use crate::node_id_manager::{
     create_nexus_directory, get_home_directory, handle_read_error, read_existing_node_id,
 };
 
+
 pub enum SetupResult {
+    /// The user is in anonymous mode
     Anonymous,
+    /// Connected with the given node id
     Connected(String),
+    /// Failed to connect.
     Invalid,
 }
 

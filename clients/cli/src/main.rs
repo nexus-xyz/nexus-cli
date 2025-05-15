@@ -14,6 +14,9 @@ mod utils;
 
 // Update the import path to use the proto module
 use clap::{Parser, Subcommand};
+use log::error;
+use crate::prover::start_prover;
+use crate::setup::SetupResult;
 
 #[derive(clap::ValueEnum, Clone, Debug)]
 enum Environment {
@@ -35,38 +38,56 @@ struct Cli {
 enum Command {
     /// Start the prover
     Start {
-        /// Environment to run in
+        /// Environment to connect to.
         #[arg(long, value_enum)]
         env: Option<Environment>,
+
+        /// Number of threads to use for proving.
+        #[arg(long, default_value_t = 1)]
+        num_threads: usize,
     },
     /// Logout from the current session
     Logout,
 }
 
-#[derive(Parser, Debug)]
-struct Args {
-    /// Hostname at which Orchestrator can be reached
-    hostname: String,
-
-    /// Port over which to communicate with Orchestrator
-    #[arg(short, long, default_value_t = 443u16)]
-    port: u16,
-
-    /// Whether to hang up after the first proof
-    #[arg(short, long, default_value_t = false)]
-    just_once: bool,
-}
+// #[derive(Parser, Debug)]
+// struct Args {
+//     /// Hostname at which Orchestrator can be reached
+//     hostname: String,
+//
+//     /// Port over which to communicate with Orchestrator
+//     #[arg(short, long, default_value_t = 443u16)]
+//     port: u16,
+//
+//     /// Whether to hang up after the first proof
+//     #[arg(short, long, default_value_t = false)]
+//     just_once: bool,
+// }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
-
-    //each arm of the match is a command
+    
     match cli.command {
-        Command::Start { env } => {
-            match prover::start_prover(&config::Environment::from_args(env.as_ref())).await {
-                Ok(_) => println!("Prover started successfully"),
-                Err(e) => eprintln!("Failed to start prover: {}", e),
+        Command::Start { env, num_threads } => {
+            utils::cli_branding::print_banner();
+            let env = &config::Environment::from_args(env.as_ref());
+            
+            // Run initial setup
+            match setup::run_initial_setup().await {
+                SetupResult::Anonymous => {
+                    println!("Proving anonymously...");
+                    start_prover(env, None, num_threads).await?;
+                }
+                SetupResult::Connected(node_id) => {
+                    println!("Proving with existing node id: {}", node_id);
+                    let node_id: u64 = node_id.parse().expect(format!("invalid node id {}", node_id).as_str());
+                    start_prover(env, Some(node_id), num_threads).await?;
+                }
+                SetupResult::Invalid => {
+                    error!("Invalid setup option selected.");
+                    return Err("Invalid setup option selected".into());
+                }
             }
         }
         Command::Logout => match setup::clear_node_id() {

@@ -12,7 +12,6 @@ use sha3::{Digest, Keccak256};
 use std::time::Duration;
 
 /// Proves a program with a given node ID
-#[allow(dead_code)]
 async fn authenticated_proving(
     node_id: &str,
     environment: &config::Environment,
@@ -136,17 +135,14 @@ fn anonymous_proving() -> Result<(), Box<dyn std::error::Error>> {
 /// Starts the prover, which can be anonymous or connected to the Nexus Orchestrator
 pub async fn start_prover(
     environment: &config::Environment,
+    node_id: Option<u64>,
+    _threads: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    // Print the banner at startup
-    utils::cli_branding::print_banner();
-
-    println!(
-        "\n===== {} =====\n",
-        "Setting up CLI configuration"
-            .bold()
-            .underline()
-            .bright_cyan(),
-    );
+    if let Some(node_id) = node_id {
+        println!("{}", format!("Node id {}!", node_id).bright_cyan());
+    } else {
+        println!("{}", "Proving anonymously".bright_cyan());
+    }
 
     // Run the initial setup to determine anonymous or connected node
     match setup::run_initial_setup().await {
