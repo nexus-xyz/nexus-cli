@@ -4,20 +4,32 @@ use std::fs;
 use std::process::Command;
 use std::{env, path::Path};
 
+/// Compiles the protobuf files into Rust code using prost-build.
 fn main() -> Result<(), Box<dyn Error>> {
-    // Skip proto compilation unless build_proto feature is enabled
+    // Skip proto compilation unless build_proto feature is enabled.
     if !cfg!(feature = "build_proto") {
-        println!("Skipping proto compilation (enable with --features build_proto)");
+        println!("cargo:warning=Skipping proto compilation. Enable with `cargo clean && cargo build --features build_proto`");
         return Ok(());
     }
 
-    // Tell cargo to recompile if any of these files change
+    // Tell cargo to recompile if any of these files change.
     println!("cargo:rerun-if-changed=../../proto/orchestrator.proto");
     println!("cargo:rerun-if-changed=build.rs");
 
-    let mut config = Config::new();
-    config.protoc_arg("--experimental_allow_proto3_optional");
+    // The output directory for generated Rust files.
+    let out_dir = "src/proto";
 
+    // Re-run if the generated file does not yet exist, e.g., was deleted.
+    let generated_file_path = format!("{}/nexus.orchestrator.rs", out_dir);
+    if !Path::new(&generated_file_path).exists() {
+        println!("cargo:warning=Generated file not found, re-running build script.");
+        // Checking a file that does not exist (i.e., NULL) always triggers a rerun
+        println!("cargo:rerun-if-changed=NULL");
+    }
+
+    let mut config = Config::new();
+    config.protoc_arg("-I../../proto");
+    config.out_dir(out_dir);
     // Add the experimental flag for proto3 optional fields
     config.protoc_arg("--experimental_allow_proto3_optional");
 
@@ -26,23 +38,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Check if proto file exists
     let proto_path = Path::new("../../proto/orchestrator.proto");
-    println!(
-        "Looking for proto file at: {:?}",
-        proto_path.canonicalize()?
-    );
-
     if !proto_path.exists() {
         println!("Proto file not found at: {:?}", proto_path);
         return Err("Proto file not found".into());
     }
-
-    let out_dir = "src/proto";
-    config.out_dir(out_dir);
-
-    // **Pass required flag for proto3 optional fields**
-    config.protoc_arg("--experimental_allow_proto3_optional");
-    // Add proto path
-    config.protoc_arg("-I../../proto");
 
     // Check if protoc is installed and accessible
     let output = Command::new("which")
@@ -68,7 +67,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     // Attempt to compile the .proto file
-    config.protoc_arg("--experimental_allow_proto3_optional");
     match config.compile_protos(&["../../proto/orchestrator.proto"], &["proto"]) {
         Ok(_) => {
             println!("Successfully compiled protobuf files.");
@@ -87,14 +85,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     // Print where the generated file is saved
-    let generated_file_path = format!("{}/nexus_orchestrator.rs", out_dir);
     println!("Generated file saved to: {}", generated_file_path);
 
     // Check if the generated file exists
-    if fs::metadata(&generated_file_path).is_ok() {
-        println!("Generated file exists.");
-    } else {
-        println!("Error: Generated file does not exist.");
+    if fs::metadata(&generated_file_path).is_err() {
+        return Err("Generated file does not exist".into());
     }
 
     Ok(())

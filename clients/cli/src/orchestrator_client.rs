@@ -1,5 +1,5 @@
 use crate::config;
-use crate::flops::measure_flops;
+use crate::flops::measure_gflops;
 use crate::memory_stats::get_memory_info;
 use crate::nexus_orchestrator::{
     GetProofTaskRequest, GetProofTaskResponse, NodeType, SubmitProofRequest,
@@ -126,7 +126,7 @@ impl OrchestratorClient {
         proof: Vec<u8>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let (program_memory, total_memory) = get_memory_info();
-        let flops = measure_flops();
+        let flops = measure_gflops();
 
         let request = SubmitProofRequest {
             task_id: task_id.to_string(),

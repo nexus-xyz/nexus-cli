@@ -21,8 +21,13 @@ jobs:
             clients/cli
             proto
 
-      - name: Set up Rust
+      # Install Rust toolchain used by CLI
+      - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly-2025-01-02
+          target: ${{ matrix.target }}
+          components: rustfmt, clippy
 
       - name: Set up Rust cache
         uses: Swatinem/rust-cache@v2
