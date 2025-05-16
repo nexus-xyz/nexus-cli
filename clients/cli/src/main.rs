@@ -18,6 +18,8 @@ use clap::{Parser, Subcommand};
 use colored::Colorize;
 use log::error;
 use std::error::Error;
+use std::thread;
+use tokio::runtime::Runtime;
 
 #[derive(clap::ValueEnum, Clone, Debug)]
 enum Environment {
@@ -51,6 +53,22 @@ enum Command {
     Logout,
 }
 
+/// Displays the splash screen with branding and system information.
+fn display_splash_screen(environment: &config::Environment) {
+    utils::cli_branding::print_banner();
+    println!();
+    println!(
+        "{}: {}",
+        "Computational capacity of this node".bold(),
+        format!("{:.2} GFLOPS", flops::measure_gflops()).bright_cyan()
+    );
+    println!(
+        "{}: {}",
+        "Environment".bold(),
+        environment.to_string().bright_cyan()
+    );
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     // Initialize default log level, but can be overridden by the RUST_LOG environment variable.
@@ -59,34 +77,28 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     match cli.command {
         Command::Start { env, num_threads } => {
-            utils::cli_branding::print_banner();
-            println!();
-            println!(
-                "{}: {}",
-                "Computational capacity of this node".bold(),
-                format!("{:.2} GFLOPS", flops::measure_gflops()).bright_cyan()
-            );
-
             let environment = config::Environment::from_args(env.as_ref());
-            println!(
-                "{}: {}",
-                "Environment".bold(),
-                environment.to_string().bright_cyan()
-            );
+            display_splash_screen(&environment);
 
-            // Run initial setup
             match setup::run_initial_setup().await {
+                // == CLI is not registered yet. Perform local proving ==
                 SetupResult::Anonymous => {
                     println!("Proving anonymously...");
-                    start_prover(environment, None, num_threads).await?;
+                    prove_parallel(num_threads, environment, None).await;
+                    // start_prover(environment, None, num_threads).await?;
                 }
+
+                // == CLI is registered and connected ==
                 SetupResult::Connected(node_id) => {
                     println!("Proving with existing node id: {}", node_id);
                     let node_id: u64 = node_id
                         .parse()
                         .unwrap_or_else(|_| panic!("invalid node id {}", node_id));
-                    start_prover(environment, Some(node_id), num_threads).await?;
+
+                    prove_parallel(num_threads, environment, Some(node_id)).await;
                 }
+
+                // == Something went wrong during setup ==
                 SetupResult::Invalid => {
                     error!("Invalid setup option selected.");
                     return Err("Invalid setup option selected".into());
@@ -100,4 +112,41 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
 
     Ok(())
+}
+
+/// Proves in parallel using multiple threads.
+async fn prove_parallel(
+    max_threads: usize,
+    environment: config::Environment,
+    node_id: Option<u64>,
+) {
+    let mut handles = Vec::new();
+
+    // Ensure the number of threads is within a reasonable range.
+    for i in 0..max_threads.clamp(1, 8) {
+        let env_clone = environment.clone();
+        let node_id_clone = node_id;
+
+        let handle = thread::spawn(move || {
+            println!("Thread {} starting", i);
+
+            // Create a new runtime for each thread
+            let rt = Runtime::new().expect("Failed to create Tokio runtime");
+
+            rt.block_on(async {
+                match start_prover(env_clone, node_id_clone, i).await {
+                    Ok(()) => println!("Thread {} completed successfully", i),
+                    Err(e) => eprintln!("Thread {} failed: {:?}", i, e),
+                }
+            });
+        });
+
+        handles.push(handle);
+    }
+
+    for handle in handles {
+        handle.join().unwrap();
+    }
+
+    println!("All provers finished.");
 }
