@@ -7,7 +7,6 @@ use crate::node_id_manager::{
     create_nexus_directory, get_home_directory, handle_read_error, read_existing_node_id,
 };
 
-
 pub enum SetupResult {
     /// The user is in anonymous mode
     Anonymous,
@@ -27,12 +26,7 @@ fn save_node_id(node_id: &str) -> std::io::Result<()> {
     //get the home directory
     let home_path = match get_home_directory() {
         Ok(path) => path,
-        Err(_) => {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Failed to determine home directory",
-            ))
-        }
+        Err(_) => return Err(std::io::Error::other("Failed to determine home directory")),
     };
 
     let nexus_dir = home_path.join(".nexus");
@@ -47,8 +41,7 @@ fn save_node_id(node_id: &str) -> std::io::Result<()> {
     };
 
     // Write the config to file
-    let json = serde_json::to_string_pretty(&config)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+    let json = serde_json::to_string_pretty(&config).map_err(std::io::Error::other)?;
     fs::write(&config_path, json)?;
 
     // 2. If the .nexus directory exists, we need to read the config file
