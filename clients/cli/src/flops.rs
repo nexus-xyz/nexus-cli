@@ -8,7 +8,7 @@ const OPERATIONS_PER_ITERATION: u64 = 4; // sin, add, multiply, divide
 const NUM_REPEATS: usize = 5; // Number of repeats to average the results
 
 /// Estimate FLOPS (in GFLOP/s) of this machine.
-pub fn measure_flops() -> f32 {
+pub fn measure_gflops() -> f32 {
     let num_cores: u64 = match available_parallelism() {
         Ok(cores) => cores.get() as u64,
         Err(_) => {

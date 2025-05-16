@@ -1,3 +1,5 @@
+use std::fmt::{Display, Formatter};
+
 // The following enum is used to determine the environment from the web socket string
 #[derive(Debug, Clone)]
 pub enum Environment {
@@ -28,8 +30,8 @@ impl Environment {
     }
 }
 
-impl std::fmt::Display for Environment {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for Environment {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Environment::Local => write!(f, "Local"),
             Environment::Dev => write!(f, "Development"),
