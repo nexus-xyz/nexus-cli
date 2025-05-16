@@ -208,10 +208,8 @@ async fn authenticated_proving(
 
 /// Create a Stwo prover for the default program.
 fn get_default_stwo_prover() -> Result<Stwo<Local>, Box<dyn std::error::Error>> {
-    let elf_file_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("assets")
-        .join("fib_input");
-    Stwo::<Local>::new_from_file(&elf_file_path).map_err(|e| {
+    let elf_bytes = include_bytes!("../assets/fib_input");
+    Stwo::<Local>::new_from_bytes(elf_bytes).map_err(|e| {
         error!("Failed to load guest program: {}", e);
         e.into()
     })
