@@ -38,10 +38,8 @@ async fn authenticated_proving(
         .unwrap_or_default() as u32;
 
     println!("Compiling guest program...");
-    let elf_file_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("assets")
-        .join("fib_input");
-    let prover = match Stwo::<Local>::new_from_file(&elf_file_path) {
+    let elf_bytes = include_bytes!("../assets/fib_input");
+    let prover = match Stwo::<Local>::new_from_bytes(elf_bytes) {
         Ok(prover) => prover,
         Err(e) => {
             error!("Failed to load guest program: {}", e);
@@ -97,11 +95,8 @@ fn anonymous_proving() -> Result<(), Box<dyn std::error::Error>> {
     // The 10th term of the Fibonacci sequence is 55
     let public_input: u32 = 9;
     println!("Compiling guest program...");
-    let elf_file_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("assets")
-        .join("fib_input");
-
-    let prover = Stwo::<Local>::new_from_file(&elf_file_path).map_err(|e| {
+    let elf_bytes = include_bytes!("../assets/fib_input");
+    let prover = Stwo::<Local>::new_from_bytes(elf_bytes).map_err(|e| {
         error!("Failed to load guest program: {}", e);
         e
     })?;
