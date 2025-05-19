@@ -1,6 +1,6 @@
 use std::fmt::{Display, Formatter};
 
-// The following enum is used to determine the environment from the web socket string
+// The Environment enum represents different networks the CLI can connect to.
 #[derive(Debug, Clone)]
 pub enum Environment {
     Local,

@@ -1,7 +1,7 @@
 // Copyright (c) 2024 Nexus. All rights reserved.
 
 mod analytics;
-mod config;
+mod environment;
 mod flops;
 mod memory_stats;
 #[path = "proto/nexus.orchestrator.rs"]
@@ -54,7 +54,7 @@ enum Command {
 }
 
 /// Displays the splash screen with branding and system information.
-fn display_splash_screen(environment: &config::Environment) {
+fn display_splash_screen(environment: &environment::Environment) {
     utils::banner::print_banner();
     println!();
     println!(
@@ -77,7 +77,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     match cli.command {
         Command::Start { env, max_threads } => {
-            let environment = config::Environment::from_args(env.as_ref());
+            let environment = environment::Environment::from_args(env.as_ref());
             display_splash_screen(&environment);
 
             match setup::run_initial_setup().await {
@@ -120,7 +120,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 /// * `node_id` - The node ID to connect to, if specified.
 /// * `max_threads` - The maximum number of threads to use, if specified.
 async fn prove_parallel(
-    environment: config::Environment,
+    environment: environment::Environment,
     node_id: Option<u64>,
     max_threads: Option<u32>,
 ) {

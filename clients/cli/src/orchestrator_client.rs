@@ -1,4 +1,4 @@
-use crate::config;
+use crate::environment;
 use crate::flops::measure_gflops;
 use crate::memory_stats::get_memory_info;
 use crate::nexus_orchestrator::{
@@ -15,7 +15,7 @@ pub struct OrchestratorClient {
 }
 
 impl OrchestratorClient {
-    pub fn new(environment: config::Environment) -> Self {
+    pub fn new(environment: environment::Environment) -> Self {
         Self {
             client: ClientBuilder::new()
                 .timeout(Duration::from_secs(10))

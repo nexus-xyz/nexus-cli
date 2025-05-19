@@ -1,4 +1,4 @@
-use crate::config::Environment;
+use crate::environment::Environment;
 use chrono::Datelike;
 use chrono::Timelike;
 use reqwest::header::ACCEPT;
