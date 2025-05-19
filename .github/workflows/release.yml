@@ -29,11 +29,17 @@ jobs:
             target: aarch64-apple-darwin
             artifact_name: nexus-network-macos-arm64
 
-          # Ubuntu x86_64
+          # macOS x86_64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact_name: nexus-network-macos-x86_64
+
+          # Linux x86_64
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             artifact_name: nexus-network-linux-x86_64
 
+          # TODO: Linux ARM64
           # TODO: Windows
 
     steps:
@@ -110,6 +116,7 @@ jobs:
         with:
           files: |
             artifacts/nexus-network-macos-arm64
+            artifacts/nexus-network-macos-x86_64
             artifacts/nexus-network-linux-x86_64
           draft: false
           prerelease: false
