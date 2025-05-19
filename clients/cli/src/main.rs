@@ -55,7 +55,7 @@ enum Command {
 
 /// Displays the splash screen with branding and system information.
 fn display_splash_screen(environment: &config::Environment) {
-    utils::cli_branding::print_banner();
+    utils::banner::print_banner();
     println!();
     println!(
         "{}: {}",
