@@ -6,6 +6,8 @@ use c2pa_core::verify_signature as core_verify;
 #[cfg(feature = "zkvm")]
 use nexus_sdk::precompiles::ed25519;
 
+pub use c2pa_core::{C2paManifest, CompressionParams};
+
 /// Verify an Ed25519 signature over a message
 /// 
 /// # Arguments

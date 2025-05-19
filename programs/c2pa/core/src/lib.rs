@@ -1,9 +1,12 @@
 #![no_std]
 
+#[cfg(test)]
+extern crate alloc;
+
 use cfg_if::cfg_if;
 
 #[cfg(feature = "pure-rust")]
-use ed25519_dalek::{Verifier, VerifyingKey, Signature};
+use ed25519_dalek::{Verifier, VerifyingKey, Signature, Signer, SigningKey};
 
 #[cfg(feature = "zkvm")]
 use nexus_sdk::precompiles::ed25519;
@@ -57,6 +60,7 @@ pub fn verify_signature(message: &[u8], signature: &[u8], public_key: &[u8]) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloc::vec::Vec;
 
     #[test]
     fn test_verify_wrong_length_signature() {
@@ -77,20 +81,55 @@ mod tests {
     #[cfg(feature = "pure-rust")]
     #[test]
     fn test_verify_valid_signature() {
-        use ed25519_dalek::{SigningKey, VerifyingKey};
+        use ed25519_dalek::SigningKey;
         use rand::rngs::OsRng;
 
         let mut rng = OsRng;
-        let signing_key = SigningKey::generate(&mut rng);
+        // (For testing, we use a dummy secret key (all zeros) – in production you'd use a secure random secret.)
+        let dummy_secret_bytes = [0u8; 32];
+        let signing_key = SigningKey::from_bytes(&dummy_secret_bytes);
         let verifying_key = VerifyingKey::from(&signing_key);
-        
+
         let message = b"Hello, world!";
         let signature = signing_key.sign(message);
-        
+
         assert!(verify_signature(
             message,
             signature.to_bytes().as_ref(),
             verifying_key.to_bytes().as_ref()
         ));
+    }
+
+    #[cfg(feature = "pure-rust")]
+    #[test]
+    #[ignore = "Test requires real C2PA manifest data from Starling Lab project"]
+    fn test_starling_lab_manifest() {
+        // This test is currently skipped until we have real C2PA manifest data
+        // from the Starling Lab project. Once we have that data, we'll:
+        // 1. Update the test fixtures with real manifest and public key
+        // 2. Remove the #[ignore] attribute
+        // 3. Verify the signature against real-world data
+        let manifest_data = include_bytes!("../../test_fixtures/starling_lab_manifest.bin");
+        let public_key = include_bytes!("../../test_fixtures/starling_lab_public_key.bin");
+        
+        // The manifest contains:
+        // 1. Original image hash (32 bytes)
+        // 2. Compressed image hash (32 bytes)
+        // 3. Timestamp (8 bytes)
+        // 4. Public key (32 bytes)
+        // 5. Signature length (1 byte)
+        // 6. Signature (64 bytes)
+        // 7. Compression params (width, height, quality)
+        
+        // Extract the signature from the manifest
+        let signature_start = 32 + 32 + 8 + 32; // Skip original hash, compressed hash, timestamp, public key
+        let sig_len = manifest_data[signature_start] as usize;
+        let signature = &manifest_data[signature_start + 1..signature_start + 1 + sig_len];
+        
+        // Extract the message that was signed (everything before the signature)
+        let message = &manifest_data[..signature_start];
+        
+        // Verify the signature
+        assert!(verify_signature(message, signature, public_key));
     }
 } 

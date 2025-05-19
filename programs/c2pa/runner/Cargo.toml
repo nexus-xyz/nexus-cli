@@ -4,4 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-c2pa-core = { path = "../core" } 
+c2pa-core = { path = "../core" }
+c2pa = { path = "..", features = ["pure-rust"] }
+ed25519-dalek = { version = "2.1.0", features = ["rand_core"] }
+rand = "0.8"
+sha3 = "0.10" 

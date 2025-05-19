@@ -13,4 +13,5 @@ ed25519-dalek = { version = "2.1.0", default-features = false }
 cfg-if = "1.0"
 
 [dev-dependencies]
-test-case = "3.3.1" 
+test-case = "3.3.1"
+rand = "0.8" 
