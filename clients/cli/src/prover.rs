@@ -4,7 +4,7 @@ use std::time::Duration;
 use crate::orchestrator_client::OrchestratorClient;
 use crate::{analytics, config};
 use colored::Colorize;
-use log::{error, warn};
+use log::{error, info, warn};
 use sha3::{Digest, Keccak256};
 use thiserror::Error;
 
@@ -31,20 +31,11 @@ impl From<postcard::Error> for ProverError {
 /// # Arguments
 /// * `orchestrator_client` - The client to interact with the Nexus Orchestrator.
 /// * `node_id` - The ID of the node to connect to. If `None`, the prover will run in anonymous mode.
-/// * `_threads` - The number of threads to use for proving.
 pub async fn start_prover(
     environment: config::Environment,
     node_id: Option<u64>,
-    _threads: usize,
 ) -> Result<(), ProverError> {
     if let Some(node_id) = node_id {
-        println!(
-            "\n===== {} =====\n",
-            "Starting proof generation for programs"
-                .bold()
-                .underline()
-                .bright_cyan()
-        );
         run_authenticated_proving_loop(node_id, environment)
             .await
             .map_err(|e| {
@@ -55,13 +46,6 @@ pub async fn start_prover(
                 ))
             })?;
     } else {
-        println!(
-            "\n===== {} =====\n",
-            "Starting Anonymous proof generation for programs"
-                .bold()
-                .underline()
-                .bright_cyan()
-        );
         run_anonymous_proving_loop(environment).await?;
     }
 
@@ -73,11 +57,7 @@ async fn run_anonymous_proving_loop(environment: config::Environment) -> Result<
     let client_id = format!("{:x}", md5::compute(b"anonymous"));
     let mut proof_count = 1;
     loop {
-        println!("\n================================================");
-        println!(
-            "{}",
-            format!("\nStarting proof #{} (anonymous) ...\n", proof_count).yellow()
-        );
+        info!("{}", format!("Starting proof (anonymous)").yellow());
         if let Err(e) = prove_anonymously() {
             error!("Failed to create proof: {}", e);
         } else {
@@ -108,7 +88,7 @@ fn prove_anonymously() -> Result<(), ProverError> {
         "ZK proof created (anonymous) with size: {} bytes",
         proof_bytes.len()
     );
-    println!("{}", msg.green());
+    info!("{}", msg.green());
     Ok(())
 }
 
@@ -120,15 +100,7 @@ async fn run_authenticated_proving_loop(
     let orchestrator_client = OrchestratorClient::new(environment.clone());
     let mut proof_count = 1;
     loop {
-        println!("\n================================================");
-        println!(
-            "{}",
-            format!(
-                "\n[node: {}] Starting proof #{} (connected) ...\n",
-                node_id, proof_count
-            )
-            .yellow()
-        );
+        info!("{}", format!("Starting proof (node: {})", node_id).yellow());
 
         // Retry logic for authenticated_proving
         const MAX_ATTEMPTS: usize = 3;
@@ -136,19 +108,15 @@ async fn run_authenticated_proving_loop(
         let mut success = false;
 
         while attempt <= MAX_ATTEMPTS {
-            println!(
-                "Attempt #{} for authenticated proving (node_id={})",
-                attempt, node_id
-            );
             let stwo_prover = get_default_stwo_prover().expect("Failed to create Stwo prover");
             match authenticated_proving(node_id, &orchestrator_client, stwo_prover).await {
                 Ok(_) => {
-                    println!("Proving succeeded on attempt #{attempt}!");
+                    info!("Proving succeeded on attempt #{attempt}!");
                     success = true;
                     break;
                 }
                 Err(e) => {
-                    warn!("Attempt #{attempt} failed with error: {e}");
+                    warn!("Attempt #{attempt} failed: {e}");
                     attempt += 1;
                     if attempt <= MAX_ATTEMPTS {
                         warn!("Retrying in 2s...");
@@ -188,7 +156,7 @@ async fn authenticated_proving(
     orchestrator_client: &OrchestratorClient,
     stwo_prover: Stwo<Local>,
 ) -> Result<(), ProverError> {
-    println!("Fetching a task to prove from Nexus Orchestrator...");
+    info!("Fetching a task to prove from Nexus Orchestrator...");
     let task = orchestrator_client
         .get_proof_task(&node_id.to_string())
         .await
@@ -202,7 +170,7 @@ async fn authenticated_proving(
         .await
         .map_err(|e| ProverError::Orchestrator(format!("Failed to submit proof: {}", e)))?;
 
-    println!("{}", "ZK proof successfully submitted".green());
+    info!("{}", "ZK proof successfully submitted".green());
     Ok(())
 }
 
@@ -216,7 +184,6 @@ fn get_default_stwo_prover() -> Result<Stwo<Local>, Box<dyn std::error::Error>> 
 }
 
 fn prove_helper(stwo_prover: Stwo<Local>, public_input: u32) -> Result<Vec<u8>, ProverError> {
-    println!("Creating ZK proof with input {}", public_input);
     let (view, proof) = stwo_prover
         .prove_with_input::<(), u32>(&(), &public_input)
         .map_err(|e| ProverError::Stwo(format!("Failed to run prover: {}", e)))?;

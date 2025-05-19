@@ -45,9 +45,9 @@ enum Command {
         #[arg(long, value_enum)]
         env: Option<Environment>,
 
-        /// Number of threads to use for proving.
-        #[arg(long, default_value_t = 1)]
-        num_threads: usize,
+        /// Maximum number of threads to use for proving.
+        #[arg(long)]
+        max_threads: Option<u32>,
     },
     /// Logout from the current session
     Logout,
@@ -76,7 +76,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
 
     match cli.command {
-        Command::Start { env, num_threads } => {
+        Command::Start { env, max_threads } => {
             let environment = config::Environment::from_args(env.as_ref());
             display_splash_screen(&environment);
 
@@ -84,8 +84,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 // == CLI is not registered yet. Perform local proving ==
                 SetupResult::Anonymous => {
                     println!("Proving anonymously...");
-                    prove_parallel(num_threads, environment, None).await;
-                    // start_prover(environment, None, num_threads).await?;
+                    prove_parallel(environment, None, max_threads).await;
                 }
 
                 // == CLI is registered and connected ==
@@ -95,7 +94,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         .parse()
                         .unwrap_or_else(|_| panic!("invalid node id {}", node_id));
 
-                    prove_parallel(num_threads, environment, Some(node_id)).await;
+                    prove_parallel(environment, Some(node_id), max_threads).await;
                 }
 
                 // == Something went wrong during setup ==
@@ -115,26 +114,43 @@ async fn main() -> Result<(), Box<dyn Error>> {
 }
 
 /// Proves in parallel using multiple threads.
+///
+/// # Arguments
+/// * `environment` - The environment to connect to.
+/// * `node_id` - The node ID to connect to, if specified.
+/// * `max_threads` - The maximum number of threads to use, if specified.
 async fn prove_parallel(
-    max_threads: usize,
     environment: config::Environment,
     node_id: Option<u64>,
+    max_threads: Option<u32>,
 ) {
-    let mut handles = Vec::new();
+    if node_id.is_some() {
+        println!(
+            "\n===== {} =====\n",
+            "Starting proof generation".bold().underline().bright_cyan()
+        );
+    } else {
+        println!(
+            "\n===== {} =====\n",
+            "Starting Anonymous proof generation for programs"
+                .bold()
+                .underline()
+                .bright_cyan()
+        );
+    }
 
-    // Ensure the number of threads is within a reasonable range.
-    for i in 0..max_threads.clamp(1, 8) {
+    // Choose a reasonable number of threads.
+    let num_threads = max_threads.unwrap_or(1).clamp(1, 8);
+    let mut handles = Vec::new();
+    for i in 0..num_threads {
         let env_clone = environment.clone();
         let node_id_clone = node_id;
 
         let handle = thread::spawn(move || {
-            println!("Thread {} starting", i);
-
             // Create a new runtime for each thread
             let rt = Runtime::new().expect("Failed to create Tokio runtime");
-
             rt.block_on(async {
-                match start_prover(env_clone, node_id_clone, i).await {
+                match start_prover(env_clone, node_id_clone).await {
                     Ok(()) => println!("Thread {} completed successfully", i),
                     Err(e) => eprintln!("Thread {} failed: {:?}", i, e),
                 }
