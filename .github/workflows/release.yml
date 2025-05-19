@@ -39,6 +39,14 @@ jobs:
       - name: Install ARM64 Linux linker
         run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross
 
+      - name: Debug Rust environment
+        run: |
+          echo "Rust version: $(rustc --version --verbose)"
+          echo "Cargo version: $(cargo --version)"
+          echo "Rustup installed targets: $(rustup target list --installed)"
+          echo "Rustup active toolchain: $(rustup show active-toolchain)"
+          echo "Host target: $(rustc -vV | grep host)"
+
       - name: Build Linux x86_64 binary
         working-directory: clients/cli
         run: cargo build --release --target x86_64-unknown-linux-gnu
@@ -47,24 +55,23 @@ jobs:
         working-directory: clients/cli
         run: cargo build --release --target aarch64-unknown-linux-gnu
 
-      - name: Upload Linux x86_64 binary
-        uses: svenstaro/upload-release-action@v1-release
-        working-directory: clients/cli
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: target/x86_64-unknown-linux-gnu/release/myapp    # path to x86_64 Linux binary
-          asset_name: myapp-linux-x86_64                        # name of the asset as it will appear in the release
-          tag: ${{ github.ref_name }}                           # use the git tag that triggered this workflow
-          overwrite: true
-
-      - name: Upload Linux ARM64 binary
-        uses: svenstaro/upload-release-action@v1-release
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: target/aarch64-unknown-linux-gnu/release/myapp   # path to ARM64 (aarch64) Linux binary
-          asset_name: myapp-linux-arm64                         # asset name for Linux ARM64
-          tag: ${{ github.ref_name }}
-          overwrite: true
+#      - name: Upload Linux x86_64 binary
+#        uses: svenstaro/upload-release-action@v1-release
+#        with:
+#          repo_token: ${{ secrets.GITHUB_TOKEN }}
+#          file: target/x86_64-unknown-linux-gnu/release/myapp    # path to x86_64 Linux binary
+#          asset_name: myapp-linux-x86_64                        # name of the asset as it will appear in the release
+#          tag: ${{ github.ref_name }}                           # use the git tag that triggered this workflow
+#          overwrite: true
+#
+#      - name: Upload Linux ARM64 binary
+#        uses: svenstaro/upload-release-action@v1-release
+#        with:
+#          repo_token: ${{ secrets.GITHUB_TOKEN }}
+#          file: target/aarch64-unknown-linux-gnu/release/myapp   # path to ARM64 (aarch64) Linux binary
+#          asset_name: myapp-linux-arm64                         # asset name for Linux ARM64
+#          tag: ${{ github.ref_name }}
+#          overwrite: true
 
 #  build-macos:
 #    name: Build and Release (macOS x86_64 & ARM64)
