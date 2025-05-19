@@ -16,7 +16,7 @@ pub fn measure_gflops() -> f32 {
             1
         }
     };
-    
+
     // let num_cores: u64 = available_parallelism()?.get().try_into()?;
     println!("Using {} logical cores for FLOPS measurement", num_cores);
 
@@ -39,6 +39,6 @@ pub fn measure_gflops() -> f32 {
         })
         .sum::<f64>()
         / NUM_REPEATS as f64; // Average the FLOPS over all repeats
-    
+
     (avg_flops / 1e9) as f32
 }
