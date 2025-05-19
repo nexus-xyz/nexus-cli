@@ -57,7 +57,7 @@ async fn run_anonymous_proving_loop(environment: config::Environment) -> Result<
     let client_id = format!("{:x}", md5::compute(b"anonymous"));
     let mut proof_count = 1;
     loop {
-        info!("{}", format!("Starting proof (anonymous)").yellow());
+        info!("{}", "Starting proof (anonymous)".to_string().yellow());
         if let Err(e) = prove_anonymously() {
             error!("Failed to create proof: {}", e);
         } else {
