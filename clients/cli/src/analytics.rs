@@ -1,4 +1,4 @@
-use crate::config::{analytics_api_key, analytics_id, Environment};
+use crate::config::Environment;
 use chrono::Datelike;
 use chrono::Timelike;
 use reqwest::header::ACCEPT;
@@ -7,6 +7,31 @@ use std::{
     env,
     time::{SystemTime, UNIX_EPOCH},
 };
+
+pub const DEV_MEASUREMENT_ID: &str = "G-SWNG3LZDFR";
+pub const STAGING_MEASUREMENT_ID: &str = "G-T0M0Q3V6WN";
+pub const BETA_MEASUREMENT_ID: &str = "G-GLH0GMEEFH";
+pub const DEV_API_SECRET: &str = "8ySxiKrtT8a76zClqqO8IQ";
+pub const STAGING_API_SECRET: &str = "OI7H53soRMSDWfJf1ittHQ";
+pub const BETA_API_SECRET: &str = "3wxu8FjVSPqOlxSsZEnBOw";
+
+pub fn analytics_id(environment: &Environment) -> String {
+    match environment {
+        Environment::Dev => DEV_MEASUREMENT_ID.to_string(),
+        Environment::Staging => STAGING_MEASUREMENT_ID.to_string(),
+        Environment::Beta => BETA_MEASUREMENT_ID.to_string(),
+        Environment::Local => String::new(),
+    }
+}
+
+pub fn analytics_api_key(environment: &Environment) -> String {
+    match environment {
+        Environment::Dev => DEV_API_SECRET.to_string(),
+        Environment::Staging => STAGING_API_SECRET.to_string(),
+        Environment::Beta => BETA_API_SECRET.to_string(),
+        Environment::Local => String::new(),
+    }
+}
 
 pub fn track(
     event_name: String,
