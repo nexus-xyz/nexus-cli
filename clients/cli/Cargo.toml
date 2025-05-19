@@ -8,19 +8,9 @@ build = "build.rs"
 [features]
 build_proto = []
 
-[workspace]
-members = [
-    "examples",
-]
-
-[workspace.package]
-edition = "2021"
-version = "0.2.3"
-authors = ["The Nexus Team <hello@nexus.xyz>"]
-homepage = "https://nexus.xyz/"
-keywords = ["nexus", "zero-knowledge", "zkvm", "cryptography", "proofs"]
-categories = ["cryptography"]
-publish = false
+[[bin]]
+name = "nexus-network"
+path = "src/main.rs"
 
 [profile.dev]
 opt-level = 1
