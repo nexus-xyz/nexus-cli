@@ -40,13 +40,16 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross
 
       - name: Build Linux x86_64 binary
+        working-directory: clients/cli
         run: cargo build --release --target x86_64-unknown-linux-gnu
 
       - name: Build Linux ARM64 binary
+        working-directory: clients/cli
         run: cargo build --release --target aarch64-unknown-linux-gnu
 
       - name: Upload Linux x86_64 binary
         uses: svenstaro/upload-release-action@v1-release
+        working-directory: clients/cli
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: target/x86_64-unknown-linux-gnu/release/myapp    # path to x86_64 Linux binary
