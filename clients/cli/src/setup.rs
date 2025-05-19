@@ -1,10 +1,10 @@
 use colored::Colorize;
-use serde::{Deserialize, Serialize};
 use std::fs;
 
 // Update the import path to use the proto module
 use crate::node_id_manager::{
     create_nexus_directory, get_home_directory, handle_read_error, read_existing_node_id,
+    NodeConfig,
 };
 
 pub enum SetupResult {
@@ -16,23 +16,13 @@ pub enum SetupResult {
     Invalid,
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct NodeConfig {
-    pub node_id: String,
-}
-
-//function that takes a node_id and saves it to the user config
+/// Save the node ID to the app's config file.
 fn save_node_id(node_id: &str) -> std::io::Result<()> {
-    //get the home directory
     let home_path = match get_home_directory() {
         Ok(path) => path,
         Err(_) => return Err(std::io::Error::other("Failed to determine home directory")),
     };
-
-    let nexus_dir = home_path.join(".nexus");
-    let config_path = nexus_dir.join("config.json");
-
-    // Print how to find the config file
+    let config_path = home_path.join(".nexus").join("config.json");
     println!("Loading configuration: {}", config_path.to_string_lossy());
 
     // Create the config object

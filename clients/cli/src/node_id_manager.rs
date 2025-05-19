@@ -1,14 +1,15 @@
+//! Methods for saving and reading a Node's configuration to a local configuration file.
+
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
-// use rand::RngCore;
-// use random_word::Lang;
 use std::{fs, path::Path, path::PathBuf};
 
 #[derive(Serialize, Deserialize)]
-struct NodeConfig {
-    node_id: String,
+pub struct NodeConfig {
+    pub node_id: String,
 }
 
+/// Get the use's home directory.
 pub fn get_home_directory() -> Result<PathBuf, &'static str> {
     match home::home_dir() {
         Some(path) if !path.as_os_str().is_empty() => Ok(path),
@@ -19,6 +20,7 @@ pub fn get_home_directory() -> Result<PathBuf, &'static str> {
     }
 }
 
+/// Create the .nexus directory in the user's home directory.
 pub fn create_nexus_directory(nexus_dir: &Path) -> std::io::Result<()> {
     println!("Attempting to create .nexus directory");
     if let Err(e) = fs::create_dir(nexus_dir) {
@@ -35,6 +37,7 @@ pub fn create_nexus_directory(nexus_dir: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
+/// Read the node ID from an existing config file.
 pub fn read_existing_node_id(config_path: &Path) -> Result<String, std::io::Error> {
     let buf = fs::read(config_path)?;
     let config: NodeConfig = serde_json::from_slice(&buf)
@@ -50,6 +53,7 @@ pub fn read_existing_node_id(config_path: &Path) -> Result<String, std::io::Erro
     Ok(config.node_id)
 }
 
+/// Save the node ID to a config file.
 fn save_node_id(path: &Path, id: &str) {
     let config = NodeConfig {
         node_id: id.to_string(),

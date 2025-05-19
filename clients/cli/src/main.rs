@@ -2,8 +2,6 @@
 
 mod analytics;
 mod environment;
-mod flops;
-mod memory_stats;
 #[path = "proto/nexus.orchestrator.rs"]
 mod nexus_orchestrator;
 mod node_id_manager;
@@ -14,6 +12,7 @@ mod utils;
 
 use crate::prover::start_prover;
 use crate::setup::SetupResult;
+use crate::utils::system_stats::measure_gflops;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 use log::error;
@@ -60,7 +59,7 @@ fn display_splash_screen(environment: &environment::Environment) {
     println!(
         "{}: {}",
         "Computational capacity of this node".bold(),
-        format!("{:.2} GFLOPS", flops::measure_gflops()).bright_cyan()
+        format!("{:.2} GFLOPS", measure_gflops()).bright_cyan()
     );
     println!(
         "{}: {}",

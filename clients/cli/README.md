@@ -51,7 +51,7 @@ add `NONINTERACTIVE=1` before `sh`.
 * Linking email to prover id is currently available on the web version only.
 * Counting cycles proved is not yet available in the CLI.
 * Only proving is supported. Submitting programs to the network is in private beta.
-To request an API key, contact us at growth@nexus.xyz.
+  To request an API key, contact us at growth@nexus.xyz.
 
 ## Modifying source
 
@@ -61,11 +61,11 @@ repo somewhere else.
 
 To run an optimized build using Nexus servers, run the following command in clients/cli:
 
-### Run the CLI with prover enabled
+### Running the CLI
 
 ```sh
-# Run the CLI with prover enabled on the beta network
-cargo run -r -- start --env beta
+# Run the CLI on the beta network, with optional argument for parallelism.
+cargo run -r -- start --env beta --max-threads 4
 ```
 
 ### Clear credentials
@@ -81,6 +81,7 @@ cargo run -r -- logout
 If you encounter an error about `protoc` not being installed, you can install it:
 
 #### macOS
+
 ```bash
 # Install using Homebrew
 brew install protobuf
