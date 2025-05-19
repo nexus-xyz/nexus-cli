@@ -1,13 +1,10 @@
 name: Release
 
-# Trigger the workflow on:
-# - A push event that creates a tag starting with 'v' (e.g., v1.0.0)
-# - A manual trigger via the GitHub Actions UI, with an optional input
 on:
   push:
     tags:
-      - 'v*'
-  workflow_dispatch:
+      - "v*"            # Trigger on tag push (e.g. "v1.0.0"). Adjust pattern as needed.
+  workflow_dispatch:    # Allow manual triggering of the workflow.
     inputs:
       create_release:
         description: 'Create a GitHub release from the latest tag'
@@ -16,35 +13,11 @@ on:
         default: false
 
 jobs:
-  build:
-    # Define a job to build binaries for multiple OS targets
-    name: Build for ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        # Map each OS to its Rust target and desired artifact name
-        include:
-          # macOS ARM64
-          - os: macos-latest
-            target: aarch64-apple-darwin
-            artifact_name: nexus-network-macos-arm64
-
-          # macOS x86_64
-          - os: macos-latest
-            target: x86_64-apple-darwin
-            artifact_name: nexus-network-macos-x86_64
-
-          # Linux x86_64
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            artifact_name: nexus-network-linux-x86_64
-
-          # TODO: Linux ARM64
-          # TODO: Windows
-
+  build-linux:
+    name: Build and Release (Linux x86_64 & ARM64)
+    runs-on: ubuntu-latest
     steps:
-      # Check out the repository source code
-      - name: Checkout source
+      - name: Checkout code
         uses: actions/checkout@v4
 
       # Set up the Rust toolchain for the specified target
@@ -52,74 +25,215 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly-2025-01-02
-          target: ${{ matrix.target }}
+          targets: aarch64-unknown-linux-gnu, x86_64-unknown-linux-gnu
           components: rustfmt
 
-      - name: Debug Rust environment
-        run: |
-          echo "Rust version: $(rustc --version --verbose)"
-          echo "Cargo version: $(cargo --version)"
-          echo "Rustup installed targets: $(rustup target list --installed)"
-          echo "Rustup active toolchain: $(rustup show active-toolchain)"
-          echo "Host target: $(rustc -vV | grep host)"
+      #      - name: Set up Rust toolchain
+      #        uses: actions/setup-rust@v1
+      #        with:
+      #          rust-version: stable
 
-      # Build the release binary for the specified target
-      - name: Build CLI binary
-        working-directory: clients/cli
-        run: |
-          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
-            cargo build --release
-          else
-            cargo build --release --target=${{ matrix.target }}
-          fi
+      #      - name: Add Linux ARM64 target
+      #        run: rustup target add aarch64-unknown-linux-gnu
 
-      # Rename the binary to indicate the target OS
-      - name: Rename binary
-        run: |
-          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
-            cp clients/cli/target/release/nexus-network clients/cli/target/release/${{ matrix.artifact_name }}
-          else
-            cp clients/cli/target/${{ matrix.target }}/release/nexus-network clients/cli/target/release/${{ matrix.artifact_name }}
-          fi
+      - name: Install ARM64 Linux linker
+        run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross
 
-      # Upload the binary as an artifact
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Build Linux x86_64 binary
+        run: cargo build --release --target x86_64-unknown-linux-gnu
+
+      - name: Build Linux ARM64 binary
+        run: cargo build --release --target aarch64-unknown-linux-gnu
+
+      - name: Upload Linux x86_64 binary
+        uses: svenstaro/upload-release-action@v1-release
         with:
-          name: ${{ matrix.artifact_name }}
-          path: clients/cli/target/release/${{ matrix.artifact_name }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: target/x86_64-unknown-linux-gnu/release/myapp    # path to x86_64 Linux binary
+          asset_name: myapp-linux-x86_64                        # name of the asset as it will appear in the release
+          tag: ${{ github.ref_name }}                           # use the git tag that triggered this workflow
+          overwrite: true
 
-  release:
-    # Define a separate job to create the GitHub release
-    name: Create Release
-    needs: build
-    if: github.event.inputs.create_release == 'true' || github.event_name == 'push'
-    runs-on: ubuntu-latest
-    steps:
-      # Check out the repo again (needed to include metadata like tags)
-      - uses: actions/checkout@v4
-
-      # Download all build artifacts uploaded by the matrix build
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
+      - name: Upload Linux ARM64 binary
+        uses: svenstaro/upload-release-action@v1-release
         with:
-          path: artifacts
-          merge-multiple: true # Merge multiple artifacts into a single directory
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: target/aarch64-unknown-linux-gnu/release/myapp   # path to ARM64 (aarch64) Linux binary
+          asset_name: myapp-linux-arm64                         # asset name for Linux ARM64
+          tag: ${{ github.ref_name }}
+          overwrite: true
 
-      - name: List downloaded artifacts (debug)
-        run: ls -R artifacts
+#  build-macos:
+#    name: Build and Release (macOS x86_64 & ARM64)
+#    runs-on: macos-latest
+#    needs: build-linux   # Ensure Linux job (and release creation) runs first
+#    steps:
+#      - name: Checkout code
+#        uses: actions/checkout@v3
+#
+#      - name: Set up Rust toolchain
+#        uses: actions/setup-rust@v1
+#        with:
+#          rust-version: stable
+#
+#      - name: Add macOS ARM64 target
+#        run: rustup target add aarch64-apple-darwin
+#
+#      - name: Build macOS x86_64 binary
+#        run: cargo build --release --target x86_64-apple-darwin
+#
+#      - name: Build macOS ARM64 binary
+#        env:
+#          # Ensure the macOS SDK is specified for cross-compiling to ARM64
+#          SDKROOT: ${{ runner.os == 'macOS' && steps.setup_xcode.outputs.sdk_path || '' }}
+#        run: |
+#          # Set SDKROOT for Apple cross-compilation (if needed)
+#          export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
+#          cargo build --release --target aarch64-apple-darwin
+#
+#      - name: Upload macOS x86_64 binary
+#        uses: svenstaro/upload-release-action@v1-release
+#        with:
+#          repo_token: ${{ secrets.GITHUB_TOKEN }}
+#          file: target/x86_64-apple-darwin/release/myapp    # path to x86_64 macOS binary
+#          asset_name: myapp-macos-x86_64                   # asset name for macOS Intel (x86_64)
+#          tag: ${{ github.ref_name }}
+#          overwrite: true
+#
+#      - name: Upload macOS ARM64 binary
+#        uses: svenstaro/upload-release-action@v1-release
+#        with:
+#          repo_token: ${{ secrets.GITHUB_TOKEN }}
+#          file: target/aarch64-apple-darwin/release/myapp   # path to ARM64 macOS binary
+#          asset_name: myapp-macos-arm64                    # asset name for macOS Apple Silicon (ARM64)
+#          tag: ${{ github.ref_name }}
+#          overwrite: true
 
-      # Use the `gh-release` action to publish a release with the downloaded binaries
-      - name: Create Release
-        id: create_release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            artifacts/nexus-network-macos-arm64
-            artifacts/nexus-network-macos-x86_64
-            artifacts/nexus-network-linux-x86_64
-          draft: false
-          prerelease: false
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+
+
+
+#name: Release
+#
+## Trigger the workflow on:
+## - A push event that creates a tag starting with 'v' (e.g., v1.0.0)
+## - A manual trigger via the GitHub Actions UI, with an optional input
+#on:
+#  push:
+#    tags:
+#      - 'v*'
+#  workflow_dispatch:
+#    inputs:
+#      create_release:
+#        description: 'Create a GitHub release from the latest tag'
+#        required: true
+#        type: boolean
+#        default: false
+#
+#jobs:
+#  build:
+#    # Define a job to build binaries for multiple OS targets
+#    name: Build for ${{ matrix.target }}
+#    runs-on: ${{ matrix.os }}
+#    strategy:
+#      matrix:
+#        # Map each OS to its Rust target and desired artifact name
+#        include:
+#          # macOS ARM64
+#          - os: macos-latest
+#            target: aarch64-apple-darwin
+#            artifact_name: nexus-network-macos-arm64
+#
+#          # macOS x86_64
+#          - os: macos-latest
+#            target: x86_64-apple-darwin
+#            artifact_name: nexus-network-macos-x86_64
+#
+#          # Linux x86_64
+#          - os: ubuntu-latest
+#            target: x86_64-unknown-linux-gnu
+#            artifact_name: nexus-network-linux-x86_64
+#
+#          # TODO: Linux ARM64
+#          # TODO: Windows
+#
+#    steps:
+#      # Check out the repository source code
+#      - name: Checkout source
+#        uses: actions/checkout@v4
+#
+#      # Set up the Rust toolchain for the specified target
+#      - name: Install Rust
+#        uses: dtolnay/rust-toolchain@stable
+#        with:
+#          toolchain: nightly-2025-01-02
+#          target: ${{ matrix.target }}
+#          components: rustfmt
+#
+#      - name: Debug Rust environment
+#        run: |
+#          echo "Rust version: $(rustc --version --verbose)"
+#          echo "Cargo version: $(cargo --version)"
+#          echo "Rustup installed targets: $(rustup target list --installed)"
+#          echo "Rustup active toolchain: $(rustup show active-toolchain)"
+#          echo "Host target: $(rustc -vV | grep host)"
+#
+#      # Build the release binary for the specified target
+#      - name: Build CLI binary
+#        working-directory: clients/cli
+#        run: |
+#          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+#            cargo build --release
+#          else
+#            cargo build --release --target=${{ matrix.target }}
+#          fi
+#
+#      # Rename the binary to indicate the target OS
+#      - name: Rename binary
+#        run: |
+#          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+#            cp clients/cli/target/release/nexus-network clients/cli/target/release/${{ matrix.artifact_name }}
+#          else
+#            cp clients/cli/target/${{ matrix.target }}/release/nexus-network clients/cli/target/release/${{ matrix.artifact_name }}
+#          fi
+#
+#      # Upload the binary as an artifact
+#      - name: Upload artifact
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: ${{ matrix.artifact_name }}
+#          path: clients/cli/target/release/${{ matrix.artifact_name }}
+#
+#  release:
+#    # Define a separate job to create the GitHub release
+#    name: Create Release
+#    needs: build
+#    if: github.event.inputs.create_release == 'true' || github.event_name == 'push'
+#    runs-on: ubuntu-latest
+#    steps:
+#      # Check out the repo again (needed to include metadata like tags)
+#      - uses: actions/checkout@v4
+#
+#      # Download all build artifacts uploaded by the matrix build
+#      - name: Download all artifacts
+#        uses: actions/download-artifact@v4
+#        with:
+#          path: artifacts
+#          merge-multiple: true # Merge multiple artifacts into a single directory
+#
+#      - name: List downloaded artifacts (debug)
+#        run: ls -R artifacts
+#
+#      # Use the `gh-release` action to publish a release with the downloaded binaries
+#      - name: Create Release
+#        id: create_release
+#        uses: softprops/action-gh-release@v2
+#        with:
+#          files: |
+#            artifacts/nexus-network-macos-arm64
+#            artifacts/nexus-network-macos-x86_64
+#            artifacts/nexus-network-linux-x86_64
+#          draft: false
+#          prerelease: false
+#          generate_release_notes: true
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
