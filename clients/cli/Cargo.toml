@@ -30,26 +30,25 @@ codegen-units = 256
 incremental = true
 
 [dependencies]
+chrono = "0.4.38"
 clap = { version = "4.5", features = ["derive"] }
-prost = "0.13"
-reqwest = { version = "0.12", features = ["json"] }
-tokio = { version = "1.38", features = ["full"] }
+colored = "2.1.0"
+env_logger = "0.11.8"
 home = "0.5.9"
 iana-time-zone = "0.1.60"
-chrono = "0.4.38"
-colored = "2.1.0"
+log = "0.4.26"
 md5 = "0.7.0"
+nexus-sdk = { git = "https://github.com/nexus-xyz/nexus-zkvm", tag = "0.3.3" }
+postcard = "1.0.10"
+prost = "0.13"
+rayon = "1.10"
+reqwest = { version = "0.12", features = ["json"] }
 serde = { version = "1.0.217", features = ["derive"] }
 serde_json = { version = "1.0.138" }
-sysinfo = "0.33.1"
-nexus-sdk = { git = "https://github.com/nexus-xyz/nexus-zkvm", tag = "0.3.3" }
-rayon = "1.10"
 sha3 = "0.10.8"
-log = "0.4.26"
-postcard = "1.0.10"
+sysinfo = "0.33.1"
 thiserror = "2.0.12"
-env_logger = "0.11.8"
-
+tokio = { version = "1.38", features = ["full"] }
 
 [build-dependencies]
 
