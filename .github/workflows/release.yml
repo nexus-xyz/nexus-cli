@@ -28,13 +28,11 @@ jobs:
           targets: aarch64-unknown-linux-gnu, x86_64-unknown-linux-gnu
           components: rustfmt
 
-      #      - name: Set up Rust toolchain
-      #        uses: actions/setup-rust@v1
-      #        with:
-      #          rust-version: stable
-
-      #      - name: Add Linux ARM64 target
-      #        run: rustup target add aarch64-unknown-linux-gnu
+      # Install the required targets for cross-compilation
+      - name: Ensure targets are installed (fallback)
+        run: |
+          rustup target add aarch64-unknown-linux-gnu
+          rustup target add x86_64-unknown-linux-gnu
 
       - name: Install ARM64 Linux linker
         run: |
@@ -49,15 +47,26 @@ jobs:
           echo "Rustup active toolchain: $(rustup show active-toolchain)"
           echo "Host target: $(rustc -vV | grep host)"
 
+      - name: Build Linux ARM64 binary (build-std)
+        working-directory: clients/cli
+        env:
+          RUSTFLAGS: "-C target-feature=+crt-static"
+          RUSTC_BOOTSTRAP: 1
+        run: |
+          export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
+          cargo build -Zbuild-std=std,panic_abort --release --target aarch64-unknown-linux-gnu
+
       - name: Build Linux x86_64 binary
         working-directory: clients/cli
         run: cargo build --release --target x86_64-unknown-linux-gnu
 
-      - name: Build Linux ARM64 binary
-        working-directory: clients/cli
-        run: |
-          export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
-          cargo build --release --target aarch64-unknown-linux-gnu
+#      - name: Build Linux ARM64 binary
+#        working-directory: clients/cli
+#        run: |
+#          export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
+#          cargo build --release --target aarch64-unknown-linux-gnu
+
+
 
 #      - name: Upload Linux x86_64 binary
 #        uses: svenstaro/upload-release-action@v1-release
