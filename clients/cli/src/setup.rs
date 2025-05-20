@@ -1,11 +1,8 @@
+use crate::node_config::NodeConfig;
 use colored::Colorize;
 use std::fs;
-
-// Update the import path to use the proto module
-use crate::node_id_manager::{
-    create_nexus_directory, get_home_directory, handle_read_error, read_existing_node_id,
-    NodeConfig,
-};
+use std::io::stdin;
+use std::path::Path;
 
 pub enum SetupResult {
     /// The user is in anonymous mode
@@ -16,106 +13,49 @@ pub enum SetupResult {
     Invalid,
 }
 
-/// Save the node ID to the app's config file.
-fn save_node_id(node_id: &str) -> std::io::Result<()> {
-    let home_path = match get_home_directory() {
-        Ok(path) => path,
-        Err(_) => return Err(std::io::Error::other("Failed to determine home directory")),
-    };
-    let config_path = home_path.join(".nexus").join("config.json");
-    println!("Loading configuration: {}", config_path.to_string_lossy());
-
-    // Create the config object
-    let config = NodeConfig {
-        node_id: node_id.to_string(),
-    };
-
-    // Write the config to file
-    let json = serde_json::to_string_pretty(&config).map_err(std::io::Error::other)?;
-    fs::write(&config_path, json)?;
-
-    // 2. If the .nexus directory exists, we need to read the config file
-    match read_existing_node_id(&config_path) {
-        // 2.1 Happy path - we successfully read the config file
-        Ok(id) => {
-            println!(
-                "Successfully read existing node-id '{}' from file: {}",
-                id,
-                config_path.to_string_lossy()
-            );
-            Ok(())
-        }
-        // 2.2 We couldn't read the config file, so we may need to create a new one
-        Err(e) => {
-            eprintln!(
-                "{}: {}",
-                "Warning: Could not read node-id file".to_string().yellow(),
-                e
-            );
-            handle_read_error(e, &config_path, node_id);
-            Ok(())
-        }
-    }
-}
-
-pub async fn run_initial_setup() -> SetupResult {
-    // Get home directory and check for prover-id file
-    let home_path: std::path::PathBuf =
-        home::home_dir().expect("Failed to determine home directory");
-
-    //If the .nexus directory doesn't exist, we need to create it
-    let nexus_dir = home_path.join(".nexus");
-    if !nexus_dir.exists() {
-        create_nexus_directory(&nexus_dir).expect("Failed to create .nexus directory");
-    }
-
-    //Check if the node-id file exists, use it. If not, create a new one.
-    let node_config_path = home_path.join(".nexus").join("config.json");
-    let node_id = match fs::read_to_string(&node_config_path) {
-        Ok(content) => match serde_json::from_str::<NodeConfig>(&content) {
-            Ok(config) => config.node_id,
-            Err(_) => String::new(),
-        },
-        Err(_) => String::new(),
-    };
-
-    if node_config_path.exists() && !node_id.is_empty() {
+/// Run the initial setup for the Nexus CLI.
+///
+/// Checks for, and reads or creates the config file at the given path.
+pub async fn run_initial_setup(config_path: &Path) -> Result<SetupResult, std::io::Error> {
+    if config_path.exists() {
+        // If a config file exists, attempt to read the node ID from it.
+        let node_config = NodeConfig::load_from_file(config_path)?;
+        let node_id = node_config.node_id;
         println!(
             "\nThis node is already connected to an account using node id: {}",
             node_id
         );
-
         if std::env::var_os("NONINTERACTIVE").is_some() {
-            return SetupResult::Connected(node_id);
+            return Ok(SetupResult::Connected(node_id));
         }
 
-        //ask the user if they want to use the existing config
         println!("Do you want to use the existing user account? [Y/n]");
-        let mut use_existing_config = String::new();
-        std::io::stdin()
-            .read_line(&mut use_existing_config)
-            .unwrap();
-        let use_existing_config = use_existing_config.trim();
-        if use_existing_config != "n" {
-            return SetupResult::Connected(node_id);
+        let use_existing_config = {
+            let mut buf = String::new();
+            stdin().read_line(&mut buf)?;
+            !buf.trim().eq_ignore_ascii_case("n")
+        };
+
+        if use_existing_config {
+            return Ok(SetupResult::Connected(node_id));
         } else {
             println!("Ignoring existing node id...");
         }
+    } else {
+        println!("\nThis node is not connected to any account.\n");
     }
 
-    println!("\nThis node is not connected to any account.\n");
     println!("[1] Enter '1' Anonymous mode: start proving without earning Devnet points");
     println!("[2] Enter '2' Authenticated mode: start proving and earning Devnet points");
 
-    let mut option = String::new();
-    std::io::stdin().read_line(&mut option).unwrap();
-    let option = option.trim();
+    let mut buf = String::new();
+    stdin().read_line(&mut buf).unwrap();
+    let option = buf.trim();
 
-    //if no config file exists, ask the user to enter their email
     match option {
         "1" => {
             println!("You chose option 1\n");
-            SetupResult::Anonymous
+            Ok(SetupResult::Anonymous)
         }
         "2" => {
             println!(
@@ -135,58 +75,18 @@ pub async fn run_initial_setup() -> SetupResult {
             println!("6. Enter the node ID into the terminal below:\n");
 
             let node_id = get_node_id_from_user();
-            match save_node_id(&node_id) {
-                Ok(_) => SetupResult::Connected(node_id),
-                Err(e) => {
-                    println!("{}", format!("Failed to save node ID: {}", e).red());
-                    SetupResult::Invalid
-                }
-            }
+            let node_config = NodeConfig::new(node_id.clone());
+            node_config.save(config_path)?;
+            Ok(SetupResult::Connected(node_id))
         }
         _ => {
-            println!("Invalid option");
-            SetupResult::Invalid
+            println!("Invalid option {}", option);
+            Ok(SetupResult::Invalid)
         }
     }
 }
 
-pub fn clear_node_id() -> std::io::Result<()> {
-    let home_path: std::path::PathBuf =
-        home::home_dir().expect("Failed to determine home directory");
-
-    //If the .nexus directory doesn't exist, nothing to clear
-    let nexus_dir = home_path.join(".nexus");
-    if !nexus_dir.exists() {
-        // nothing to clear
-        return Ok(());
-    }
-
-    // if the nexus directory exists, check if the node-id file exists
-    let node_config_path = home_path.join(".nexus").join("config.json");
-    if !node_config_path.exists() {
-        // nothing to clear
-        return Ok(());
-    }
-
-    //if the node-id file exists, clear it
-    match fs::remove_file(&node_config_path) {
-        Ok(_) => {
-            println!(
-                "Successfully cleared node ID configuration with file: {}",
-                node_config_path.to_string_lossy()
-            );
-            Ok(())
-        }
-        Err(e) => {
-            eprintln!(
-                "{}",
-                format!("Failed to clear node ID configuration: {}", e).red()
-            );
-            Err(e)
-        }
-    }
-}
-
+/// Get the node ID from the user input.
 fn get_node_id_from_user() -> String {
     println!("{}", "Please enter your node ID:".green());
     let mut node_id = String::new();
@@ -194,4 +94,24 @@ fn get_node_id_from_user() -> String {
         .read_line(&mut node_id)
         .expect("Failed to read node ID");
     node_id.trim().to_string()
+}
+
+/// Clear the node ID configuration file.
+pub fn clear_node_config(path: &Path) -> std::io::Result<()> {
+    // Check that the path ends with config.json
+    if !path.ends_with("config.json") {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "Path must end with config.json",
+        ));
+    }
+
+    // If no file exists, return OK
+    if !path.exists() {
+        println!("No config file found at {}", path.display());
+        return Ok(());
+    }
+
+    // If the file exists, remove it
+    fs::remove_file(path)
 }

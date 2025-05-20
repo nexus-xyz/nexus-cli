@@ -4,19 +4,20 @@ mod analytics;
 mod environment;
 #[path = "proto/nexus.orchestrator.rs"]
 mod nexus_orchestrator;
-mod node_id_manager;
+mod node_config;
 mod orchestrator_client;
 mod prover;
 mod setup;
 mod utils;
 
 use crate::prover::start_prover;
-use crate::setup::SetupResult;
+use crate::setup::{clear_node_config, SetupResult};
 use crate::utils::system_stats::measure_gflops;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 use log::error;
 use std::error::Error;
+use std::path::PathBuf;
 use std::thread;
 use tokio::runtime::Runtime;
 
@@ -52,6 +53,13 @@ enum Command {
     Logout,
 }
 
+/// Get the path to the Nexus config file, typically located at ~/.nexus/config.json.
+fn get_config_path() -> Result<PathBuf, ()> {
+    let home_path = home::home_dir().expect("Failed to get home directory");
+    let config_path = home_path.join(".nexus").join("config.json");
+    Ok(config_path)
+}
+
 /// Displays the splash screen with branding and system information.
 fn display_splash_screen(environment: &environment::Environment) {
     utils::banner::print_banner();
@@ -78,8 +86,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         Command::Start { env, max_threads } => {
             let environment = environment::Environment::from_args(env.as_ref());
             display_splash_screen(&environment);
-
-            match setup::run_initial_setup().await {
+            let config_path = get_config_path().expect("Failed to get config path");
+            match setup::run_initial_setup(&config_path).await? {
                 // == CLI is not registered yet. Perform local proving ==
                 SetupResult::Anonymous => {
                     println!("Proving anonymously...");
@@ -103,10 +111,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
             }
         }
-        Command::Logout => match setup::clear_node_id() {
-            Ok(_) => println!("Successfully logged out"),
-            Err(e) => eprintln!("Failed to logout: {}", e),
-        },
+        Command::Logout => {
+            let config_path = get_config_path().expect("Failed to get config path");
+            println!(
+                "\n===== {} =====\n",
+                "Logging out of the Nexus CLI"
+                    .bold()
+                    .underline()
+                    .bright_cyan()
+            );
+            clear_node_config(&config_path)?;
+        }
     }
 
     Ok(())

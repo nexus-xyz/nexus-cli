@@ -80,6 +80,13 @@ cargo run -r -- logout
 
 If you encounter an error about `protoc` not being installed, you can install it:
 
+#### Docker
+
+```bash
+docker pull nexusxyz/network-cli:latest
+docker run -it --init nexusxyz/network-cli:latest start
+```
+
 #### macOS
 
 ```bash
