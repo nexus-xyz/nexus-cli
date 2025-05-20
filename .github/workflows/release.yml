@@ -32,6 +32,7 @@ jobs:
       - name: Ensure targets are installed (fallback)
         run: |
           rustup target add aarch64-unknown-linux-gnu
+          rustup component add rust-src --toolchain nightly-2025-04-06-x86_64-unknown-linux-gnu
           rustup target add x86_64-unknown-linux-gnu
 
       - name: Install ARM64 Linux linker
@@ -49,9 +50,6 @@ jobs:
 
       - name: Build Linux ARM64 binary (build-std)
         working-directory: clients/cli
-        env:
-          RUSTFLAGS: "-C target-feature=+crt-static"
-          RUSTC_BOOTSTRAP: 1
         run: |
           export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
           cargo build -Zbuild-std=std,panic_abort --release --target aarch64-unknown-linux-gnu
