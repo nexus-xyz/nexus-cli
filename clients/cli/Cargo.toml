@@ -38,7 +38,8 @@ home = "0.5.9"
 iana-time-zone = "0.1.60"
 log = "0.4.26"
 md5 = "0.7.0"
-nexus-sdk = { git = "https://github.com/nexus-xyz/nexus-zkvm", tag = "0.3.3" }
+#nexus-sdk = { git = "https://github.com/nexus-xyz/nexus-zkvm", tag = "0.3.3" }
+nexus-sdk = { git = "https://github.com/nexus-xyz/nexus-zkvm", branch = "mfaulk/conditionally-compile-profiler" }
 postcard = "1.0.10"
 prost = "0.13"
 rayon = "1.10"

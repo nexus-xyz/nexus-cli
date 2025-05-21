@@ -44,7 +44,7 @@ jobs:
         run: |
           echo "Rust version: $(rustc --version --verbose)"
           echo "Cargo version: $(cargo --version)"
-          echo "Rustup installed targets: $(rustup target list --installed)"
+          echo "Rustup installed targets: $(rustup target list --installed | tr '\n' ',' | sed 's/,$//')"
           echo "Rustup active toolchain: $(rustup show active-toolchain)"
           echo "Host target: $(rustc -vV | grep host)"
 
@@ -96,7 +96,7 @@ jobs:
         run: |
           echo "Rust version: $(rustc --version --verbose)"
           echo "Cargo version: $(cargo --version)"
-          echo "Rustup installed targets: $(rustup target list --installed)"
+          echo "Rustup installed targets: $(rustup target list --installed | tr '\n' ',' | sed 's/,$//')"
           echo "Rustup active toolchain: $(rustup show active-toolchain)"
           echo "Host target: $(rustc -vV | grep host)"
 
@@ -167,7 +167,7 @@ jobs:
 #          tag: ${{ github.ref_name }}
 #          overwrite: true
 
-  build-windows:
+  build-windows-x86_64:
     name: Build and Release Windows
     runs-on: windows-latest
 

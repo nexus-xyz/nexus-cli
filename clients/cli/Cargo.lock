@@ -1286,7 +1286,7 @@ checksum = "1d87ecb2933e8aeadb3e3a02b828fed80a7528047e68b4f424523a0981a3a084"
 [[package]]
 name = "nexus-common"
 version = "0.3.3"
-source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.3#4eebc4acdf60070c4fc25436f553479524a75e61"
+source = "git+https://github.com/nexus-xyz/nexus-zkvm?branch=mfaulk/conditionally-compile-profiler#9f8ed8beaf38d67d1bcfa1c2e5b8f500191b8ab4"
 dependencies = [
  "rrs-lib",
  "serde",
@@ -1297,7 +1297,7 @@ dependencies = [
 [[package]]
 name = "nexus-core"
 version = "0.3.3"
-source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.3#4eebc4acdf60070c4fc25436f553479524a75e61"
+source = "git+https://github.com/nexus-xyz/nexus-zkvm?branch=mfaulk/conditionally-compile-profiler#9f8ed8beaf38d67d1bcfa1c2e5b8f500191b8ab4"
 dependencies = [
  "nexus-vm",
  "nexus-vm-prover",
@@ -1332,7 +1332,7 @@ dependencies = [
 [[package]]
 name = "nexus-precompile-macros"
 version = "0.1.0"
-source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.3#4eebc4acdf60070c4fc25436f553479524a75e61"
+source = "git+https://github.com/nexus-xyz/nexus-zkvm?branch=mfaulk/conditionally-compile-profiler#9f8ed8beaf38d67d1bcfa1c2e5b8f500191b8ab4"
 dependencies = [
  "nexus-common",
  "proc-macro-crate 3.3.0",
@@ -1346,7 +1346,7 @@ dependencies = [
 [[package]]
 name = "nexus-precompiles"
 version = "0.3.3"
-source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.3#4eebc4acdf60070c4fc25436f553479524a75e61"
+source = "git+https://github.com/nexus-xyz/nexus-zkvm?branch=mfaulk/conditionally-compile-profiler#9f8ed8beaf38d67d1bcfa1c2e5b8f500191b8ab4"
 dependencies = [
  "nexus-common",
  "nexus-precompile-macros",
@@ -1355,7 +1355,7 @@ dependencies = [
 [[package]]
 name = "nexus-profiler"
 version = "0.3.3"
-source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.3#4eebc4acdf60070c4fc25436f553479524a75e61"
+source = "git+https://github.com/nexus-xyz/nexus-zkvm?branch=mfaulk/conditionally-compile-profiler#9f8ed8beaf38d67d1bcfa1c2e5b8f500191b8ab4"
 dependencies = [
  "pprof",
 ]
@@ -1363,7 +1363,7 @@ dependencies = [
 [[package]]
 name = "nexus-sdk"
 version = "0.3.3"
-source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.3#4eebc4acdf60070c4fc25436f553479524a75e61"
+source = "git+https://github.com/nexus-xyz/nexus-zkvm?branch=mfaulk/conditionally-compile-profiler#9f8ed8beaf38d67d1bcfa1c2e5b8f500191b8ab4"
 dependencies = [
  "crypto",
  "crypto-common",
@@ -1379,7 +1379,7 @@ dependencies = [
 [[package]]
 name = "nexus-sdk-macros"
 version = "0.3.3"
-source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.3#4eebc4acdf60070c4fc25436f553479524a75e61"
+source = "git+https://github.com/nexus-xyz/nexus-zkvm?branch=mfaulk/conditionally-compile-profiler#9f8ed8beaf38d67d1bcfa1c2e5b8f500191b8ab4"
 dependencies = [
  "nexus-profiler",
  "proc-macro-crate 3.3.0",
@@ -1391,7 +1391,7 @@ dependencies = [
 [[package]]
 name = "nexus-vm"
 version = "0.3.3"
-source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.3#4eebc4acdf60070c4fc25436f553479524a75e61"
+source = "git+https://github.com/nexus-xyz/nexus-zkvm?branch=mfaulk/conditionally-compile-profiler#9f8ed8beaf38d67d1bcfa1c2e5b8f500191b8ab4"
 dependencies = [
  "elf",
  "itertools 0.14.0",
@@ -1417,7 +1417,7 @@ dependencies = [
 [[package]]
 name = "nexus-vm-prover"
 version = "0.3.3"
-source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.3#4eebc4acdf60070c4fc25436f553479524a75e61"
+source = "git+https://github.com/nexus-xyz/nexus-zkvm?branch=mfaulk/conditionally-compile-profiler#9f8ed8beaf38d67d1bcfa1c2e5b8f500191b8ab4"
 dependencies = [
  "impl-trait-for-tuples",
  "itertools 0.13.0",
@@ -1434,7 +1434,7 @@ dependencies = [
 [[package]]
 name = "nexus-vm-prover-macros"
 version = "0.3.3"
-source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.3#4eebc4acdf60070c4fc25436f553479524a75e61"
+source = "git+https://github.com/nexus-xyz/nexus-zkvm?branch=mfaulk/conditionally-compile-profiler#9f8ed8beaf38d67d1bcfa1c2e5b8f500191b8ab4"
 dependencies = [
  "convert_case",
  "proc-macro2",
