@@ -13,8 +13,44 @@ on:
         default: false
 
 jobs:
-  build-linux:
-    name: Build and Release (Linux x86_64 & ARM64)
+  build-linux-x86_64:
+    name: Build and Release Linux x86_64
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Set up the Rust toolchain for the specified target(s)
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly-2025-04-06
+          targets: x86_64-unknown-linux-gnu
+          components: rustfmt
+
+      - name: Debug Rust environment
+        run: |
+          echo "Rust version: $(rustc --version --verbose)"
+          echo "Cargo version: $(cargo --version)"
+          echo "Rustup installed targets: $(rustup target list --installed | tr '\n' ',' | sed 's/,$//')"
+          echo "Rustup active toolchain: $(rustup show active-toolchain)"
+          echo "Host target: $(rustc -vV | grep host)"
+
+      - name: Build Linux x86_64 binary
+        working-directory: clients/cli
+        run: cargo build --release --target x86_64-unknown-linux-gnu
+
+      - name: Upload Linux x86_64 binary
+        uses: svenstaro/upload-release-action@v1-release
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: target/x86_64-unknown-linux-gnu/release/nexus-network    # path to x86_64 Linux binary
+          asset_name: nexus-network-linux-x86_64                        # name of the asset as it will appear in the release
+          tag: ${{ github.ref_name }}                           # use the git tag that triggered this workflow
+          overwrite: true
+
+  build-linux-arm64:
+    name: Build and Release Linux ARM64)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -54,18 +90,9 @@ jobs:
           export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
           cargo build -Zbuild-std=std,panic_abort --release --target aarch64-unknown-linux-gnu
 
-      - name: Build Linux x86_64 binary
-        working-directory: clients/cli
-        run: cargo build --release --target x86_64-unknown-linux-gnu
-
-#      - name: Upload Linux x86_64 binary
-#        uses: svenstaro/upload-release-action@v1-release
-#        with:
-#          repo_token: ${{ secrets.GITHUB_TOKEN }}
-#          file: target/x86_64-unknown-linux-gnu/release/myapp    # path to x86_64 Linux binary
-#          asset_name: myapp-linux-x86_64                        # name of the asset as it will appear in the release
-#          tag: ${{ github.ref_name }}                           # use the git tag that triggered this workflow
-#          overwrite: true
+#      - name: Build Linux x86_64 binary
+#        working-directory: clients/cli
+#        run: cargo build --release --target x86_64-unknown-linux-gnu
 #
 #      - name: Upload Linux ARM64 binary
 #        uses: svenstaro/upload-release-action@v1-release
