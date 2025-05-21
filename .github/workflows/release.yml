@@ -14,7 +14,7 @@ on:
 
 jobs:
   build-linux-x86_64:
-    name: Build Linux x86_64
+    name: Build Linux (x86_64)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -50,7 +50,7 @@ jobs:
 
 
   build-linux-arm64:
-    name: Build Linux ARM64
+    name: Build Linux (ARM64)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -98,7 +98,7 @@ jobs:
           path: clients/cli/target/aarch64-unknown-linux-gnu/release/nexus-network # Path to file to upload
 
   build-macos-arm64:
-    name: Build macOS ARM64
+    name: Build macOS (ARM64)
     runs-on: macos-latest
 #    needs: build-linux   # Ensure Linux job (and release creation) runs first
     steps:
@@ -135,7 +135,7 @@ jobs:
           path: clients/cli/target/aarch64-apple-darwin/release/nexus-network # Path to file to upload
 
   build-macos-x86_64:
-    name: Build macOS x86_64
+    name: Build macOS (x86_64)
     runs-on: macos-latest
     #    needs: build-linux   # Ensure Linux job (and release creation) runs first
     steps:
@@ -186,7 +186,7 @@ jobs:
           path: clients/cli/target/x86_64-apple-darwin/release/nexus-network # Path to file to upload
 
   build-windows-x86_64:
-    name: Build Windows
+    name: Build Windows (x86_64)
     runs-on: windows-latest
 
     steps:
@@ -215,14 +215,53 @@ jobs:
         working-directory: clients/cli
         run: cargo build --release --target=x86_64-pc-windows-msvc
 
+      - name: Check binary exists
+        run: |
+          ls -lh clients/cli/target/x86_64-pc-windows-msvc/release/
+
       # Upload the binary as an artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: nexus-network-windows-x86_64 # Name of the artifact
-          path: clients/cli/target/x86_64-pc-windows-msvc/release/nexus-network # Path to file to upload
+          name: nexus-network-windows-x86_64.exe # Name of the artifact
+          path: clients/cli/target/x86_64-pc-windows-msvc/release/nexus-network.exe # Path to file to upload
 
+  release:
+    # Create a GitHub release with the built binaries
+    name: Create Release
+    needs: [build-linux-x86_64, build-linux-arm64, build-macos-arm64, build-macos-x86_64, build-windows-x86_64]
+#    if: github.event.inputs.create_release == 'true' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      # Check out the repo again (needed to include metadata like tags)
+      - uses: actions/checkout@v4
 
+      # Download all build artifacts uploaded by the matrix build
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true # Merge multiple artifacts into a single directory
+
+      - name: List downloaded artifacts (debug)
+        run: ls -R artifacts
+
+      # Use the `gh-release` action to publish a release with the downloaded binaries
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/nexus-network-macos-arm64
+            artifacts/nexus-network-macos-x86_64
+            artifacts/nexus-network-linux-arm64
+            artifacts/nexus-network-linux-x86_64
+            artifacts/nexus-network-windows-x86_64.exe
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 # Previous version of the workflow:
 
