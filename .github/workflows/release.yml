@@ -137,10 +137,18 @@ jobs:
           echo "Rustup active toolchain: $(rustup show active-toolchain)"
           echo "Host target: $(rustc -vV | grep host)"
 
-      # Build the release binary for the specified target
+#      # Build the release binary for the specified target
+#      - name: Build CLI binary
+#        working-directory: clients/cli
+#        run: cargo build -Z build-std=std,panic_abort --target=x86_64-apple-darwin --release
+
+      # Build the release binary for the specified target. Explicitly using the nightly toolchain.
       - name: Build CLI binary
         working-directory: clients/cli
-        run: cargo build -Z build-std=std,panic_abort --target=x86_64-apple-darwin --release
+        run: cargo +nightly-2025-01-02 build --release --target=x86_64-apple-darwin -Z build-std=std,panic_abort
+        env:
+          RUSTUP_TOOLCHAIN: nightly-2025-01-02
+          RUSTC_BOOTSTRAP: 1
 
 #      - name: Upload macOS x86_64 binary
 #        uses: svenstaro/upload-release-action@v1-release
