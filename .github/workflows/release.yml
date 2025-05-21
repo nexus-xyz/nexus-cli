@@ -20,7 +20,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Set up the Rust toolchain for the specified target
+      # Set up the Rust toolchain for the specified target(s)
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -58,14 +58,6 @@ jobs:
         working-directory: clients/cli
         run: cargo build --release --target x86_64-unknown-linux-gnu
 
-#      - name: Build Linux ARM64 binary
-#        working-directory: clients/cli
-#        run: |
-#          export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
-#          cargo build --release --target aarch64-unknown-linux-gnu
-
-
-
 #      - name: Upload Linux x86_64 binary
 #        uses: svenstaro/upload-release-action@v1-release
 #        with:
@@ -84,34 +76,42 @@ jobs:
 #          tag: ${{ github.ref_name }}
 #          overwrite: true
 
-#  build-macos:
-#    name: Build and Release (macOS x86_64 & ARM64)
-#    runs-on: macos-latest
+  build-macos:
+    name: Build and Release (macOS x86_64 & ARM64)
+    runs-on: macos-latest
 #    needs: build-linux   # Ensure Linux job (and release creation) runs first
-#    steps:
-#      - name: Checkout code
-#        uses: actions/checkout@v3
-#
-#      - name: Set up Rust toolchain
-#        uses: actions/setup-rust@v1
-#        with:
-#          rust-version: stable
-#
-#      - name: Add macOS ARM64 target
-#        run: rustup target add aarch64-apple-darwin
-#
-#      - name: Build macOS x86_64 binary
-#        run: cargo build --release --target x86_64-apple-darwin
-#
-#      - name: Build macOS ARM64 binary
-#        env:
-#          # Ensure the macOS SDK is specified for cross-compiling to ARM64
-#          SDKROOT: ${{ runner.os == 'macOS' && steps.setup_xcode.outputs.sdk_path || '' }}
-#        run: |
-#          # Set SDKROOT for Apple cross-compilation (if needed)
-#          export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
-#          cargo build --release --target aarch64-apple-darwin
-#
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Set up the Rust toolchain for the specified target(s)
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly-2025-01-02
+          targets: aarch64-apple-darwin, x86_64-apple-darwin
+          components: rustfmt
+
+      # Install the required targets for cross-compilation
+      - name: Ensure targets are installed (fallback)
+        run: |
+          rustup target add aarch64-apple-darwin
+          rustup target add aarch64-unknown-linux-gnu
+
+      - name: Build macOS x86_64 binary
+        working-directory: clients/cli
+        run: cargo build --release --target x86_64-apple-darwin
+
+      - name: Build macOS ARM64 binary
+        working-directory: clients/cli
+        env:
+          # Ensure the macOS SDK is specified for cross-compiling to ARM64
+          SDKROOT: ${{ runner.os == 'macOS' && steps.setup_xcode.outputs.sdk_path || '' }}
+        run: |
+          # Set SDKROOT for Apple cross-compilation (if needed)
+          export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
+          cargo build --release --target aarch64-apple-darwin
+
 #      - name: Upload macOS x86_64 binary
 #        uses: svenstaro/upload-release-action@v1-release
 #        with:
@@ -132,6 +132,7 @@ jobs:
 
 
 
+# Previous version of the workflow:
 
 #name: Release
 #
