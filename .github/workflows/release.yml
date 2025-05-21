@@ -45,17 +45,9 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: nexus-network-linux-x86_64
-          path: clients/cli/target/x86_64-unknown-linux-gnu/release/nexus-network
+          name: nexus-network-linux-x86_64 # Name of the artifact
+          path: clients/cli/target/x86_64-unknown-linux-gnu/release/nexus-network # Path to file to upload
 
-#      - name: Upload Linux x86_64 binary
-#        uses: svenstaro/upload-release-action@
-#        with:
-#          repo_token: ${{ secrets.GITHUB_TOKEN }}
-#          file: clients/cli/target/x86_64-unknown-linux-gnu/release/nexus-network    # path to x86_64 Linux binary
-#          asset_name: nexus-network-linux-x86_64                        # name of the asset as it will appear in the release
-#          tag: ${{ github.ref_name }}                           # use the git tag that triggered this workflow
-#          overwrite: true
 
   build-linux-arm64:
     name: Build Linux ARM64
@@ -70,15 +62,14 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: nightly-2025-04-06
-          targets: aarch64-unknown-linux-gnu, x86_64-unknown-linux-gnu
+          targets: aarch64-unknown-linux-gnu
           components: rustfmt
 
       # Install the required targets for cross-compilation
       - name: Ensure targets are installed (fallback)
         run: |
           rustup target add aarch64-unknown-linux-gnu
-          rustup component add rust-src --toolchain nightly-2025-04-06-x86_64-unknown-linux-gnu
-          rustup target add x86_64-unknown-linux-gnu
+          rustup component add rust-src --toolchain nightly-2025-04-06
 
       - name: Install ARM64 Linux linker
         run: |
@@ -98,15 +89,13 @@ jobs:
         run: |
           export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
           cargo build -Zbuild-std=std,panic_abort --release --target aarch64-unknown-linux-gnu
-#
-#      - name: Upload Linux ARM64 binary
-#        uses: svenstaro/upload-release-action@v1-release
-#        with:
-#          repo_token: ${{ secrets.GITHUB_TOKEN }}
-#          file: clients/cli/target/aarch64-unknown-linux-gnu/release/myapp   # path to ARM64 (aarch64) Linux binary
-#          asset_name: myapp-linux-arm64                         # asset name for Linux ARM64
-#          tag: ${{ github.ref_name }}
-#          overwrite: true
+
+      # Upload the binary as an artifact
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexus-network-linux-arm64 # Name of the artifact
+          path: clients/cli/target/aarch64-unknown-linux-gnu/release/nexus-network # Path to file to upload
 
   build-macos-arm64:
     name: Build macOS ARM64
@@ -117,8 +106,9 @@ jobs:
         uses: actions/checkout@v4
 
       # Set up the Rust toolchain for the specified target(s)
+      # When passing an explicit toolchain... you'll want to use "dtolnay/rust-toolchain@master"
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
         with:
           toolchain: nightly-2025-04-06
           targets: aarch64-apple-darwin
@@ -136,6 +126,13 @@ jobs:
       - name: Build CLI binary
         working-directory: clients/cli
         run: cargo build --release --target=aarch64-apple-darwin
+
+      # Upload the binary as an artifact
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexus-network-macos-arm64 # Name of the artifact
+          path: clients/cli/target/aarch64-apple-darwin/release/nexus-network # Path to file to upload
 
   build-macos-x86_64:
     name: Build macOS x86_64
@@ -181,14 +178,12 @@ jobs:
           RUSTUP_TOOLCHAIN: nightly-2025-04-06
           RUSTC_BOOTSTRAP: 1
 
-#      - name: Upload macOS ARM64 binary
-#        uses: svenstaro/upload-release-action@v1-release
-#        with:
-#          repo_token: ${{ secrets.GITHUB_TOKEN }}
-#          file: clients/cli/target/aarch64-apple-darwin/release/myapp   # path to ARM64 macOS binary
-#          asset_name: myapp-macos-arm64                    # asset name for macOS Apple Silicon (ARM64)
-#          tag: ${{ github.ref_name }}
-#          overwrite: true
+      # Upload the binary as an artifact
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexus-network-macos-x86_64 # Name of the artifact
+          path: clients/cli/target/x86_64-apple-darwin/release/nexus-network # Path to file to upload
 
   build-windows-x86_64:
     name: Build Windows
@@ -220,14 +215,13 @@ jobs:
         working-directory: clients/cli
         run: cargo build --release --target=x86_64-pc-windows-msvc
 
-      #      - name: Upload macOS x86_64 binary
-      #        uses: svenstaro/upload-release-action@v1-release
-      #        with:
-      #          repo_token: ${{ secrets.GITHUB_TOKEN }}
-      #          file: clients/cli/target/x86_64-apple-darwin/release/myapp    # path to x86_64 macOS binary
-      #          asset_name: myapp-macos-x86_64                   # asset name for macOS Intel (x86_64)
-      #          tag: ${{ github.ref_name }}
-      #          overwrite: true
+      # Upload the binary as an artifact
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexus-network-windows-x86_64 # Name of the artifact
+          path: clients/cli/target/x86_64-pc-windows-msvc/release/nexus-network # Path to file to upload
+
 
 
 # Previous version of the workflow:
