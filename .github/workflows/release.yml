@@ -82,14 +82,14 @@ jobs:
 #    needs: build-linux   # Ensure Linux job (and release creation) runs first
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # Set up the Rust toolchain for the specified target(s)
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly-2025-01-02
-          targets: aarch64-apple-darwin, x86_64-apple-darwin
+          targets: aarch64-apple-darwin
           components: rustfmt, rust-src
 
 #      # Install the required targets for cross-compilation
@@ -107,20 +107,25 @@ jobs:
           echo "Rustup active toolchain: $(rustup show active-toolchain)"
           echo "Host target: $(rustc -vV | grep host)"
 
-      - name: Build macOS ARM64 binary
+      # Build the release binary for the specified target
+      - name: Build CLI binary
         working-directory: clients/cli
-        env:
-          RUSTFLAGS: "-C target-cpu=native"
-          RUSTC_BOOTSTRAP: 1
-        run: |
-          export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
-          cargo +nightly-2025-01-02 build -Z build-std=std,panic_abort --release --target aarch64-apple-darwin
+        run: cargo build --release --target=aarch64-apple-darwin
 
-      - name: Build macOS x86_64 binary
-        working-directory: clients/cli
-        run: |
-          export RUSTC_BOOTSTRAP=1 
-          cargo +nightly-2025-01-02 build --release --target x86_64-apple-darwin -Z build-std
+#      - name: Build macOS aarch64 binary (build-std)
+#        working-directory: clients/cli
+#        env:
+#          RUSTFLAGS: "-C target-cpu=native"
+#          RUSTC_BOOTSTRAP: 1
+#        run: |
+#          export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
+#          cargo +nightly-2025-01-02 build -Z build-std=std,panic_abort --release --target aarch64-apple-darwin
+
+#      - name: Build macOS x86_64 binary
+#        working-directory: clients/cli
+#        run: |
+#          export RUSTC_BOOTSTRAP=1
+#          cargo +nightly-2025-01-02 build --release --target x86_64-apple-darwin -Z build-std
 
 
 #      - name: Upload macOS x86_64 binary
