@@ -95,49 +95,17 @@ jobs:
           export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
           cargo build -Zbuild-std=std,panic_abort --release --target aarch64-unknown-linux-gnu
 
+      # Rename the binary to indicate the target OS
+      - name: Rename binary
+        working-directory: clients/cli/target/aarch64-unknown-linux-gnu/release/
+        run: cp nexus-network nexus-network-linux-arm64
+
       # Upload the binary as an artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: nexus-network-linux-arm64 # Name of the artifact
-          path: clients/cli/target/aarch64-unknown-linux-gnu/release/nexus-network # Path to file to upload
-
-  build-macos-arm64:
-    name: Build macOS (ARM64)
-    runs-on: macos-latest
-#    needs: build-linux   # Ensure Linux job (and release creation) runs first
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      # Set up the Rust toolchain for the specified target(s)
-      # When passing an explicit toolchain... you'll want to use "dtolnay/rust-toolchain@master"
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: nightly-2025-04-06
-          targets: aarch64-apple-darwin
-          components: rustfmt, rust-src
-
-      - name: Debug Rust environment
-        run: |
-          echo "Rust version: $(rustc --version --verbose)"
-          echo "Cargo version: $(cargo --version)"
-          echo "Rustup installed targets: $(rustup target list --installed | tr '\n' ',' | sed 's/,$//')"
-          echo "Rustup active toolchain: $(rustup show active-toolchain)"
-          echo "Host target: $(rustc -vV | grep host)"
-
-      # Build the release binary for the specified target
-      - name: Build CLI binary
-        working-directory: clients/cli
-        run: cargo build --release --target=aarch64-apple-darwin
-
-      # Upload the binary as an artifact
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: nexus-network-macos-arm64 # Name of the artifact
-          path: clients/cli/target/aarch64-apple-darwin/release/nexus-network # Path to file to upload
+          path: clients/cli/target/aarch64-unknown-linux-gnu/release/nexus-network-linux-arm64 # Path to file to upload
 
   build-macos-x86_64:
     name: Build macOS (x86_64)
@@ -170,10 +138,10 @@ jobs:
           echo "Rustup active toolchain: $(rustup show active-toolchain)"
           echo "Host target: $(rustc -vV | grep host)"
 
-#      # Build the release binary for the specified target
-#      - name: Build CLI binary
-#        working-directory: clients/cli
-#        run: cargo build -Z build-std=std,panic_abort --target=x86_64-apple-darwin --release
+      #      # Build the release binary for the specified target
+      #      - name: Build CLI binary
+      #        working-directory: clients/cli
+      #        run: cargo build -Z build-std=std,panic_abort --target=x86_64-apple-darwin --release
 
       # Build the release binary for the specified target. Explicitly using the nightly toolchain.
       - name: Build CLI binary
@@ -183,12 +151,62 @@ jobs:
           RUSTUP_TOOLCHAIN: nightly-2025-04-06
           RUSTC_BOOTSTRAP: 1
 
+      # Rename the binary to indicate the target OS
+      - name: Rename binary
+        working-directory: clients/cli/target/x86_64-apple-darwin/release/
+        run: cp nexus-network nexus-network-macos-x86_64
+
+
       # Upload the binary as an artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: nexus-network-macos-x86_64 # Name of the artifact
-          path: clients/cli/target/x86_64-apple-darwin/release/nexus-network # Path to file to upload
+          path: clients/cli/target/x86_64-apple-darwin/release/nexus-network-macos-x86_64 # Path to file to upload
+  
+
+  build-macos-arm64:
+    name: Build macOS (ARM64)
+    runs-on: macos-latest
+#    needs: build-linux   # Ensure Linux job (and release creation) runs first
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Set up the Rust toolchain for the specified target(s)
+      # When passing an explicit toolchain... you'll want to use "dtolnay/rust-toolchain@master"
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly-2025-04-06
+          targets: aarch64-apple-darwin
+          components: rustfmt, rust-src
+
+      - name: Debug Rust environment
+        run: |
+          echo "Rust version: $(rustc --version --verbose)"
+          echo "Cargo version: $(cargo --version)"
+          echo "Rustup installed targets: $(rustup target list --installed | tr '\n' ',' | sed 's/,$//')"
+          echo "Rustup active toolchain: $(rustup show active-toolchain)"
+          echo "Host target: $(rustc -vV | grep host)"
+
+      # Build the release binary for the specified target
+      - name: Build CLI binary
+        working-directory: clients/cli
+        run: cargo build --release --target=aarch64-apple-darwin
+
+      # Rename the binary to indicate the target OS
+      - name: Rename binary
+        working-directory: clients/cli/target/aarch64-apple-darwin/release/
+        run: cp nexus-network nexus-network-macos-arm64
+
+      # Upload the binary as an artifact
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexus-network-macos-arm64 # Name of the artifact
+          path: clients/cli/target/aarch64-apple-darwin/release/nexus-network-macos-arm64 # Path to file to upload
+
 
   build-windows-x86_64:
     name: Build Windows (x86_64)
