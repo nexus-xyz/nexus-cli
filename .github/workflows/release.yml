@@ -102,8 +102,8 @@ jobs:
       - name: Build macOS x86_64 binary
         working-directory: clients/cli
         run: |
-          export RUSTC_BOOTSTRAP=1
-          cargo build --release --target x86_64-apple-darwin -Z build-std
+          export RUSTC_BOOTSTRAP=1 
+          cargo +nightly-2025-01-02 build --release --target x86_64-apple-darwin -Z build-std
 
       - name: Build macOS ARM64 binary
         working-directory: clients/cli
