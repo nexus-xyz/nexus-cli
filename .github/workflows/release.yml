@@ -163,7 +163,7 @@ jobs:
         with:
           name: nexus-network-macos-x86_64 # Name of the artifact
           path: clients/cli/target/x86_64-apple-darwin/release/nexus-network-macos-x86_64 # Path to file to upload
-  
+
 
   build-macos-arm64:
     name: Build macOS (ARM64)
@@ -248,8 +248,8 @@ jobs:
   release:
     # Create a GitHub release with the built binaries
     name: Create Release
-    needs: [build-linux-x86_64, build-linux-arm64, build-macos-arm64, build-macos-x86_64, build-windows-x86_64]
-#    if: github.event.inputs.create_release == 'true' || github.event_name == 'push'
+    needs: [build-linux-x86_64, build-linux-arm64, build-macos-x86_64, build-macos-arm64, build-windows-x86_64]
+    if: github.event.inputs.create_release == 'true' || github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       # Check out the repo again (needed to include metadata like tags)
