@@ -238,6 +238,12 @@ jobs:
         working-directory: clients/cli
         run: cargo build --release --target=x86_64-pc-windows-msvc
 
+      # List the contents of the target directory (debugging)
+      - name: List target directory
+        run: |
+          echo "Contents of target directory:"
+          ls -R clients/cli/target/x86_64-pc-windows-msvc/release/
+
       # Rename the binary to indicate the target OS and platform
       - name: Rename binary
         working-directory: clients/cli/target/x86_64-pc-windows-msvc/release/
