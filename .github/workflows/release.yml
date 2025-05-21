@@ -133,14 +133,14 @@ jobs:
         run: |
           echo "Rust version: $(rustc --version --verbose)"
           echo "Cargo version: $(cargo --version)"
-          echo "Rustup installed targets: $(rustup target list --installed)"
+          echo "Rustup installed targets: $(rustup target list --installed | paste -sd,)"
           echo "Rustup active toolchain: $(rustup show active-toolchain)"
           echo "Host target: $(rustc -vV | grep host)"
 
       # Build the release binary for the specified target
       - name: Build CLI binary
         working-directory: clients/cli
-        run: cargo build --release --target=x86_64-apple-darwin
+        run: cargo build -Z build-std=std,panic_abort --target=x86_64-apple-darwin --release
 
 #      - name: Upload macOS x86_64 binary
 #        uses: svenstaro/upload-release-action@v1-release
