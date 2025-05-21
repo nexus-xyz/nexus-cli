@@ -119,7 +119,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: nightly-2025-01-02
+          toolchain: nightly-2025-04-06
           targets: x86_64-apple-darwin
           components: rustfmt, rust-src
 
@@ -127,7 +127,7 @@ jobs:
       - name: Ensure targets are installed (fallback)
         run: |
           rustup target add x86_64-apple-darwin
-          rustup component add rust-src --toolchain nightly-2025-01-02
+          rustup component add rust-src --toolchain nightly-2025-04-06
 
       - name: Debug Rust environment
         run: |
@@ -145,9 +145,9 @@ jobs:
       # Build the release binary for the specified target. Explicitly using the nightly toolchain.
       - name: Build CLI binary
         working-directory: clients/cli
-        run: cargo +nightly-2025-01-02 build --release --target=x86_64-apple-darwin -Z build-std=std,panic_abort
+        run: cargo +nightly-nightly-2025-04-06 build --release --target=x86_64-apple-darwin -Z build-std=std,panic_abort
         env:
-          RUSTUP_TOOLCHAIN: nightly-2025-01-02
+          RUSTUP_TOOLCHAIN: nightly-2025-04-06
           RUSTC_BOOTSTRAP: 1
 
 #      - name: Upload macOS x86_64 binary
