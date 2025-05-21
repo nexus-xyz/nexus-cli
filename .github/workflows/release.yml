@@ -41,12 +41,17 @@ jobs:
         working-directory: clients/cli
         run: cargo build --release --target x86_64-unknown-linux-gnu
 
+      # Rename the binary to indicate the target OS
+      - name: Rename binary
+        working-directory: clients/cli/target/x86_64-unknown-linux-gnu/release/
+        run: cp nexus-network nexus-network-linux-x86_64
+
       # Upload the binary as an artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: nexus-network-linux-x86_64 # Name of the artifact
-          path: clients/cli/target/x86_64-unknown-linux-gnu/release/nexus-network # Path to file to upload
+          path: clients/cli/target/x86_64-unknown-linux-gnu/release/nexus-network-linux-x86_64 # Path to file to upload
 
 
   build-linux-arm64:
