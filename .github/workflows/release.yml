@@ -195,7 +195,7 @@ jobs:
         working-directory: clients/cli
         run: cargo build --release --target=aarch64-apple-darwin
 
-      # Rename the binary to indicate the target OS
+      # Rename the binary to indicate the target OS and platform
       - name: Rename binary
         working-directory: clients/cli/target/aarch64-apple-darwin/release/
         run: cp nexus-network nexus-network-macos-arm64
@@ -238,12 +238,17 @@ jobs:
         working-directory: clients/cli
         run: cargo build --release --target=x86_64-pc-windows-msvc
 
+      # Rename the binary to indicate the target OS and platform
+      - name: Rename binary
+        working-directory: clients/cli/target/x86_64-pc-windows-msvc/release/
+        run: cp nexus-network nexus-network-windows-x86_64.exe
+
       # Upload the binary as an artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: nexus-network-windows-x86_64.exe # Name of the artifact
-          path: clients/cli/target/x86_64-pc-windows-msvc/release/nexus-network.exe # Path to file to upload
+          path: clients/cli/target/x86_64-pc-windows-msvc/release/nexus-network-windows-x86_64.exe # Path to file to upload
 
   release:
     # Create a GitHub release with the built binaries
