@@ -215,10 +215,6 @@ jobs:
         working-directory: clients/cli
         run: cargo build --release --target=x86_64-pc-windows-msvc
 
-      - name: Check binary exists
-        run: |
-          ls -lh clients/cli/target/x86_64-pc-windows-msvc/release/
-
       # Upload the binary as an artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
