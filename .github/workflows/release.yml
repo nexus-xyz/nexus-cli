@@ -97,13 +97,15 @@ jobs:
         run: |
           rustup target add aarch64-apple-darwin --toolchain nightly-2025-01-02
           rustup target add x86_64-apple-darwin --toolchain nightly-2025-01-02
-          rustup component add rust-src --toolchain nightly-2025-01-02-aarch64-apple-darwin      
+          rustup component add rust-src --toolchain nightly-2025-01-02-aarch64-apple-darwin
 
-      - name: Build macOS x86_64 binary
-        working-directory: clients/cli
+      - name: Debug Rust environment
         run: |
-          export RUSTC_BOOTSTRAP=1 
-          cargo +nightly-2025-01-02 build --release --target x86_64-apple-darwin -Z build-std
+          echo "Rust version: $(rustc --version --verbose)"
+          echo "Cargo version: $(cargo --version)"
+          echo "Rustup installed targets: $(rustup target list --installed)"
+          echo "Rustup active toolchain: $(rustup show active-toolchain)"
+          echo "Host target: $(rustc -vV | grep host)"
 
       - name: Build macOS ARM64 binary
         working-directory: clients/cli
@@ -113,7 +115,14 @@ jobs:
         run: |
           # Set SDKROOT for Apple cross-compilation (if needed)
           export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
-          cargo build --release --target aarch64-apple-darwin
+          cargo +nightly-2025-01-02 build --release --target aarch64-apple-darwin
+
+      - name: Build macOS x86_64 binary
+        working-directory: clients/cli
+        run: |
+          export RUSTC_BOOTSTRAP=1 
+          cargo +nightly-2025-01-02 build --release --target x86_64-apple-darwin -Z build-std
+
 
 #      - name: Upload macOS x86_64 binary
 #        uses: svenstaro/upload-release-action@v1-release
