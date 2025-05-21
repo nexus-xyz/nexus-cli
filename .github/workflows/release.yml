@@ -97,10 +97,13 @@ jobs:
         run: |
           rustup target add aarch64-apple-darwin
           rustup target add x86_64-apple-darwin
+          rustup component add rust-src --toolchain nightly-2025-01-02-x86_64-apple-darwin      
 
       - name: Build macOS x86_64 binary
         working-directory: clients/cli
-        run: cargo build --release --target x86_64-apple-darwin
+        run: |
+          export RUSTC_BOOTSTRAP=1
+          cargo build --release --target x86_64-apple-darwin -Z build-std
 
       - name: Build macOS ARM64 binary
         working-directory: clients/cli
