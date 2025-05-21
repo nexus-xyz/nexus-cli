@@ -95,9 +95,9 @@ jobs:
       # Install the required targets for cross-compilation
       - name: Ensure targets are installed (fallback)
         run: |
-          rustup target add aarch64-apple-darwin
-          rustup target add x86_64-apple-darwin
-          rustup component add rust-src --toolchain nightly-2025-01-02-x86_64-apple-darwin      
+          rustup target add aarch64-apple-darwin --toolchain nightly-2025-01-02
+          rustup target add x86_64-apple-darwin --toolchain nightly-2025-01-02
+          rustup component add rust-src --toolchain nightly-2025-01-02-aarch64-apple-darwin      
 
       - name: Build macOS x86_64 binary
         working-directory: clients/cli
