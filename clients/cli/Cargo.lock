@@ -1305,7 +1305,7 @@ dependencies = [
 
 [[package]]
 name = "nexus-network"
-version = "0.7.6"
+version = "0.7.9"
 dependencies = [
  "chrono",
  "clap",
