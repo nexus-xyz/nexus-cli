@@ -46,7 +46,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: nexus-network-linux-x86_64
-          path: clients/cli/target/release/x86_64-unknown-linux-gnu/nexus-network
+          path: clients/cli/target/x86_64-unknown-linux-gnu/release/nexus-network
 
 #      - name: Upload Linux x86_64 binary
 #        uses: svenstaro/upload-release-action@
