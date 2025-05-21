@@ -90,14 +90,14 @@ jobs:
         with:
           toolchain: nightly-2025-01-02
           targets: aarch64-apple-darwin, x86_64-apple-darwin
-          components: rustfmt
+          components: rustfmt, rust-src
 
-      # Install the required targets for cross-compilation
-      - name: Ensure targets are installed (fallback)
-        run: |
-          rustup target add aarch64-apple-darwin --toolchain nightly-2025-01-02
-          rustup target add x86_64-apple-darwin --toolchain nightly-2025-01-02
-          rustup component add rust-src --toolchain nightly-2025-01-02-aarch64-apple-darwin
+#      # Install the required targets for cross-compilation
+#      - name: Ensure targets are installed (fallback)
+#        run: |
+#          rustup target add aarch64-apple-darwin --toolchain nightly-2025-01-02
+#          rustup target add x86_64-apple-darwin --toolchain nightly-2025-01-02
+#          rustup component add rust-src --toolchain nightly-2025-01-02
 
       - name: Debug Rust environment
         run: |
@@ -110,12 +110,11 @@ jobs:
       - name: Build macOS ARM64 binary
         working-directory: clients/cli
         env:
-          # Ensure the macOS SDK is specified for cross-compiling to ARM64
-          SDKROOT: ${{ runner.os == 'macOS' && steps.setup_xcode.outputs.sdk_path || '' }}
+          RUSTFLAGS: "-C target-cpu=native"
+          RUSTC_BOOTSTRAP: 1
         run: |
-          # Set SDKROOT for Apple cross-compilation (if needed)
           export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
-          cargo +nightly-2025-01-02 build --release --target aarch64-apple-darwin
+          cargo +nightly-2025-01-02 build -Z build-std=std,panic_abort --release --target aarch64-apple-darwin
 
       - name: Build macOS x86_64 binary
         working-directory: clients/cli
