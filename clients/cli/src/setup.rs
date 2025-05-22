@@ -1,4 +1,4 @@
-use crate::node_config::Config;
+use crate::config::Config;
 use colored::Colorize;
 use std::fs;
 use std::io::stdin;

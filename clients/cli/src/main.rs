@@ -4,7 +4,7 @@ mod analytics;
 mod environment;
 #[path = "proto/nexus.orchestrator.rs"]
 mod nexus_orchestrator;
-mod node_config;
+mod config;
 mod orchestrator_client;
 mod prover;
 mod setup;
