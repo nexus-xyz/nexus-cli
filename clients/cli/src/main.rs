@@ -157,14 +157,12 @@ async fn prove_parallel(
     let num_threads = max_threads.unwrap_or(1).clamp(1, 8);
     let mut handles = Vec::new();
     for i in 0..num_threads {
-        let env_clone = environment.clone();
         let node_id_clone = node_id;
-
         let handle = thread::spawn(move || {
             // Create a new runtime for each thread
             let rt = Runtime::new().expect("Failed to create Tokio runtime");
             rt.block_on(async {
-                match start_prover(env_clone, node_id_clone).await {
+                match start_prover(environment, node_id_clone).await {
                     Ok(()) => println!("Thread {} completed successfully", i),
                     Err(e) => eprintln!("Thread {} failed: {:?}", i, e),
                 }

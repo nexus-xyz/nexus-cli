@@ -2,7 +2,7 @@ use nexus_sdk::{stwo::seq::Stwo, Local, Prover, Viewable};
 use std::time::Duration;
 
 use crate::orchestrator_client::OrchestratorClient;
-use crate::{analytics, environment};
+use crate::{analytics, environment::Environment};
 use colored::Colorize;
 use log::{error, info, warn};
 use sha3::{Digest, Keccak256};
@@ -26,7 +26,7 @@ pub enum ProverError {
 /// * `orchestrator_client` - The client to interact with the Nexus Orchestrator.
 /// * `node_id` - The ID of the node to connect to. If `None`, the prover will run in anonymous mode.
 pub async fn start_prover(
-    environment: environment::Environment,
+    environment: Environment,
     node_id: Option<u64>,
 ) -> Result<(), ProverError> {
     match node_id {
@@ -43,9 +43,7 @@ pub async fn start_prover(
 }
 
 /// Loop indefinitely, creating proofs with hardcoded inputs.
-async fn run_anonymous_proving_loop(
-    environment: environment::Environment,
-) -> Result<(), ProverError> {
+async fn run_anonymous_proving_loop(environment: Environment) -> Result<(), ProverError> {
     let client_id = format!("{:x}", md5::compute(b"anonymous"));
     let mut proof_count = 1;
     loop {
@@ -87,9 +85,9 @@ fn prove_anonymously() -> Result<(), ProverError> {
 /// Loop indefinitely, creating proofs with inputs fetched from the Nexus Orchestrator.
 async fn run_authenticated_proving_loop(
     node_id: u64,
-    environment: environment::Environment,
+    environment: Environment,
 ) -> Result<(), ProverError> {
-    let orchestrator_client = OrchestratorClient::new(environment.clone());
+    let orchestrator_client = OrchestratorClient::new(environment);
     let mut proof_count = 1;
     loop {
         info!("{}", format!("Starting proof (node: {})", node_id).yellow());
