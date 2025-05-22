@@ -1,10 +1,10 @@
 // Copyright (c) 2024 Nexus. All rights reserved.
 
 mod analytics;
+mod config;
 mod environment;
 #[path = "proto/nexus.orchestrator.rs"]
 mod nexus_orchestrator;
-mod config;
 mod orchestrator_client;
 mod prover;
 mod setup;
@@ -84,7 +84,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     match cli.command {
         Command::Start { env, max_threads } => {
-            let environment = environment::Environment::from_args(env.as_ref());
+            let environment = environment::Environment::from(env);
             display_splash_screen(&environment);
             let config_path = get_config_path().expect("Failed to get config path");
             match setup::run_initial_setup(&config_path).await? {
