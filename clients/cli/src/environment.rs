@@ -1,9 +1,10 @@
 use std::fmt::{Display, Formatter};
 
 /// Represents the different deployment environments available for the CLI.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default, Copy, PartialEq, Eq)]
 pub enum Environment {
     /// Local development environment.
+    #[default]
     Local,
     /// Development environment (shared).
     Dev,
@@ -34,12 +35,6 @@ impl From<Option<crate::Environment>> for Environment {
             Some(crate::Environment::Beta) => Environment::Beta,
             None => Environment::default(),
         }
-    }
-}
-
-impl Default for Environment {
-    fn default() -> Self {
-        Environment::Local
     }
 }
 
