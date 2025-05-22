@@ -1325,6 +1325,7 @@ dependencies = [
  "serde_json",
  "sha3",
  "sysinfo",
+ "tempfile",
  "thiserror 2.0.12",
  "tokio",
 ]
