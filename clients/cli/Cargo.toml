@@ -40,7 +40,7 @@ log = "0.4.26"
 md5 = "0.7.0"
 #nexus-sdk = { git = "https://github.com/nexus-xyz/nexus-zkvm", tag = "0.3.3" }
 nexus-sdk = { git = "https://github.com/nexus-xyz/nexus-zkvm", branch = "mfaulk/conditionally-compile-profiler" }
-postcard = "1.0.10"
+postcard = { default-features = false, version = "1.0.10" }
 prost = "0.13"
 rayon = "1.10"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
