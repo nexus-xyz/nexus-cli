@@ -44,13 +44,13 @@ jobs:
         working-directory: clients/cli
         run: cargo fmt --all -- --check
 
-      - name: Build
-        working-directory: clients/cli
-        run: cargo build --profile=ci-build
-
       - name: Run cargo clippy
         working-directory: clients/cli
         run: cargo clippy --profile=ci-build --no-deps --package nexus-network -- -D warnings
+
+      - name: Build
+        working-directory: clients/cli
+        run: cargo build --profile=ci-build
 
       - name: Test
         working-directory: clients/cli
