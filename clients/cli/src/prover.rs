@@ -13,17 +13,11 @@ pub enum ProverError {
     #[error("Orchestrator error: {0}")]
     Orchestrator(String),
 
-    #[error("Stwo Prover error: {0}")]
+    #[error("Stwo prover error: {0}")]
     Stwo(String),
 
     #[error("Serialization error: {0}")]
-    Serialization(String),
-}
-
-impl From<postcard::Error> for ProverError {
-    fn from(e: postcard::Error) -> Self {
-        ProverError::Serialization(format!("Serialization error: {}", e))
-    }
+    Serialization(#[from] postcard::Error),
 }
 
 /// Starts the prover, which can be anonymous or connected to the Nexus Orchestrator.
@@ -35,20 +29,16 @@ pub async fn start_prover(
     environment: environment::Environment,
     node_id: Option<u64>,
 ) -> Result<(), ProverError> {
-    if let Some(node_id) = node_id {
-        run_authenticated_proving_loop(node_id, environment)
-            .await
-            .map_err(|e| {
-                error!("Failed to run authenticated proving loop: {}", e);
-                ProverError::Orchestrator(format!(
-                    "Failed to run authenticated proving loop: {}",
-                    e
-                ))
-            })?;
-    } else {
-        run_anonymous_proving_loop(environment).await?;
+    match node_id {
+        Some(id) => {
+            info!("Starting authenticated proving loop for node ID: {}", id);
+            run_authenticated_proving_loop(id, environment).await?;
+        }
+        None => {
+            info!("Starting anonymous proving loop");
+            run_anonymous_proving_loop(environment).await?;
+        }
     }
-
     Ok(())
 }
 
@@ -59,7 +49,7 @@ async fn run_anonymous_proving_loop(
     let client_id = format!("{:x}", md5::compute(b"anonymous"));
     let mut proof_count = 1;
     loop {
-        info!("{}", "Starting proof (anonymous)".to_string().yellow());
+        info!("{}", "Starting proof (anonymous)".yellow());
         if let Err(e) = prove_anonymously() {
             error!("Failed to create proof: {}", e);
         } else {
@@ -82,7 +72,7 @@ async fn run_anonymous_proving_loop(
 
 /// Proves a program locally with hardcoded inputs.
 fn prove_anonymously() -> Result<(), ProverError> {
-    let stwo_prover = get_default_stwo_prover().expect("Failed to create Stwo prover");
+    let stwo_prover = get_default_stwo_prover()?;
     // The 10th term of the Fibonacci sequence is 55
     let public_input: u32 = 9;
     let proof_bytes = prove_helper(stwo_prover, public_input)?;
@@ -177,11 +167,12 @@ async fn authenticated_proving(
 }
 
 /// Create a Stwo prover for the default program.
-fn get_default_stwo_prover() -> Result<Stwo<Local>, Box<dyn std::error::Error>> {
+fn get_default_stwo_prover() -> Result<Stwo<Local>, ProverError> {
     let elf_bytes = include_bytes!("../assets/fib_input");
     Stwo::<Local>::new_from_bytes(elf_bytes).map_err(|e| {
-        error!("Failed to load guest program: {}", e);
-        e.into()
+        let msg = format!("Failed to load guest program: {}", e);
+        error!("{}", msg);
+        ProverError::Stwo(msg)
     })
 }
 
@@ -192,10 +183,30 @@ fn prove_helper(stwo_prover: Stwo<Local>, public_input: u32) -> Result<Vec<u8>, 
 
     let exit_code = view
         .exit_code()
-        .map(|u| u as i32)
         .map_err(|e| ProverError::Stwo(format!("Failed to retrieve exit code: {}", e)))?;
     assert_eq!(exit_code, 0, "Unexpected exit code!");
 
-    postcard::to_allocvec(&proof)
-        .map_err(|e| ProverError::Serialization(format!("Failed to serialize proof: {}", e)))
+    postcard::to_allocvec(&proof).map_err(ProverError::from)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    // The default Stwo prover should be created successfully.
+    fn test_get_default_stwo_prover() {
+        let prover = get_default_stwo_prover();
+        match prover {
+            Ok(_) => println!("Prover initialized successfully."),
+            Err(e) => panic!("Failed to initialize prover: {}", e),
+        }
+    }
+
+    #[tokio::test]
+    // Proves a program with hardcoded inputs should succeed.
+    async fn test_prove_anonymously() {
+        let result = prove_anonymously();
+        assert!(result.is_ok(), "Anonymous proving failed: {:?}", result);
+    }
 }
