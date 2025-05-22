@@ -138,11 +138,6 @@ jobs:
           echo "Rustup active toolchain: $(rustup show active-toolchain)"
           echo "Host target: $(rustc -vV | grep host)"
 
-      #      # Build the release binary for the specified target
-      #      - name: Build CLI binary
-      #        working-directory: clients/cli
-      #        run: cargo build -Z build-std=std,panic_abort --target=x86_64-apple-darwin --release
-
       # Build the release binary for the specified target. Explicitly using the nightly toolchain.
       - name: Build CLI binary
         working-directory: clients/cli
@@ -237,12 +232,6 @@ jobs:
       - name: Build CLI binary
         working-directory: clients/cli
         run: cargo build --release --target=x86_64-pc-windows-msvc
-
-#      # List the contents of the target directory (debugging)
-#      - name: List target directory
-#        run: |
-#          echo "Contents of target directory:"
-#          ls -R clients/cli/target/x86_64-pc-windows-msvc/release/
 
       # Rename the binary to indicate the target OS and platform
       - name: Rename binary
