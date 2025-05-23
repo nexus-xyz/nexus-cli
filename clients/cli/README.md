@@ -84,7 +84,7 @@ If you encounter an error about `protoc` not being installed, you can install it
 
 ```bash
 docker pull nexusxyz/network-cli:latest
-docker run -it --init nexusxyz/network-cli:latest start
+docker run -it --init nexusxyz/nexus-cli:latest start --env beta
 ```
 
 #### macOS

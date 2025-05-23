@@ -14,13 +14,13 @@ WORKDIR /app
 
 # Cache dependencies
 COPY Cargo.toml Cargo.lock ./
-RUN cargo fetch
+RUN cargo fetch --locked
 
 # Copy source code
 COPY . .
 
 # Build the actual app
-RUN cargo build --release
+RUN cargo build --release --locked
 
 ####################################################################################################
 ## Final image
