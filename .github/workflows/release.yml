@@ -43,6 +43,8 @@ jobs:
           tags: |
             nexusxyz/nexus-cli:latest
             nexusxyz/nexus-cli:${{ github.sha }}
+            nexusxyz/nexus-cli:${{ github.ref_name }}
+
 
   build-linux-x86_64:
     name: Build Linux (x86_64)
