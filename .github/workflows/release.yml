@@ -37,9 +37,12 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: clients/cli
-          file: clients/cli/Dockerfile  # Optional, but explicitly specify the Dockerfile path
+          file: clients/cli/Dockerfile  # Optional. Explicitly specify the Dockerfile path
           push: true
-          tags: nexusxyz/nexus-network:latest
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            nexusxyz/nexus-cli:latest
+            nexusxyz/nexus-cli:${{ github.sha }}
 
   build-linux-x86_64:
     name: Build Linux (x86_64)
