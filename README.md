@@ -91,7 +91,7 @@ following format:
 
 - [Network FAQ](https://docs.nexus.xyz/layer-1/network-devnet/faq)
 - [Discord Community](https://discord.gg/nexus-xyz)
-- Technical issues? [Open an issue](https://github.com/nexus-xyz/network-api/issues)
+- Technical issues? [Open an issue](https://github.com/nexus-xyz/nexus-cli/issues)
 
 ---
 
