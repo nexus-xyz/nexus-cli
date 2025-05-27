@@ -9,16 +9,20 @@ mod orchestrator_client;
 mod prover;
 mod setup;
 mod utils;
+mod ui;
 
 use crate::prover::start_prover;
-use crate::setup::{clear_node_config, SetupResult};
 use crate::utils::system_stats::measure_gflops;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
-use log::error;
-use std::error::Error;
+use crossterm::{
+    event::{DisableMouseCapture, EnableMouseCapture},
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+};
+use ratatui::{backend::CrosstermBackend, Terminal};
 use std::path::PathBuf;
-use std::thread;
+use std::{error::Error, io, thread};
 use tokio::runtime::Runtime;
 
 #[derive(clap::ValueEnum, Clone, Debug)]
@@ -76,56 +80,87 @@ fn display_splash_screen(environment: &environment::Environment) {
     );
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
-    // Initialize default log level, but can be overridden by the RUST_LOG environment variable.
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
-    let cli = Cli::parse();
 
-    match cli.command {
-        Command::Start { env, max_threads } => {
-            let environment = environment::Environment::from(env);
-            display_splash_screen(&environment);
-            let config_path = get_config_path().expect("Failed to get config path");
-            match setup::run_initial_setup(&config_path).await? {
-                // == CLI is not registered yet. Perform local proving ==
-                SetupResult::Anonymous => {
-                    println!("Proving anonymously...");
-                    prove_parallel(environment, None, max_threads).await;
-                }
+fn main() -> Result<(), Box<dyn Error>> {
+    
+    
+    // Terminal setup
+    enable_raw_mode()?;
+    let mut stdout = io::stdout();
+    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
 
-                // == CLI is registered and connected ==
-                SetupResult::Connected(node_id) => {
-                    println!("Proving with existing node id: {}", node_id);
-                    let node_id: u64 = node_id
-                        .parse()
-                        .unwrap_or_else(|_| panic!("invalid node id {}", node_id));
+    // Initialize the terminal with Crossterm backend.
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
 
-                    prove_parallel(environment, Some(node_id), max_threads).await;
-                }
+    // Create the application and run it.
+    let app = ui::App::new();
+    let res = ui::run(&mut terminal, app);
 
-                // == Something went wrong during setup ==
-                SetupResult::Invalid => {
-                    error!("Invalid setup option selected.");
-                    return Err("Invalid setup option selected".into());
-                }
-            }
-        }
-        Command::Logout => {
-            let config_path = get_config_path().expect("Failed to get config path");
-            println!(
-                "\n===== {} =====\n",
-                "Logging out of the Nexus CLI"
-                    .bold()
-                    .underline()
-                    .bright_cyan()
-            );
-            clear_node_config(&config_path)?;
-        }
-    }
+    // Clean up the terminal after running the application.
+    disable_raw_mode()?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
+    terminal.show_cursor()?;
 
+    res?;
     Ok(())
 }
+
+
+// #[tokio::main]
+// async fn main() -> Result<(), Box<dyn Error>> {
+//     // Initialize default log level, but can be overridden by the RUST_LOG environment variable.
+//     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+//     let cli = Cli::parse();
+//
+//     match cli.command {
+//         Command::Start { env, max_threads } => {
+//             let environment = environment::Environment::from(env);
+//             display_splash_screen(&environment);
+//             let config_path = get_config_path().expect("Failed to get config path");
+//             match setup::run_initial_setup(&config_path).await? {
+//                 // == CLI is not registered yet. Perform local proving ==
+//                 SetupResult::Anonymous => {
+//                     println!("Proving anonymously...");
+//                     prove_parallel(environment, None, max_threads).await;
+//                 }
+//
+//                 // == CLI is registered and connected ==
+//                 SetupResult::Connected(node_id) => {
+//                     println!("Proving with existing node id: {}", node_id);
+//                     let node_id: u64 = node_id
+//                         .parse()
+//                         .unwrap_or_else(|_| panic!("invalid node id {}", node_id));
+//
+//                     prove_parallel(environment, Some(node_id), max_threads).await;
+//                 }
+//
+//                 // == Something went wrong during setup ==
+//                 SetupResult::Invalid => {
+//                     error!("Invalid setup option selected.");
+//                     return Err("Invalid setup option selected".into());
+//                 }
+//             }
+//         }
+//         Command::Logout => {
+//             let config_path = get_config_path().expect("Failed to get config path");
+//             println!(
+//                 "\n===== {} =====\n",
+//                 "Logging out of the Nexus CLI"
+//                     .bold()
+//                     .underline()
+//                     .bright_cyan()
+//             );
+//             clear_node_config(&config_path)?;
+//         }
+//     }
+//
+//     Ok(())
+// }
 
 /// Proves in parallel using multiple threads.
 ///
