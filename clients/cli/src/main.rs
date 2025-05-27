@@ -64,26 +64,9 @@ fn get_config_path() -> Result<PathBuf, ()> {
     Ok(config_path)
 }
 
-/// Displays the splash screen with branding and system information.
-fn display_splash_screen(environment: &environment::Environment) {
-    utils::banner::print_banner();
-    println!();
-    println!(
-        "{}: {}",
-        "Computational capacity of this node".bold(),
-        format!("{:.2} GFLOPS", measure_gflops()).bright_cyan()
-    );
-    println!(
-        "{}: {}",
-        "Environment".bold(),
-        environment.to_string().bright_cyan()
-    );
-}
-
-
 fn main() -> Result<(), Box<dyn Error>> {
-    
-    
+    // TODO: parse command line arguments
+
     // Terminal setup
     enable_raw_mode()?;
     let mut stdout = io::stdout();

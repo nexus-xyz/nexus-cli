@@ -1,4 +1,5 @@
 use colored::Colorize;
+use crate::utils::system_stats::measure_gflops;
 
 pub const LOGO_NAME: &str = r#"
   ███╗   ██╗  ███████╗  ██╗  ██╗  ██╗   ██╗  ███████╗
@@ -9,7 +10,7 @@ pub const LOGO_NAME: &str = r#"
   ╚═╝  ╚═══╝  ╚══════╝  ╚═╝  ╚═╝   ╚═════╝   ╚══════╝
 "#;
 
-pub fn print_banner() {
+pub fn print_banner(environment: &crate::environment::Environment) {
     // Split the logo into lines and color them differently
     let logo_lines: Vec<&str> = LOGO_NAME.lines().collect();
     for line in logo_lines {
@@ -38,5 +39,16 @@ pub fn print_banner() {
         "{}",
         "  Use the CLI to contribute to the massively-parallelized Nexus proof network."
             .bright_white()
+    );
+    println!();
+    println!(
+        "{}: {}",
+        "Computational capacity of this node".bold(),
+        format!("{:.2} GFLOPS", measure_gflops()).bright_cyan()
+    );
+    println!(
+        "{}: {}",
+        "Environment".bold(),
+        environment.to_string().bright_cyan()
     );
 }
