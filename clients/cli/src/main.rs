@@ -66,6 +66,7 @@ fn get_config_path() -> Result<PathBuf, ()> {
 
 fn main() -> Result<(), Box<dyn Error>> {
     // TODO: parse command line arguments
+    let _cli = Cli::parse();
 
     // Terminal setup
     enable_raw_mode()?;
