@@ -8,8 +8,8 @@ mod nexus_orchestrator;
 mod orchestrator_client;
 mod prover;
 mod setup;
-mod utils;
 mod ui;
+mod utils;
 
 use crate::prover::start_prover;
 use crate::utils::system_stats::measure_gflops;
@@ -92,7 +92,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     res?;
     Ok(())
 }
-
 
 // #[tokio::main]
 // async fn main() -> Result<(), Box<dyn Error>> {

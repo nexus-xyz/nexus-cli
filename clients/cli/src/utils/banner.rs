@@ -1,5 +1,5 @@
-use colored::Colorize;
 use crate::utils::system_stats::measure_gflops;
+use colored::Colorize;
 
 pub const LOGO_NAME: &str = r#"
   ███╗   ██╗  ███████╗  ██╗  ██╗  ██╗   ██╗  ███████╗

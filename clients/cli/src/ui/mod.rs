@@ -1,3 +1,5 @@
+use crossterm::event::{self, Event, KeyCode};
+use ratatui::widgets::{List, ListItem, ListState};
 use ratatui::{
     backend::Backend,
     layout::{Alignment, Constraint, Direction, Layout},
@@ -5,8 +7,6 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph},
     Frame, Terminal,
 };
-use crossterm::event::{self, Event, KeyCode};
-use ratatui::widgets::{List, ListItem, ListState};
 
 /// Represents the different screens in the application.
 pub enum Screen {
@@ -84,7 +84,7 @@ pub fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
 
         // Poll for key events
         if let Event::Key(key) = event::read()? {
-            if  key.kind == event::KeyEventKind::Release {
+            if key.kind == event::KeyEventKind::Release {
                 // Skip events that are not KeyEventKind::Press
                 continue;
             }
@@ -135,8 +135,7 @@ fn render_login(f: &mut Frame) {
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::Cyan));
 
-    let paragraph = Paragraph::new("Press Enter to login\nPress Esc to exit")
-        .block(block);
+    let paragraph = Paragraph::new("Press Enter to login\nPress Esc to exit").block(block);
 
     f.render_widget(paragraph, size);
 }
@@ -145,11 +144,14 @@ fn render_login(f: &mut Frame) {
 fn render_main(f: &mut Frame, state: &DashboardState) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(3),  // Title block
-            Constraint::Min(0),     // Body area
-            Constraint::Length(2),  // Footer block
-        ].as_ref())
+        .constraints(
+            [
+                Constraint::Length(3), // Title block
+                Constraint::Min(0),    // Body area
+                Constraint::Length(2), // Footer block
+            ]
+            .as_ref(),
+        )
         .split(f.size());
 
     // Title section
@@ -158,7 +160,11 @@ fn render_main(f: &mut Frame, state: &DashboardState) {
     let title_block = Block::default().borders(Borders::BOTTOM);
     let title = Paragraph::new(title_text)
         .alignment(Alignment::Center) // ← Horizontally center the text
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
         .block(title_block);
     f.render_widget(title, chunks[0]);
 
@@ -175,9 +181,14 @@ fn render_main(f: &mut Frame, state: &DashboardState) {
         let status_block = Block::default()
             .borders(Borders::RIGHT)
             .title("STATUS")
-            .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
+            .style(
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            );
 
-        let items: Vec<ListItem> = state.status_items
+        let items: Vec<ListItem> = state
+            .status_items
             .iter()
             .map(|i| ListItem::new(i.clone()))
             .collect();
@@ -185,17 +196,22 @@ fn render_main(f: &mut Frame, state: &DashboardState) {
         List::new(items)
             .style(Style::default().fg(Color::Cyan))
             .block(status_block)
-            .highlight_style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+            .highlight_style(
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            )
             .highlight_symbol("> ")
     };
     f.render_stateful_widget(status, body_chunks[0], &mut status_list_state);
 
     // Body: Main Content Area
     let content_text = state.logs.clone();
-    let content_block = Block::default()
-        .borders(Borders::NONE)
-        .title("LOGS")
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
+    let content_block = Block::default().borders(Borders::NONE).title("LOGS").style(
+        Style::default()
+            .fg(Color::Cyan)
+            .add_modifier(Modifier::BOLD),
+    );
     let content = Paragraph::new(content_text)
         .style(Style::default().fg(Color::Cyan))
         .block(content_block);
@@ -204,7 +220,11 @@ fn render_main(f: &mut Frame, state: &DashboardState) {
     // Footer
     let footer = Paragraph::new("[Q] Quit  [S] Settings  [←][→] Navigate")
         .alignment(Alignment::Center) // ← Horizontally center the text
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
         .block(Block::default().borders(Borders::TOP));
     f.render_widget(footer, chunks[2]);
 }
