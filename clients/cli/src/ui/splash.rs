@@ -52,11 +52,11 @@ pub fn render_splash(f: &mut Frame) {
     let vertical_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Min((f.size().height.saturating_sub(logo_height)) / 2),
+            Constraint::Min((f.area().height.saturating_sub(logo_height)) / 2),
             Constraint::Length(logo_height),
-            Constraint::Min((f.size().height.saturating_sub(logo_height + 1)) / 2),
+            Constraint::Min((f.area().height.saturating_sub(logo_height + 1)) / 2),
         ])
-        .split(f.size());
+        .split(f.area());
 
     let centered_area: Rect = vertical_chunks[1];
 
