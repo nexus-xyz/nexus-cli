@@ -2,9 +2,9 @@
 
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 use ratatui::Frame;
-use ratatui::text::{Line, Span};
 
 pub const LOGO_NAME: &str = r#"
   ███╗   ██╗  ███████╗  ██╗  ██╗  ██╗   ██╗  ███████╗
@@ -23,8 +23,11 @@ pub fn render_splash(f: &mut Frame) {
         .map(|line| {
             Span::from(Span::styled(
                 line.to_string(),
-                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
-            )).into()
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ))
+            .into()
         })
         .collect();
 
@@ -35,8 +38,12 @@ pub fn render_splash(f: &mut Frame) {
     lines.push(
         Span::from(Span::styled(
             format!("Version {}", env!("CARGO_PKG_VERSION")),
-            Style::default().fg(Color::LightBlue).add_modifier(Modifier::ITALIC),
-        )).into());
+            Style::default()
+                .fg(Color::LightBlue)
+                .add_modifier(Modifier::ITALIC),
+        ))
+        .into(),
+    );
 
     // Determine the logo height
     let logo_height = (lines.len() + 2) as u16;
