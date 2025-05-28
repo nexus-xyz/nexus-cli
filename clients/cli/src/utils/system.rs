@@ -16,8 +16,8 @@ pub fn num_cores() -> usize {
 pub fn total_memory_gb() -> f64 {
     let mut sys = System::new();
     sys.refresh_memory();
-    let total_memory_kb = sys.total_memory();
-    let total_memory_gb = total_memory_kb as f64 / 1000.0 / 1000.0;
+    let total_memory = sys.total_memory(); // bytes
+    let total_memory_gb = total_memory as f64 / 1000.0 / 1000.0 / 1000.0;
     total_memory_gb
 }
 
@@ -31,8 +31,8 @@ pub fn process_memory_gb() -> f64 {
         .process(sysinfo::Pid::from(current_pid as usize))
         .expect("Failed to get current process");
 
-    let memory_kb = current_process.memory();
-    let memory_gb = memory_kb as f64 / 1000.0 / 1000.0;
+    let memory = current_process.memory(); // bytes
+    let memory_gb = memory as f64 / 1000.0 / 1000.0 / 1000.0; 
     memory_gb
 }
 

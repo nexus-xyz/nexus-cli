@@ -35,9 +35,9 @@ impl App {
     /// Creates a new instance of the application.
     pub fn new(node_id: Option<u64>) -> Self {
         Self {
+            start_time: Instant::now(),
             node_id,
             current_screen: Screen::Splash,
-            start_time: Instant::now(),
         }
     }
 
@@ -66,9 +66,8 @@ pub fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
             }
         }
 
-        // Don't block on event while in splash so that the splash screen can time out.
-        if event::poll(Duration::from_millis(10))? {
-            // Poll for key events
+        // Poll for key events
+        if crossterm::event::poll(Duration::from_millis(100))? {
             if let Event::Key(key) = event::read()? {
                 // Skip events that are not KeyEventKind::Press
                 if key.kind == event::KeyEventKind::Release {
@@ -76,28 +75,21 @@ pub fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
                 }
 
                 // Handle exit events
-                match key.code {
-                    // Handle Escape and 'q' keys to exit the application
-                    KeyCode::Esc | KeyCode::Char('q') => return Ok(()),
-                    _ => {}
+                if matches!(key.code, KeyCode::Esc | KeyCode::Char('q')) {
+                    return Ok(());
                 }
 
                 match &mut app.current_screen {
-                    // Handle events for the Splash screen
-                    &mut Screen::Splash => {
+                    Screen::Splash => {
                         // Any key press will transition from the splash screen to the login screen
                         if key.code != KeyCode::Esc && key.code != KeyCode::Char('q') {
                             app.current_screen = Screen::Login;
                         }
                     }
-
-                    // Handle events for the Login screen
                     Screen::Login => match key.code {
                         KeyCode::Enter => app.login(),
                         _ => {}
                     },
-
-                    // Handle events for the Dashboard screen
                     Screen::Dashboard(_dashboard_state) => match key.code {
                         // KeyCode::Up => {
                         //     if main_state.selected_menu_index > 0 {

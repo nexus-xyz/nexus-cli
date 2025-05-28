@@ -13,6 +13,7 @@ pub struct DashboardState {
     /// Unique identifier for the node.
     pub node_id: Option<u64>,
 
+    // TODO: Environment
     /// Total NEX points available to the node, if any.
     pub nex_points: Option<u64>,
 
@@ -22,8 +23,14 @@ pub struct DashboardState {
     /// The current task being executed by the node, if any.
     pub current_task: Option<String>,
 
-    /// Logs or main content area text.
-    pub logs: String,
+    /// Logs or messages to display in the dashboard.
+    pub logs: Vec<String>,
+    
+    /// Total number of (virtual) CPU cores available on the machine.
+    pub total_cores: usize,
+    
+    /// Total RAM available on the machine, in GB.
+    pub total_ram_gb: f64,
 }
 
 impl DashboardState {
@@ -38,13 +45,15 @@ impl DashboardState {
             nex_points: None,
             start_time,
             current_task: None,
-            logs: "A scrolling history of event logs...".to_string(),
+            logs: Default::default(),
+            total_cores: system::num_cores(),
+            total_ram_gb: system::total_memory_gb(),
         }
     }
 
     /// Updates the dashboard state.
     pub fn update(&mut self) {
-        todo!("Update the dashboard state with new data");
+        self.logs.push(format!("Heartbeat at {:?}", Instant::now()));
     }
 
     /// Render the dashboard state to the terminal frame.
@@ -136,20 +145,23 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
         // Total Cores
         items.push(ListItem::new(format!(
             "TOTAL CORES: {}",
-            system::num_cores()
+            state.total_cores
         )));
-
+        
         // Total RAM in GB
         items.push(ListItem::new(format!(
-            "TOTAL RAM: {:.2} GB",
-            system::total_memory_gb()
+            "TOTAL RAM: {:.3} GB",
+            state.total_ram_gb
         )));
 
         // CPU Load (Placeholder)
-        items.push(ListItem::new("CPU LOAD: 0%".to_string())); // Placeholder, replace with actual data
+        items.push(ListItem::new("CPU LOAD: 0.000%".to_string())); // Placeholder, replace with actual data
 
-        // RAM Used (Placeholder)
-        items.push(ListItem::new("RAM USED: 0.00 GB".to_string())); // Placeholder, replace with actual data
+        // // RAM Used
+        // items.push(ListItem::new(format!(
+        //     "RAM USED: {:.3} GB",
+        //     system::process_memory_gb()
+        // )));
 
         List::new(items)
             .style(Style::default().fg(Color::Cyan))
@@ -163,17 +175,19 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
     };
     f.render_stateful_widget(status, body_chunks[0], &mut status_list_state);
 
-    // Body: Main Content Area
-    let content_text = state.logs.clone();
-    let content_block = Block::default().borders(Borders::NONE).title("LOGS").style(
-        Style::default()
-            .fg(Color::Cyan)
-            .add_modifier(Modifier::BOLD),
-    );
-    let content = Paragraph::new(content_text)
-        .style(Style::default().fg(Color::Cyan))
-        .block(content_block);
-    f.render_widget(content, body_chunks[1]);
+    // Logs using List
+    let log_items: Vec<ListItem> = state
+        .logs
+        .iter()
+        .rev() // newest first
+        .map(|line| ListItem::new(line.clone()))
+        .collect();
+
+    let log_widget = List::new(log_items)
+        .block(Block::default().title("Log").borders(Borders::NONE))
+        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
+
+    f.render_widget(log_widget, body_chunks[1]);
 
     // Footer
     let footer = Paragraph::new("[Q] Quit  [S] Settings  [←][→] Navigate")
