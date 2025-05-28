@@ -12,7 +12,6 @@ mod ui;
 mod utils;
 
 use crate::prover::start_prover;
-use crate::utils::system_stats::measure_gflops;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 use crossterm::{
@@ -66,7 +65,7 @@ fn get_config_path() -> Result<PathBuf, ()> {
 
 fn main() -> Result<(), Box<dyn Error>> {
     // TODO: parse command line arguments
-    let _cli = Cli::parse();
+    // let _cli = Cli::parse();
 
     // Terminal setup
     enable_raw_mode()?;
@@ -78,7 +77,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut terminal = Terminal::new(backend)?;
 
     // Create the application and run it.
-    let app = ui::App::new();
+    let app = ui::App::new(None);
     let res = ui::run(&mut terminal, app);
 
     // Clean up the terminal after running the application.

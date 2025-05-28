@@ -1,43 +1,55 @@
 //! Dashboard screen rendering.
 
-use ratatui::Frame;
+use crate::utils;
+use crate::utils::system;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout};
 use ratatui::prelude::{Color, Modifier, Style};
 use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
+use ratatui::Frame;
+use std::time::Instant;
 
 /// State for the dashboard screen, containing node information and menu items.
 pub struct DashboardState {
     /// Unique identifier for the node.
     pub node_id: Option<u64>,
 
-    /// List of status items to display in the dashboard.
-    pub status_items: Vec<String>,
+    /// Total NEX points available to the node, if any.
+    pub nex_points: Option<u64>,
 
-    /// Index of the currently selected menu item.
-    pub selected_menu_index: usize,
+    /// The start time of the application, used for computing uptime.
+    pub start_time: Instant,
+
+    /// The current task being executed by the node, if any.
+    pub current_task: Option<String>,
 
     /// Logs or main content area text.
     pub logs: String,
 }
 
 impl DashboardState {
-    pub fn new(node_id: Option<u64>) -> Self {
+    /// Creates a new instance of the dashboard state.
+    ///
+    /// # Arguments
+    /// * `start_time` - The start time of the application, used for computing uptime.
+    /// * `node_id` - Optional node ID for authenticated sessions.
+    pub fn new(node_id: Option<u64>, start_time: Instant) -> Self {
         Self {
             node_id,
-            status_items: vec![
-                format!("NODE ID: {}", node_id.unwrap_or(0)).to_string(), // TODO
-                "NEX POINTS:".to_string(),
-                "UPTIME:".to_string(),
-                "TOTAL CORES:".to_string(),
-                "TOTAL RAM: (GB)".to_string(),
-                "DEDICATED THREADS:".to_string(),
-                "CURRENT TASK: foo.elf".to_string(),
-                "CPU LOAD:".to_string(),
-                "RAM USED: (GB)".to_string(),
-            ],
-            selected_menu_index: 0,
+            nex_points: None,
+            start_time,
+            current_task: None,
             logs: "A scrolling history of event logs...".to_string(),
         }
+    }
+
+    /// Updates the dashboard state.
+    pub fn update(&mut self) {
+        todo!("Update the dashboard state with new data");
+    }
+
+    /// Render the dashboard state to the terminal frame.
+    pub fn render(&self, f: &mut Frame) {
+        render_dashboard(f, self);
     }
 }
 
@@ -51,7 +63,7 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
                 Constraint::Min(0),    // Body area
                 Constraint::Length(2), // Footer block
             ]
-                .as_ref(),
+            .as_ref(),
         )
         .split(f.size());
 
@@ -77,7 +89,7 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
 
     // --- Status using List ---
     let mut status_list_state = ListState::default();
-    status_list_state.select(Some(state.selected_menu_index));
+    // status_list_state.select(Some(state.selected_menu_index));
     let status: List = {
         let status_block = Block::default()
             .borders(Borders::RIGHT)
@@ -88,11 +100,56 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
                     .add_modifier(Modifier::BOLD),
             );
 
-        let items: Vec<ListItem> = state
-            .status_items
-            .iter()
-            .map(|i| ListItem::new(i.clone()))
-            .collect();
+        let mut items: Vec<ListItem> = Vec::new();
+
+        // Node ID
+        items.push(ListItem::new(format!(
+            "NODE ID: {}",
+            state.node_id.unwrap_or(0)
+        )));
+
+        // Uptime in Days, Hours, Minutes, Seconds
+        let uptime = state.start_time.elapsed();
+        let uptime_string = format!(
+            "UPTIME: {}d {}h {}m {}s",
+            uptime.as_secs() / 86400,
+            (uptime.as_secs() % 86400) / 3600,
+            (uptime.as_secs() % 3600) / 60,
+            uptime.as_secs() % 60
+        );
+        items.push(ListItem::new(uptime_string));
+
+        // NEX Points
+        if let Some(nex_points) = state.nex_points {
+            items.push(ListItem::new(format!("NEX POINTS: {}", nex_points)));
+        } else {
+            items.push(ListItem::new("NEX POINTS: Not available".to_string()));
+        }
+
+        // Current Task
+        if let Some(task) = &state.current_task {
+            items.push(ListItem::new(format!("CURRENT TASK: {}", task)));
+        } else {
+            items.push(ListItem::new("CURRENT TASK: None".to_string()));
+        }
+
+        // Total Cores
+        items.push(ListItem::new(format!(
+            "TOTAL CORES: {}",
+            system::num_cores()
+        )));
+
+        // Total RAM in GB
+        items.push(ListItem::new(format!(
+            "TOTAL RAM: {:.2} GB",
+            system::total_memory_gb()
+        )));
+
+        // CPU Load (Placeholder)
+        items.push(ListItem::new("CPU LOAD: 0%".to_string())); // Placeholder, replace with actual data
+
+        // RAM Used (Placeholder)
+        items.push(ListItem::new("RAM USED: 0.00 GB".to_string())); // Placeholder, replace with actual data
 
         List::new(items)
             .style(Style::default().fg(Color::Cyan))
