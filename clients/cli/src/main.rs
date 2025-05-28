@@ -11,6 +11,8 @@ mod setup;
 mod ui;
 mod utils;
 
+use crate::config::Config;
+use crate::environment::Environment;
 use crate::prover::start_prover;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
@@ -24,37 +26,45 @@ use std::path::PathBuf;
 use std::{error::Error, io, thread};
 use tokio::runtime::Runtime;
 
-#[derive(clap::ValueEnum, Clone, Debug)]
-enum Environment {
-    Local,
-    Dev,
-    Staging,
-    Beta,
-}
-
-#[derive(Parser)]
+#[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
-struct Cli {
-    /// Command to execute
-    #[command(subcommand)]
-    command: Command,
+struct Args {
+    /// Node ID
+    #[arg(long, value_name = "NODE_ID")]
+    node_id: Option<u64>,
+
+    /// Environment to connect to.
+    #[arg(long, value_enum)]
+    env: Option<Environment>,
+
+    /// Maximum number of threads to use for proving.
+    #[arg(long)]
+    max_threads: Option<u32>,
 }
 
-#[derive(Subcommand)]
-enum Command {
-    /// Start the prover
-    Start {
-        /// Environment to connect to.
-        #[arg(long, value_enum)]
-        env: Option<Environment>,
-
-        /// Maximum number of threads to use for proving.
-        #[arg(long)]
-        max_threads: Option<u32>,
-    },
-    /// Logout from the current session
-    Logout,
-}
+// #[derive(Parser)]
+// #[command(author, version, about, long_about = None)]
+// struct Cli {
+//     /// Command to execute
+//     #[command(subcommand)]
+//     command: Command,
+// }
+//
+// #[derive(Subcommand)]
+// enum Command {
+//     /// Start the prover
+//     Start {
+//         /// Environment to connect to.
+//         #[arg(long, value_enum)]
+//         env: Option<Environment>,
+//
+//         /// Maximum number of threads to use for proving.
+//         #[arg(long)]
+//         max_threads: Option<u32>,
+//     },
+//     /// Logout from the current session
+//     Logout,
+// }
 
 /// Get the path to the Nexus config file, typically located at ~/.nexus/config.json.
 fn get_config_path() -> Result<PathBuf, ()> {
@@ -64,8 +74,21 @@ fn get_config_path() -> Result<PathBuf, ()> {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    // TODO: parse command line arguments
-    // let _cli = Cli::parse();
+    let args = Args::parse();
+    let environment = args.env.unwrap_or_default();
+    let mut node_id = args.node_id;
+
+    // If no node ID is provided, try to load it from the config file.
+    let config_path = get_config_path().expect("Failed to get config path");
+    if node_id.is_none() && config_path.exists() {
+        if let Ok(config) = Config::load_from_file(&config_path) {
+            let node_id_as_u64 = config
+                .node_id
+                .parse::<u64>()
+                .expect("Failed to parse node ID");
+            node_id = Some(node_id_as_u64);
+        }
+    }
 
     // Terminal setup
     enable_raw_mode()?;
@@ -77,7 +100,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut terminal = Terminal::new(backend)?;
 
     // Create the application and run it.
-    let app = ui::App::new(None);
+    let app = ui::App::new(node_id, environment);
     let res = ui::run(&mut terminal, app);
 
     // Clean up the terminal after running the application.

@@ -32,7 +32,7 @@ pub fn process_memory_gb() -> f64 {
         .expect("Failed to get current process");
 
     let memory = current_process.memory(); // bytes
-    let memory_gb = memory as f64 / 1000.0 / 1000.0 / 1000.0; 
+    let memory_gb = memory as f64 / 1000.0 / 1000.0 / 1000.0;
     memory_gb
 }
 

@@ -1,16 +1,16 @@
 use std::fmt::{Display, Formatter};
 
 /// Represents the different deployment environments available for the CLI.
-#[derive(Debug, Clone, Default, Copy, PartialEq, Eq)]
+#[derive(clap::ValueEnum, Debug, Clone, Default, Copy, PartialEq, Eq)]
 pub enum Environment {
     /// Local development environment.
-    #[default]
     Local,
     /// Development environment (shared).
     Dev,
     /// Staging environment for pre-production testing.
     Staging,
     /// Beta environment for limited user exposure.
+    #[default]
     Beta,
 }
 
@@ -22,18 +22,6 @@ impl Environment {
             Environment::Dev => "https://dev.orchestrator.nexus.xyz".to_string(),
             Environment::Staging => "https://staging.orchestrator.nexus.xyz".to_string(),
             Environment::Beta => "https://beta.orchestrator.nexus.xyz".to_string(),
-        }
-    }
-}
-
-impl From<Option<crate::Environment>> for Environment {
-    fn from(env: Option<crate::Environment>) -> Self {
-        match env {
-            Some(crate::Environment::Local) => Environment::Local,
-            Some(crate::Environment::Dev) => Environment::Dev,
-            Some(crate::Environment::Staging) => Environment::Staging,
-            Some(crate::Environment::Beta) => Environment::Beta,
-            None => Environment::default(),
         }
     }
 }

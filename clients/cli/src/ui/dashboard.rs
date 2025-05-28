@@ -1,5 +1,6 @@
 //! Dashboard screen rendering.
 
+use crate::environment::Environment;
 use crate::utils;
 use crate::utils::system;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout};
@@ -13,7 +14,9 @@ pub struct DashboardState {
     /// Unique identifier for the node.
     pub node_id: Option<u64>,
 
-    // TODO: Environment
+    /// The environment in which the application is running.
+    pub environment: Environment,
+
     /// Total NEX points available to the node, if any.
     pub nex_points: Option<u64>,
 
@@ -38,9 +41,9 @@ impl DashboardState {
     ///
     /// # Arguments
     /// * `start_time` - The start time of the application, used for computing uptime.
+    /// * `environment` - The environment in which the application is running.
     /// * `node_id` - Optional node ID for authenticated sessions.
-    pub fn new(node_id: Option<u64>, start_time: Instant) -> Self {
-
+    pub fn new(node_id: Option<u64>, environment: Environment, start_time: Instant) -> Self {
         let logs = vec![
             "[12:48:11] ✅ Proof accepted (23ms)".to_string(),
             "[12:48:09] ⚠️  Task stalled".to_string(),
@@ -49,6 +52,7 @@ impl DashboardState {
 
         Self {
             node_id,
+            environment,
             nex_points: None,
             start_time,
             current_task: None,
@@ -124,6 +128,12 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
             state.node_id.unwrap_or(0)
         )));
 
+        // Environment
+        items.push(ListItem::new(format!(
+            "ENVIRONMENT: {}",
+            state.environment.to_string()
+        )));
+
         // Uptime in Days, Hours, Minutes, Seconds
         let uptime = state.start_time.elapsed();
         let uptime_string = format!(
@@ -150,10 +160,7 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
         }
 
         // Total Cores
-        items.push(ListItem::new(format!(
-            "TOTAL CORES: {}",
-            state.total_cores
-        )));
+        items.push(ListItem::new(format!("TOTAL CORES: {}", state.total_cores)));
 
         // Total RAM in GB
         items.push(ListItem::new(format!(
@@ -192,7 +199,11 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
 
     let log_widget = List::new(log_items)
         .block(Block::default().title("LOGS").borders(Borders::NONE))
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        );
 
     f.render_widget(log_widget, body_chunks[1]);
 

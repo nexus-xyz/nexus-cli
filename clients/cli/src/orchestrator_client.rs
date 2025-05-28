@@ -10,7 +10,6 @@ use std::time::Duration;
 pub struct OrchestratorClient {
     client: Client,
     base_url: String,
-    // environment: config::Environment,
 }
 
 impl OrchestratorClient {
@@ -21,7 +20,6 @@ impl OrchestratorClient {
                 .build()
                 .expect("Failed to create HTTP client"),
             base_url: environment.orchestrator_url(),
-            // environment,
         }
     }
 
