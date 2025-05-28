@@ -6,8 +6,11 @@ use crate::environment::Environment;
 use crate::ui::dashboard::{render_dashboard, DashboardState};
 use crate::ui::login::render_login;
 use crate::ui::splash::render_splash;
+use crossbeam::channel::unbounded;
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::{backend::Backend, Frame, Terminal};
+use std::collections::VecDeque;
+use std::thread;
 use std::time::{Duration, Instant};
 
 /// The different screens in the application.
@@ -19,6 +22,9 @@ pub enum Screen {
     /// Dashboard screen displaying node information and status.
     Dashboard(DashboardState),
 }
+
+/// The maximum number of events to keep in the event buffer.
+const MAX_EVENTS: usize = 100;
 
 /// Application state
 pub struct App {
@@ -33,6 +39,9 @@ pub struct App {
 
     /// The current screen being displayed in the application.
     pub current_screen: Screen,
+
+    /// Events received from worker threads.
+    pub events: VecDeque<WorkerEvent>,
 }
 
 impl App {
@@ -43,13 +52,14 @@ impl App {
             node_id,
             environment: env,
             current_screen: Screen::Splash,
+            events: Default::default(),
         }
     }
 
     /// Handles a complete login process, transitioning to the dashboard screen.
     pub fn login(&mut self) {
         let node_id = Some(123); // Placeholder for node ID, replace with actual logic to get node ID
-        let state = DashboardState::new(node_id, self.environment, self.start_time);
+        let state = DashboardState::new(node_id, self.environment, self.start_time, &self.events);
         self.current_screen = Screen::Dashboard(state);
     }
 }
@@ -58,6 +68,20 @@ impl App {
 pub fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Result<()> {
     let splash_start = Instant::now();
     let splash_duration = Duration::from_secs(2);
+
+    // Spawn worker threads for background tasks
+    let (sender, receiver) = unbounded::<WorkerEvent>();
+    let num_workers = 3;
+
+    // Spawn multiple workers
+    for id in 0..num_workers {
+        spawn_worker(id, sender.clone());
+    }
+
+    drop(sender); // Drop original sender to allow receiver to detect end-of-stream.
+
+    let start_time = Instant::now();
+    let mut active_workers = num_workers;
 
     loop {
         terminal.draw(|f| render(f, &mut app))?;
@@ -69,6 +93,7 @@ pub fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
                     app.node_id,
                     app.environment,
                     app.start_time,
+                    &app.events,
                 ));
                 continue;
             }
@@ -95,6 +120,7 @@ pub fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
                                 app.node_id,
                                 app.environment,
                                 app.start_time,
+                                &app.events,
                             ));
                         }
                     }
@@ -108,6 +134,21 @@ pub fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
                 }
             }
         }
+
+        if active_workers > 0 {
+            while let Ok(event) = receiver.try_recv() {
+                // if Done, decrement active_workers
+                if let WorkerEvent::Done { worker_id } = &event {
+                    active_workers -= 1;
+                };
+
+                // Add to bounded event buffer
+                if app.events.len() >= MAX_EVENTS {
+                    app.events.pop_front(); // Evict oldest
+                }
+                app.events.push_back(event);
+            }
+        }
     }
 }
 
@@ -116,6 +157,35 @@ fn render(f: &mut Frame, app: &App) {
     match &app.current_screen {
         Screen::Splash => render_splash(f),
         Screen::Login => render_login(f),
-        Screen::Dashboard(state) => render_dashboard(f, state),
+        Screen::Dashboard(state) => {
+            // Update the dashboard state with the latest events
+            let state =
+                DashboardState::new(app.node_id, app.environment, app.start_time, &app.events);
+            render_dashboard(f, &state)
+        }
     }
+}
+
+/// An example event type produced by workers.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum WorkerEvent {
+    Message { worker_id: usize, data: String },
+    Done { worker_id: usize },
+}
+
+fn spawn_worker(worker_id: usize, sender: crossbeam::channel::Sender<WorkerEvent>) {
+    thread::spawn(move || {
+        for i in 0..100 {
+            // TODO: Simulate some work
+            thread::sleep(Duration::from_secs(1));
+            let message = format!("Worker {}: Message {}", worker_id, i);
+            sender
+                .send(WorkerEvent::Message {
+                    worker_id,
+                    data: message,
+                })
+                .unwrap();
+        }
+        sender.send(WorkerEvent::Done { worker_id }).unwrap();
+    });
 }

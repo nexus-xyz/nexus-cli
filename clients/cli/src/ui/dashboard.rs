@@ -1,12 +1,13 @@
 //! Dashboard screen rendering.
 
 use crate::environment::Environment;
-use crate::utils;
+use crate::ui::WorkerEvent;
 use crate::utils::system;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout};
 use ratatui::prelude::{Color, Modifier, Style};
 use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
 use ratatui::Frame;
+use std::collections::VecDeque;
 use std::time::Instant;
 
 /// State for the dashboard screen, containing node information and menu items.
@@ -26,14 +27,15 @@ pub struct DashboardState {
     /// The current task being executed by the node, if any.
     pub current_task: Option<String>,
 
-    /// Logs or messages to display in the dashboard.
-    pub logs: Vec<String>,
-
+    // /// Logs or messages to display in the dashboard.
+    // pub logs: Vec<String>,
     /// Total number of (virtual) CPU cores available on the machine.
     pub total_cores: usize,
 
     /// Total RAM available on the machine, in GB.
     pub total_ram_gb: f64,
+
+    pub events: VecDeque<WorkerEvent>,
 }
 
 impl DashboardState {
@@ -43,12 +45,17 @@ impl DashboardState {
     /// * `start_time` - The start time of the application, used for computing uptime.
     /// * `environment` - The environment in which the application is running.
     /// * `node_id` - Optional node ID for authenticated sessions.
-    pub fn new(node_id: Option<u64>, environment: Environment, start_time: Instant) -> Self {
-        let logs = vec![
-            "[12:48:11] ✅ Proof accepted (23ms)".to_string(),
-            "[12:48:09] ⚠️  Task stalled".to_string(),
-            "[12:47:50] ✅ Proof accepted (22ms)".to_string(),
-        ];
+    pub fn new(
+        node_id: Option<u64>,
+        environment: Environment,
+        start_time: Instant,
+        events: &VecDeque<WorkerEvent>,
+    ) -> Self {
+        // let logs = vec![
+        //     "[12:48:11] ✅ Proof accepted (23ms)".to_string(),
+        //     "[12:48:09] ⚠️  Task stalled".to_string(),
+        //     "[12:47:50] ✅ Proof accepted (22ms)".to_string(),
+        // ];
 
         Self {
             node_id,
@@ -56,21 +63,22 @@ impl DashboardState {
             nex_points: None,
             start_time,
             current_task: None,
-            logs,
+            // logs,
             total_cores: system::num_cores(),
             total_ram_gb: system::total_memory_gb(),
+            events: events.clone(),
         }
     }
 
-    /// Updates the dashboard state.
-    pub fn update(&mut self) {
-        self.logs.push(format!("Heartbeat at {:?}", Instant::now()));
-    }
+    // /// Updates the dashboard state.
+    // pub fn update(&mut self) {
+    //     self.logs.push(format!("Heartbeat at {:?}", Instant::now()));
+    // }
 
-    /// Render the dashboard state to the terminal frame.
-    pub fn render(&self, f: &mut Frame) {
-        render_dashboard(f, self);
-    }
+    // /// Render the dashboard state to the terminal frame.
+    // pub fn render(&self, f: &mut Frame) {
+    //     render_dashboard(f, self);
+    // }
 }
 
 /// Render the dashboard screen.
@@ -189,9 +197,21 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
     };
     f.render_stateful_widget(status, body_chunks[0], &mut status_list_state);
 
+    let logs: Vec<String> = state
+        .events
+        .iter()
+        .map(|event| match event {
+            WorkerEvent::Message { worker_id, data } => {
+                format!("[{}] {}", worker_id, data)
+            }
+            WorkerEvent::Done { worker_id } => {
+                format!("[{}] Task completed", worker_id)
+            }
+        })
+        .collect();
+
     // Logs using List
-    let log_items: Vec<ListItem> = state
-        .logs
+    let log_items: Vec<ListItem> = logs
         .iter()
         .rev() // newest first
         .map(|line| ListItem::new(line.clone()))
