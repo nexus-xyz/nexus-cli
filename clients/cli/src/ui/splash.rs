@@ -1,18 +1,62 @@
 //! Splash screen rendering module.
 
-use ratatui::layout::Alignment;
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::widgets::{Block, Borders, Paragraph};
 use ratatui::Frame;
+use ratatui::text::{Line, Span};
 
-pub fn render_splash(frame: &mut Frame) {
-    let text = Paragraph::new("NEXUS SPLASH SCREEN")
+pub const LOGO_NAME: &str = r#"
+  ███╗   ██╗  ███████╗  ██╗  ██╗  ██╗   ██╗  ███████╗
+  ████╗  ██║  ██╔════╝  ╚██╗██╔╝  ██║   ██║  ██╔════╝
+  ██╔██╗ ██║  █████╗     ╚███╔╝   ██║   ██║  ███████╗
+  ██║╚██╗██║  ██╔══╝     ██╔██╗   ██║   ██║  ╚════██║
+  ██║ ╚████║  ███████╗  ██╔╝ ██╗  ╚██████╔╝  ███████║
+  ╚═╝  ╚═══╝  ╚══════╝  ╚═╝  ╚═╝   ╚═════╝   ╚══════╝
+"#;
+
+pub fn render_splash(f: &mut Frame) {
+    // Convert LOGO_NAME into styled Lines
+    let mut lines: Vec<Line> = LOGO_NAME
+        .trim_matches('\n')
+        .lines()
+        .map(|line| {
+            Span::from(Span::styled(
+                line.to_string(),
+                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+            )).into()
+        })
+        .collect();
+
+    // Add a spacer line
+    lines.push(Line::from(Span::raw(" ")));
+
+    // Add version line
+    lines.push(
+        Span::from(Span::styled(
+            format!("Version {}", env!("CARGO_PKG_VERSION")),
+            Style::default().fg(Color::LightBlue).add_modifier(Modifier::ITALIC),
+        )).into());
+
+    // Determine the logo height
+    let logo_height = (lines.len() + 2) as u16;
+
+    // Vertically center using layout
+    let vertical_chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Min((f.size().height.saturating_sub(logo_height)) / 2),
+            Constraint::Length(logo_height),
+            Constraint::Min((f.size().height.saturating_sub(logo_height + 1)) / 2),
+        ])
+        .split(f.size());
+
+    let centered_area: Rect = vertical_chunks[1];
+
+    // Create the centered paragraph
+    let logo = Paragraph::new(lines)
         .alignment(Alignment::Center)
-        .style(
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        )
-        .block(Block::default().borders(Borders::ALL));
-    frame.render_widget(text, frame.size());
+        .block(Block::default().borders(Borders::NONE));
+
+    f.render_widget(logo, centered_area);
 }
