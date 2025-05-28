@@ -25,10 +25,10 @@ pub struct DashboardState {
 
     /// Logs or messages to display in the dashboard.
     pub logs: Vec<String>,
-    
+
     /// Total number of (virtual) CPU cores available on the machine.
     pub total_cores: usize,
-    
+
     /// Total RAM available on the machine, in GB.
     pub total_ram_gb: f64,
 }
@@ -40,12 +40,19 @@ impl DashboardState {
     /// * `start_time` - The start time of the application, used for computing uptime.
     /// * `node_id` - Optional node ID for authenticated sessions.
     pub fn new(node_id: Option<u64>, start_time: Instant) -> Self {
+
+        let logs = vec![
+            "[12:48:11] ✅ Proof accepted (23ms)".to_string(),
+            "[12:48:09] ⚠️  Task stalled".to_string(),
+            "[12:47:50] ✅ Proof accepted (22ms)".to_string(),
+        ];
+
         Self {
             node_id,
             nex_points: None,
             start_time,
             current_task: None,
-            logs: Default::default(),
+            logs,
             total_cores: system::num_cores(),
             total_ram_gb: system::total_memory_gb(),
         }
@@ -147,7 +154,7 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
             "TOTAL CORES: {}",
             state.total_cores
         )));
-        
+
         // Total RAM in GB
         items.push(ListItem::new(format!(
             "TOTAL RAM: {:.3} GB",
@@ -184,7 +191,7 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
         .collect();
 
     let log_widget = List::new(log_items)
-        .block(Block::default().title("Log").borders(Borders::NONE))
+        .block(Block::default().title("LOGS").borders(Borders::NONE))
         .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
 
     f.render_widget(log_widget, body_chunks[1]);
