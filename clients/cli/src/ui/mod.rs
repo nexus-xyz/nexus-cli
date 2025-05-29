@@ -83,11 +83,9 @@ pub fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
     let splash_duration = Duration::from_secs(2);
 
     // Spawn worker threads for background tasks
-    let (sender, receiver) = unbounded::<WorkerEvent>();
     let num_workers = 4;
-
-    // Spawn multiple workers
     let mut workers: Vec<JoinHandle<()>> = Vec::with_capacity(num_workers);
+    let (sender, receiver) = unbounded::<WorkerEvent>();
     for worker_id in 0..num_workers {
         let handle = spawn_worker(
             worker_id,
@@ -97,10 +95,7 @@ pub fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
         );
         workers.push(handle);
     }
-
     drop(sender); // Drop original sender to allow receiver to detect end-of-stream.
-
-    let start_time = Instant::now();
     let mut active_workers = num_workers;
 
     loop {
@@ -157,7 +152,7 @@ pub fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
 
         if active_workers > 0 {
             while let Ok(event) = receiver.try_recv() {
-                // if Done, decrement active_workers
+                // If Done, decrement active_workers
                 if let WorkerEvent::Done { worker_id } = &event {
                     active_workers -= 1;
                 };
@@ -186,7 +181,7 @@ fn render(f: &mut Frame, app: &App) {
     }
 }
 
-/// An example event type produced by workers.
+/// Events emitted by worker threads.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum WorkerEvent {
     Message { worker_id: usize, data: String },
@@ -234,18 +229,4 @@ fn spawn_worker(
             });
         }
     })
-    // thread::spawn(move || {
-    //     for i in 0..100 {
-    //         // TODO: Simulate some work
-    //         thread::sleep(Duration::from_secs(1));
-    //         let message = format!("Worker {}: Message {}", worker_id, i);
-    //         sender
-    //             .send(WorkerEvent::Message {
-    //                 worker_id,
-    //                 data: message,
-    //             })
-    //             .unwrap();
-    //     }
-    //     sender.send(WorkerEvent::Done { worker_id }).unwrap();
-    // })
 }
