@@ -83,7 +83,7 @@ pub fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
     let splash_duration = Duration::from_secs(2);
 
     // Spawn worker threads for background tasks
-    let num_workers = 4;
+    let num_workers = 1; // TODO: Keep this low for now to avoid hitting rate limits.
     let mut workers: Vec<JoinHandle<()>> = Vec::with_capacity(num_workers);
     let (sender, receiver) = unbounded::<ProverEvent>();
     for worker_id in 0..num_workers {
