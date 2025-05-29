@@ -14,7 +14,7 @@ mod utils;
 use crate::config::Config;
 use crate::environment::Environment;
 use crate::orchestrator_client::OrchestratorClient;
-use crate::prover::start_prover;
+use crate::setup::clear_node_config;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 use crossterm::{
@@ -24,12 +24,11 @@ use crossterm::{
 };
 use ratatui::{backend::CrosstermBackend, Terminal};
 use std::path::PathBuf;
-use std::{error::Error, io, thread};
-use tokio::runtime::Runtime;
+use std::{error::Error, io};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
-/// Command-line interface for the Nexus Prover
+/// Command-line arguments
 struct Args {
     /// Command to execute
     #[command(subcommand)]
@@ -88,7 +87,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             start(node_id, environment, max_threads)
         }
         Command::Logout => {
-            todo!("Implement logout functionality");
+            let config_path = get_config_path().expect("Failed to get config path");
+            clear_node_config(&config_path).map_err(Into::into)
         }
     }
 }
@@ -131,106 +131,54 @@ fn start(
     Ok(())
 }
 
-// #[tokio::main]
-// async fn main() -> Result<(), Box<dyn Error>> {
-//     // Initialize default log level, but can be overridden by the RUST_LOG environment variable.
-//     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
-//     let cli = Cli::parse();
-//
-//     match cli.command {
-//         Command::Start { env, max_threads } => {
-//             let environment = environment::Environment::from(env);
-//             display_splash_screen(&environment);
-//             let config_path = get_config_path().expect("Failed to get config path");
-//             match setup::run_initial_setup(&config_path).await? {
-//                 // == CLI is not registered yet. Perform local proving ==
-//                 SetupResult::Anonymous => {
-
-//                     println!("Proving anonymously...");
-//                     prove_parallel(environment, None, max_threads).await;
-//                 }
-//
-//                 // == CLI is registered and connected ==
-//                 SetupResult::Connected(node_id) => {
-//                     println!("Proving with existing node id: {}", node_id);
-//                     let node_id: u64 = node_id
-//                         .parse()
-//                         .unwrap_or_else(|_| panic!("invalid node id {}", node_id));
-//
-//                     prove_parallel(environment, Some(node_id), max_threads).await;
-//                 }
-//
-//                 // == Something went wrong during setup ==
-//                 SetupResult::Invalid => {
-//                     error!("Invalid setup option selected.");
-//                     return Err("Invalid setup option selected".into());
-//                 }
-//             }
-//         }
-//         Command::Logout => {
-//             let config_path = get_config_path().expect("Failed to get config path");
-//             println!(
-//                 "\n===== {} =====\n",
-//                 "Logging out of the Nexus CLI"
-//                     .bold()
-//                     .underline()
-//                     .bright_cyan()
-//             );
-//             clear_node_config(&config_path)?;
-//         }
+// /// Proves in parallel using multiple threads.
+// ///
+// /// # Arguments
+// /// * `environment` - The environment to connect to.
+// /// * `node_id` - The node ID to connect to, if specified.
+// /// * `max_threads` - The maximum number of threads to use, if specified.
+// async fn prove_parallel(
+//     environment: environment::Environment,
+//     node_id: Option<u64>,
+//     max_threads: Option<u32>,
+// ) {
+//     if node_id.is_some() {
+//         println!(
+//             "\n===== {} =====\n",
+//             "Starting proof generation".bold().underline().bright_cyan()
+//         );
+//     } else {
+//         println!(
+//             "\n===== {} =====\n",
+//             "Starting Anonymous proof generation for programs"
+//                 .bold()
+//                 .underline()
+//                 .bright_cyan()
+//         );
 //     }
 //
-//     Ok(())
+//     // Choose a reasonable number of threads.
+//     let num_threads = max_threads.unwrap_or(1).clamp(1, 8);
+//     let mut handles = Vec::new();
+//     for i in 0..num_threads {
+//         let node_id_clone = node_id;
+//         let handle = thread::spawn(move || {
+//             // Create a new runtime for each thread
+//             let rt = Runtime::new().expect("Failed to create Tokio runtime");
+//             rt.block_on(async {
+//                 match start_prover(environment, node_id_clone).await {
+//                     Ok(()) => println!("Thread {} completed successfully", i),
+//                     Err(e) => eprintln!("Thread {} failed: {:?}", i, e),
+//                 }
+//             });
+//         });
+//
+//         handles.push(handle);
+//     }
+//
+//     for handle in handles {
+//         handle.join().unwrap();
+//     }
+//
+//     println!("All provers finished.");
 // }
-
-/// Proves in parallel using multiple threads.
-///
-/// # Arguments
-/// * `environment` - The environment to connect to.
-/// * `node_id` - The node ID to connect to, if specified.
-/// * `max_threads` - The maximum number of threads to use, if specified.
-async fn prove_parallel(
-    environment: environment::Environment,
-    node_id: Option<u64>,
-    max_threads: Option<u32>,
-) {
-    if node_id.is_some() {
-        println!(
-            "\n===== {} =====\n",
-            "Starting proof generation".bold().underline().bright_cyan()
-        );
-    } else {
-        println!(
-            "\n===== {} =====\n",
-            "Starting Anonymous proof generation for programs"
-                .bold()
-                .underline()
-                .bright_cyan()
-        );
-    }
-
-    // Choose a reasonable number of threads.
-    let num_threads = max_threads.unwrap_or(1).clamp(1, 8);
-    let mut handles = Vec::new();
-    for i in 0..num_threads {
-        let node_id_clone = node_id;
-        let handle = thread::spawn(move || {
-            // Create a new runtime for each thread
-            let rt = Runtime::new().expect("Failed to create Tokio runtime");
-            rt.block_on(async {
-                match start_prover(environment, node_id_clone).await {
-                    Ok(()) => println!("Thread {} completed successfully", i),
-                    Err(e) => eprintln!("Thread {} failed: {:?}", i, e),
-                }
-            });
-        });
-
-        handles.push(handle);
-    }
-
-    for handle in handles {
-        handle.join().unwrap();
-    }
-
-    println!("All provers finished.");
-}

@@ -25,6 +25,7 @@ pub enum ProverError {
 /// # Arguments
 /// * `orchestrator_client` - The client to interact with the Nexus Orchestrator.
 /// * `node_id` - The ID of the node to connect to. If `None`, the prover will run in anonymous mode.
+#[allow(unused)]
 pub async fn start_prover(
     environment: Environment,
     node_id: Option<u64>,

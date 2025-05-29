@@ -75,7 +75,7 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
             ]
             .as_ref(),
         )
-        .split(f.size());
+        .split(f.area());
 
     // Title section
     let version = env!("CARGO_PKG_VERSION");
@@ -152,15 +152,6 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
             "TOTAL RAM: {:.3} GB",
             state.total_ram_gb
         )));
-
-        // CPU Load (Placeholder)
-        // items.push(ListItem::new("CPU LOAD: 0.000%".to_string())); // Placeholder, replace with actual data
-
-        // // RAM Used
-        // items.push(ListItem::new(format!(
-        //     "RAM USED: {:.3} GB",
-        //     system::process_memory_gb()
-        // )));
 
         List::new(items)
             .style(Style::default().fg(Color::Cyan))

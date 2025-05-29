@@ -13,7 +13,6 @@ use crossbeam::channel::unbounded;
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::{backend::Backend, Frame, Terminal};
 use std::collections::VecDeque;
-use std::future::Future;
 use std::thread;
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
@@ -115,7 +114,7 @@ pub fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
         }
 
         // Poll for key events
-        if crossterm::event::poll(Duration::from_millis(100))? {
+        if event::poll(Duration::from_millis(100))? {
             if let Event::Key(key) = event::read()? {
                 // Skip events that are not KeyEventKind::Press
                 if key.kind == event::KeyEventKind::Release {
