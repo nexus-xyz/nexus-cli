@@ -63,9 +63,17 @@ To run an optimized build using Nexus servers, run the following command in clie
 
 ### Running the CLI
 
+Run the CLI with an existing node ID
+
 ```sh
-# Run the CLI on the beta network, with optional argument for parallelism.
-cargo run -r -- start --env beta --max-threads 4
+cargo run -r -- start --node-id <your-node-id> 
+```
+
+Or, with Docker:
+
+```bash
+docker pull nexusxyz/nexus-cli:latest
+docker run -it --init nexusxyz/nexus-cli:latest start --node-id <your-node-id>
 ```
 
 ### Clear credentials
@@ -79,13 +87,6 @@ cargo run -r -- logout
 ### Protocol Buffer Compiler (protoc) Installation
 
 If you encounter an error about `protoc` not being installed, you can install it:
-
-#### Docker
-
-```bash
-docker pull nexusxyz/nexus-cli:latest
-docker run -it --init nexusxyz/nexus-cli:latest start --env beta
-```
 
 #### macOS
 
