@@ -27,45 +27,34 @@ use std::path::PathBuf;
 use std::{error::Error, io, thread};
 use tokio::runtime::Runtime;
 
-#[derive(Parser, Debug)]
+#[derive(Parser)]
 #[command(author, version, about, long_about = None)]
+/// Command-line interface for the Nexus Prover
 struct Args {
-    /// Node ID
-    #[arg(long, value_name = "NODE_ID")]
-    node_id: Option<u64>,
-
-    /// Environment to connect to.
-    #[arg(long, value_enum)]
-    env: Option<Environment>,
-
-    /// Maximum number of threads to use for proving.
-    #[arg(long)]
-    max_threads: Option<u32>,
+    /// Command to execute
+    #[command(subcommand)]
+    command: Command,
 }
 
-// #[derive(Parser)]
-// #[command(author, version, about, long_about = None)]
-// struct Cli {
-//     /// Command to execute
-//     #[command(subcommand)]
-//     command: Command,
-// }
-//
-// #[derive(Subcommand)]
-// enum Command {
-//     /// Start the prover
-//     Start {
-//         /// Environment to connect to.
-//         #[arg(long, value_enum)]
-//         env: Option<Environment>,
-//
-//         /// Maximum number of threads to use for proving.
-//         #[arg(long)]
-//         max_threads: Option<u32>,
-//     },
-//     /// Logout from the current session
-//     Logout,
-// }
+#[derive(Subcommand)]
+enum Command {
+    /// Start the prover
+    Start {
+        /// Node ID
+        #[arg(long, value_name = "NODE_ID")]
+        node_id: Option<u64>,
+
+        /// Environment to connect to.
+        #[arg(long, value_enum)]
+        env: Option<Environment>,
+
+        /// Maximum number of threads to use for proving.
+        #[arg(long)]
+        max_threads: Option<u32>,
+    },
+    /// Logout from the current session
+    Logout,
+}
 
 /// Get the path to the Nexus config file, typically located at ~/.nexus/config.json.
 fn get_config_path() -> Result<PathBuf, ()> {
@@ -76,22 +65,45 @@ fn get_config_path() -> Result<PathBuf, ()> {
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
-    let environment = args.env.unwrap_or_default();
-    let orchestrator_client = OrchestratorClient::new(environment.clone());
-    let mut node_id = args.node_id;
+    match args.command {
+        Command::Start {
+            node_id,
+            env,
+            max_threads,
+        } => {
+            let mut node_id = node_id;
+            // If no node ID is provided, try to load it from the config file.
+            let config_path = get_config_path().expect("Failed to get config path");
+            if node_id.is_none() && config_path.exists() {
+                if let Ok(config) = Config::load_from_file(&config_path) {
+                    let node_id_as_u64 = config
+                        .node_id
+                        .parse::<u64>()
+                        .expect("Failed to parse node ID");
+                    node_id = Some(node_id_as_u64);
+                }
+            }
 
-    // If no node ID is provided, try to load it from the config file.
-    let config_path = get_config_path().expect("Failed to get config path");
-    if node_id.is_none() && config_path.exists() {
-        if let Ok(config) = Config::load_from_file(&config_path) {
-            let node_id_as_u64 = config
-                .node_id
-                .parse::<u64>()
-                .expect("Failed to parse node ID");
-            node_id = Some(node_id_as_u64);
+            let environment = env.unwrap_or_default();
+            start(node_id, environment, max_threads)
+        }
+        Command::Logout => {
+            todo!("Implement logout functionality");
         }
     }
+}
 
+/// Starts the Nexus CLI application.
+///
+/// # Arguments
+/// * `node_id` - This client's unique identifier, if available.
+/// * `env` - The environment to connect to.
+/// * `max_threads` - Optional maximum number of threads to use for proving.
+fn start(
+    node_id: Option<u64>,
+    env: Environment,
+    _max_threads: Option<u32>,
+) -> Result<(), Box<dyn Error>> {
     // Terminal setup
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -102,7 +114,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut terminal = Terminal::new(backend)?;
 
     // Create the application and run it.
-    let app = ui::App::new(node_id, environment, orchestrator_client);
+    let orchestrator_client = OrchestratorClient::new(env.clone());
+    let app = ui::App::new(node_id, env, orchestrator_client);
     let res = ui::run(&mut terminal, app);
 
     // Clean up the terminal after running the application.
@@ -132,6 +145,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 //             match setup::run_initial_setup(&config_path).await? {
 //                 // == CLI is not registered yet. Perform local proving ==
 //                 SetupResult::Anonymous => {
+
 //                     println!("Proving anonymously...");
 //                     prove_parallel(environment, None, max_threads).await;
 //                 }
