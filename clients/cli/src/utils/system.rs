@@ -17,11 +17,11 @@ pub fn total_memory_gb() -> f64 {
     let mut sys = System::new();
     sys.refresh_memory();
     let total_memory = sys.total_memory(); // bytes
-    let total_memory_gb = total_memory as f64 / 1000.0 / 1000.0 / 1000.0;
-    total_memory_gb
+    total_memory as f64 / 1000.0 / 1000.0 / 1000.0 // Convert to GB
 }
 
 /// Memory used by the current process, in GB.
+#[allow(unused)]
 pub fn process_memory_gb() -> f64 {
     let mut sys = System::new();
     sys.refresh_all();
@@ -32,11 +32,11 @@ pub fn process_memory_gb() -> f64 {
         .expect("Failed to get current process");
 
     let memory = current_process.memory(); // bytes
-    let memory_gb = memory as f64 / 1000.0 / 1000.0 / 1000.0;
-    memory_gb
+    memory as f64 / 1000.0 / 1000.0 / 1000.0 // Convert to GB
 }
 
 /// Estimate peak FLOPS (in GFLOP/s) of this machine based on the number of cores and clock speed.
+#[allow(unused)]
 pub fn estimate_peak_gflops() -> f32 {
     // Estimate peak FLOPS based on the number of cores and a rough estimate of operations per cycle
     // Assuming 4 operations per cycle (e.g., add, multiply, divide, sin)

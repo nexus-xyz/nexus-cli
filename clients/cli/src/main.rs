@@ -16,7 +16,6 @@ use crate::environment::Environment;
 use crate::orchestrator_client::OrchestratorClient;
 use crate::setup::clear_node_config;
 use clap::{Parser, Subcommand};
-use colored::Colorize;
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
     execute,
@@ -114,7 +113,7 @@ fn start(
     let mut terminal = Terminal::new(backend)?;
 
     // Create the application and run it.
-    let orchestrator_client = OrchestratorClient::new(env.clone());
+    let orchestrator_client = OrchestratorClient::new(env);
     let app = ui::App::new(node_id, env, orchestrator_client);
     let res = ui::run(&mut terminal, app);
 

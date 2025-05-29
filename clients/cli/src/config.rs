@@ -10,6 +10,7 @@ pub struct Config {
 
 impl Config {
     /// Create Config with the given node_id.
+    #[allow(unused)]
     pub fn new(node_id: String) -> Self {
         Config { node_id }
     }
@@ -31,6 +32,7 @@ impl Config {
     ///
     /// # Errors
     /// Returns an `std::io::Error` if writing to file fails or serialization fails.
+    #[allow(unused)]
     pub fn save(&self, path: &Path) -> Result<(), std::io::Error> {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
@@ -48,7 +50,6 @@ impl Config {
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
     use std::fs::File;
     use std::io::Write;

@@ -21,12 +21,12 @@ pub fn render_splash(f: &mut Frame) {
         .trim_matches('\n')
         .lines()
         .map(|line| {
-            Span::from(Span::styled(
+            Span::styled(
                 line.to_string(),
                 Style::default()
                     .fg(Color::Cyan)
                     .add_modifier(Modifier::BOLD),
-            ))
+            )
             .into()
         })
         .collect();
@@ -36,12 +36,12 @@ pub fn render_splash(f: &mut Frame) {
 
     // Add version line
     lines.push(
-        Span::from(Span::styled(
+        Span::styled(
             format!("Version {}", env!("CARGO_PKG_VERSION")),
             Style::default()
                 .fg(Color::LightBlue)
                 .add_modifier(Modifier::ITALIC),
-        ))
+        )
         .into(),
     );
 

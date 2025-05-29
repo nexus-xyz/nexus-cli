@@ -10,6 +10,7 @@ pub const LOGO_NAME: &str = r#"
   ╚═╝  ╚═══╝  ╚══════╝  ╚═╝  ╚═╝   ╚═════╝   ╚══════╝
 "#;
 
+#[allow(unused)]
 pub fn print_banner(environment: &crate::environment::Environment) {
     // Split the logo into lines and color them differently
     let logo_lines: Vec<&str> = LOGO_NAME.lines().collect();

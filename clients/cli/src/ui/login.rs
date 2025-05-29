@@ -6,7 +6,7 @@ use ratatui::Frame;
 
 /// Renders the login screen with a simple message and instructions.
 pub fn render_login(f: &mut Frame) {
-    let size = f.size();
+    let size = f.area();
 
     let block = Block::default()
         .title("Login")

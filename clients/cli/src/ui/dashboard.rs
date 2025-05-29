@@ -118,10 +118,7 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
         )));
 
         // Environment
-        items.push(ListItem::new(format!(
-            "ENVIRONMENT: {}",
-            state.environment.to_string()
-        )));
+        items.push(ListItem::new(format!("ENVIRONMENT: {}", state.environment)));
 
         // Uptime in Days, Hours, Minutes, Seconds
         let uptime = state.start_time.elapsed();
@@ -168,9 +165,7 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
             WorkerEvent::Message {
                 worker_id: _worker_id,
                 data,
-            } => {
-                format!("{}", data)
-            }
+            } => data.to_string(),
             WorkerEvent::Done { worker_id } => {
                 format!("[{}] Task completed", worker_id)
             }

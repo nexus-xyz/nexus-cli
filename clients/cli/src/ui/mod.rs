@@ -23,6 +23,7 @@ pub enum Screen {
     /// Splash screen shown at the start of the application.
     Splash,
     /// Login screen where users can authenticate.
+    #[allow(unused)]
     Login,
     /// Dashboard screen displaying node information and status.
     Dashboard(DashboardState),
@@ -98,7 +99,7 @@ pub fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
     let mut active_workers = num_workers;
 
     loop {
-        terminal.draw(|f| render(f, &mut app))?;
+        terminal.draw(|f| render(f, &app))?;
 
         // Handle splash-to-login transition
         if let Screen::Splash = app.current_screen {
@@ -138,13 +139,12 @@ pub fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
                             ));
                         }
                     }
-                    Screen::Login => match key.code {
-                        KeyCode::Enter => app.login(),
-                        _ => {}
-                    },
-                    Screen::Dashboard(_dashboard_state) => match key.code {
-                        _ => {}
-                    },
+                    Screen::Login => {
+                        if key.code == KeyCode::Enter {
+                            app.login();
+                        }
+                    }
+                    Screen::Dashboard(_dashboard_state) => {}
                 }
             }
         }
@@ -152,7 +152,10 @@ pub fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
         if active_workers > 0 {
             while let Ok(event) = receiver.try_recv() {
                 // If Done, decrement active_workers
-                if let WorkerEvent::Done { worker_id } = &event {
+                if let WorkerEvent::Done {
+                    worker_id: _worker_id,
+                } = &event
+                {
                     active_workers -= 1;
                 };
 
@@ -183,8 +186,14 @@ fn render(f: &mut Frame, app: &App) {
 /// Events emitted by worker threads.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum WorkerEvent {
-    Message { worker_id: usize, data: String },
-    Done { worker_id: usize },
+    Message {
+        worker_id: usize,
+        data: String,
+    },
+    #[allow(unused)]
+    Done {
+        worker_id: usize,
+    },
 }
 
 fn spawn_worker(

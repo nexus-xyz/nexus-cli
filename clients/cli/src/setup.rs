@@ -4,6 +4,7 @@ use std::fs;
 use std::io::stdin;
 use std::path::Path;
 
+#[allow(unused)]
 pub enum SetupResult {
     /// The user is in anonymous mode
     Anonymous,
@@ -16,6 +17,7 @@ pub enum SetupResult {
 /// Run the initial setup for the Nexus CLI.
 ///
 /// Checks for, and reads or creates the config file at the given path.
+#[allow(unused)]
 pub async fn run_initial_setup(config_path: &Path) -> Result<SetupResult, std::io::Error> {
     if config_path.exists() {
         // If a config file exists, attempt to read the node ID from it.
