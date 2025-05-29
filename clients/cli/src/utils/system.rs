@@ -2,9 +2,9 @@
 
 use rayon::prelude::*;
 use std::hint::black_box;
+use std::process;
 use std::thread::available_parallelism;
 use std::time::Instant;
-use std::process;
 use sysinfo::System;
 
 /// Get the number of logical cores available on the machine.
