@@ -1,0 +1,13 @@
+{
+  "name": "@nexusxyz/nexus-cli",
+  "version": "0.1.0",
+  "description": "Nexus CLI packaged for npm",
+  "bin": {
+    "nexus-network": "bin/install-cil.js"
+  },
+  "scripts": {
+    "postinstall": "node bin/install-cli.js"
+  },
+  "preferGlobal": true,
+  "license": "MIT"
+}
