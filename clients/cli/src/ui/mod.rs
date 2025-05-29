@@ -3,15 +3,21 @@ mod login;
 mod splash;
 
 use crate::environment::Environment;
+use crate::orchestrator_client::OrchestratorClient;
+use crate::prover::authenticated_proving;
 use crate::ui::dashboard::{render_dashboard, DashboardState};
 use crate::ui::login::render_login;
 use crate::ui::splash::render_splash;
+use chrono::Local;
 use crossbeam::channel::unbounded;
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::{backend::Backend, Frame, Terminal};
 use std::collections::VecDeque;
+use std::future::Future;
 use std::thread;
+use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
+use tokio::runtime::Runtime;
 
 /// The different screens in the application.
 pub enum Screen {
@@ -37,6 +43,8 @@ pub struct App {
     /// The environment in which the application is running.
     pub environment: Environment,
 
+    pub orchestrator_client: OrchestratorClient,
+
     /// The current screen being displayed in the application.
     pub current_screen: Screen,
 
@@ -46,11 +54,16 @@ pub struct App {
 
 impl App {
     /// Creates a new instance of the application.
-    pub fn new(node_id: Option<u64>, env: Environment) -> Self {
+    pub fn new(
+        node_id: Option<u64>,
+        env: Environment,
+        orchestrator_client: OrchestratorClient,
+    ) -> Self {
         Self {
             start_time: Instant::now(),
             node_id,
             environment: env,
+            orchestrator_client,
             current_screen: Screen::Splash,
             events: Default::default(),
         }
@@ -71,11 +84,18 @@ pub fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
 
     // Spawn worker threads for background tasks
     let (sender, receiver) = unbounded::<WorkerEvent>();
-    let num_workers = 3;
+    let num_workers = 4;
 
     // Spawn multiple workers
-    for id in 0..num_workers {
-        spawn_worker(id, sender.clone());
+    let mut workers: Vec<JoinHandle<()>> = Vec::with_capacity(num_workers);
+    for worker_id in 0..num_workers {
+        let handle = spawn_worker(
+            worker_id,
+            app.node_id.unwrap(),
+            app.orchestrator_client.clone(),
+            sender.clone(),
+        );
+        workers.push(handle);
     }
 
     drop(sender); // Drop original sender to allow receiver to detect end-of-stream.
@@ -157,7 +177,7 @@ fn render(f: &mut Frame, app: &App) {
     match &app.current_screen {
         Screen::Splash => render_splash(f),
         Screen::Login => render_login(f),
-        Screen::Dashboard(state) => {
+        Screen::Dashboard(_state) => {
             // Update the dashboard state with the latest events
             let state =
                 DashboardState::new(app.node_id, app.environment, app.start_time, &app.events);
@@ -173,19 +193,59 @@ pub enum WorkerEvent {
     Done { worker_id: usize },
 }
 
-fn spawn_worker(worker_id: usize, sender: crossbeam::channel::Sender<WorkerEvent>) {
+fn spawn_worker(
+    worker_id: usize,
+    node_id: u64,
+    orchestrator_client: OrchestratorClient,
+    sender: crossbeam::channel::Sender<WorkerEvent>,
+) -> JoinHandle<()> {
     thread::spawn(move || {
-        for i in 0..100 {
-            // TODO: Simulate some work
-            thread::sleep(Duration::from_secs(1));
-            let message = format!("Worker {}: Message {}", worker_id, i);
-            sender
-                .send(WorkerEvent::Message {
-                    worker_id,
-                    data: message,
-                })
-                .unwrap();
+        // Create a new runtime for each thread
+        let rt = Runtime::new().expect("Failed to create Tokio runtime");
+        loop {
+            rt.block_on(async {
+                let stwo_prover =
+                    crate::prover::get_default_stwo_prover().expect("Failed to create Stwo prover");
+                match authenticated_proving(node_id, &orchestrator_client, stwo_prover).await {
+                    Ok(_) => {
+                        let now = Local::now();
+                        let timestamp = now.format("%Y-%m-%d %H:%M:%S").to_string();
+                        let message = format!(
+                            "✅ [{}] Proof completed successfully [Prover {}]",
+                            timestamp, worker_id
+                        );
+                        sender
+                            .send(WorkerEvent::Message {
+                                worker_id,
+                                data: message,
+                            })
+                            .unwrap();
+                    }
+                    Err(e) => {
+                        let message = format!("Worker {}: Error - {}", worker_id, e);
+                        sender
+                            .send(WorkerEvent::Message {
+                                worker_id,
+                                data: message,
+                            })
+                            .unwrap();
+                    }
+                }
+            });
         }
-        sender.send(WorkerEvent::Done { worker_id }).unwrap();
-    });
+    })
+    // thread::spawn(move || {
+    //     for i in 0..100 {
+    //         // TODO: Simulate some work
+    //         thread::sleep(Duration::from_secs(1));
+    //         let message = format!("Worker {}: Message {}", worker_id, i);
+    //         sender
+    //             .send(WorkerEvent::Message {
+    //                 worker_id,
+    //                 data: message,
+    //             })
+    //             .unwrap();
+    //     }
+    //     sender.send(WorkerEvent::Done { worker_id }).unwrap();
+    // })
 }

@@ -141,7 +141,7 @@ async fn run_authenticated_proving_loop(
 }
 
 /// Proves a program with a given node ID
-async fn authenticated_proving(
+pub async fn authenticated_proving(
     node_id: u64,
     orchestrator_client: &OrchestratorClient,
     stwo_prover: Stwo<Local>,
@@ -165,7 +165,7 @@ async fn authenticated_proving(
 }
 
 /// Create a Stwo prover for the default program.
-fn get_default_stwo_prover() -> Result<Stwo<Local>, ProverError> {
+pub fn get_default_stwo_prover() -> Result<Stwo<Local>, ProverError> {
     let elf_bytes = include_bytes!("../assets/fib_input");
     Stwo::<Local>::new_from_bytes(elf_bytes).map_err(|e| {
         let msg = format!("Failed to load guest program: {}", e);

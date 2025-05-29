@@ -27,14 +27,13 @@ pub struct DashboardState {
     /// The current task being executed by the node, if any.
     pub current_task: Option<String>,
 
-    // /// Logs or messages to display in the dashboard.
-    // pub logs: Vec<String>,
     /// Total number of (virtual) CPU cores available on the machine.
     pub total_cores: usize,
 
     /// Total RAM available on the machine, in GB.
     pub total_ram_gb: f64,
 
+    /// A queue of events received from worker threads.
     pub events: VecDeque<WorkerEvent>,
 }
 
@@ -42,43 +41,26 @@ impl DashboardState {
     /// Creates a new instance of the dashboard state.
     ///
     /// # Arguments
+    /// * `node_id` - This node's unique identifier, if available.
     /// * `start_time` - The start time of the application, used for computing uptime.
     /// * `environment` - The environment in which the application is running.
-    /// * `node_id` - Optional node ID for authenticated sessions.
     pub fn new(
         node_id: Option<u64>,
         environment: Environment,
         start_time: Instant,
         events: &VecDeque<WorkerEvent>,
     ) -> Self {
-        // let logs = vec![
-        //     "[12:48:11] ✅ Proof accepted (23ms)".to_string(),
-        //     "[12:48:09] ⚠️  Task stalled".to_string(),
-        //     "[12:47:50] ✅ Proof accepted (22ms)".to_string(),
-        // ];
-
         Self {
             node_id,
             environment,
             nex_points: None,
             start_time,
             current_task: None,
-            // logs,
             total_cores: system::num_cores(),
             total_ram_gb: system::total_memory_gb(),
             events: events.clone(),
         }
     }
-
-    // /// Updates the dashboard state.
-    // pub fn update(&mut self) {
-    //     self.logs.push(format!("Heartbeat at {:?}", Instant::now()));
-    // }
-
-    // /// Render the dashboard state to the terminal frame.
-    // pub fn render(&self, f: &mut Frame) {
-    //     render_dashboard(f, self);
-    // }
 }
 
 /// Render the dashboard screen.
@@ -117,7 +99,6 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
 
     // --- Status using List ---
     let mut status_list_state = ListState::default();
-    // status_list_state.select(Some(state.selected_menu_index));
     let status: List = {
         let status_block = Block::default()
             .borders(Borders::RIGHT)
@@ -156,15 +137,11 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
         // NEX Points
         if let Some(nex_points) = state.nex_points {
             items.push(ListItem::new(format!("NEX POINTS: {}", nex_points)));
-        } else {
-            items.push(ListItem::new("NEX POINTS: Not available".to_string()));
         }
 
         // Current Task
         if let Some(task) = &state.current_task {
             items.push(ListItem::new(format!("CURRENT TASK: {}", task)));
-        } else {
-            items.push(ListItem::new("CURRENT TASK: None".to_string()));
         }
 
         // Total Cores
@@ -177,7 +154,7 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
         )));
 
         // CPU Load (Placeholder)
-        items.push(ListItem::new("CPU LOAD: 0.000%".to_string())); // Placeholder, replace with actual data
+        // items.push(ListItem::new("CPU LOAD: 0.000%".to_string())); // Placeholder, replace with actual data
 
         // // RAM Used
         // items.push(ListItem::new(format!(
@@ -188,11 +165,7 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
         List::new(items)
             .style(Style::default().fg(Color::Cyan))
             .block(status_block)
-            .highlight_style(
-                Style::default()
-                    .fg(Color::Cyan)
-                    .add_modifier(Modifier::BOLD),
-            )
+            .highlight_style(Style::default().fg(Color::Cyan))
             .highlight_symbol("> ")
     };
     f.render_stateful_widget(status, body_chunks[0], &mut status_list_state);
@@ -201,8 +174,11 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
         .events
         .iter()
         .map(|event| match event {
-            WorkerEvent::Message { worker_id, data } => {
-                format!("[{}] {}", worker_id, data)
+            WorkerEvent::Message {
+                worker_id: _worker_id,
+                data,
+            } => {
+                format!("{}", data)
             }
             WorkerEvent::Done { worker_id } => {
                 format!("[{}] Task completed", worker_id)
@@ -228,7 +204,7 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
     f.render_widget(log_widget, body_chunks[1]);
 
     // Footer
-    let footer = Paragraph::new("[Q] Quit  [S] Settings  [←][→] Navigate")
+    let footer = Paragraph::new("[Q] Quit q [S] Settings  [←][→] Navigate")
         .alignment(Alignment::Center) // ← Horizontally center the text
         .style(
             Style::default()

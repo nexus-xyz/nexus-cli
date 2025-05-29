@@ -13,6 +13,7 @@ mod utils;
 
 use crate::config::Config;
 use crate::environment::Environment;
+use crate::orchestrator_client::OrchestratorClient;
 use crate::prover::start_prover;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
@@ -76,6 +77,7 @@ fn get_config_path() -> Result<PathBuf, ()> {
 fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
     let environment = args.env.unwrap_or_default();
+    let orchestrator_client = OrchestratorClient::new(environment.clone());
     let mut node_id = args.node_id;
 
     // If no node ID is provided, try to load it from the config file.
@@ -100,7 +102,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut terminal = Terminal::new(backend)?;
 
     // Create the application and run it.
-    let app = ui::App::new(node_id, environment);
+    let app = ui::App::new(node_id, environment, orchestrator_client);
     let res = ui::run(&mut terminal, app);
 
     // Clean up the terminal after running the application.
