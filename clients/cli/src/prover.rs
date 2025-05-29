@@ -70,7 +70,7 @@ async fn run_anonymous_proving_loop(environment: Environment) -> Result<(), Prov
 }
 
 /// Proves a program locally with hardcoded inputs.
-fn prove_anonymously() -> Result<(), ProverError> {
+pub fn prove_anonymously() -> Result<(), ProverError> {
     let stwo_prover = get_default_stwo_prover()?;
     // The 10th term of the Fibonacci sequence is 55
     let public_input: u32 = 9;

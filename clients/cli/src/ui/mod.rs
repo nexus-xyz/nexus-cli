@@ -4,7 +4,7 @@ mod splash;
 
 use crate::environment::Environment;
 use crate::orchestrator_client::OrchestratorClient;
-use crate::prover::authenticated_proving;
+use crate::prover::{authenticated_proving, prove_anonymously};
 use crate::ui::dashboard::{render_dashboard, DashboardState};
 use crate::ui::login::render_login;
 use crate::ui::splash::render_splash;
@@ -49,7 +49,7 @@ pub struct App {
     pub current_screen: Screen,
 
     /// Events received from worker threads.
-    pub events: VecDeque<WorkerEvent>,
+    pub events: VecDeque<ProverEvent>,
 }
 
 impl App {
@@ -85,14 +85,18 @@ pub fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
     // Spawn worker threads for background tasks
     let num_workers = 4;
     let mut workers: Vec<JoinHandle<()>> = Vec::with_capacity(num_workers);
-    let (sender, receiver) = unbounded::<WorkerEvent>();
+    let (sender, receiver) = unbounded::<ProverEvent>();
     for worker_id in 0..num_workers {
-        let handle = spawn_worker(
-            worker_id,
-            app.node_id.unwrap(),
-            app.orchestrator_client.clone(),
-            sender.clone(),
-        );
+        let handle = match app.node_id {
+            Some(node_id) => spawn_prover(
+                worker_id,
+                node_id,
+                app.orchestrator_client.clone(),
+                sender.clone(),
+            ),
+            None => spawn_anonymous_prover(worker_id, sender.clone()),
+        };
+
         workers.push(handle);
     }
     drop(sender); // Drop original sender to allow receiver to detect end-of-stream.
@@ -152,7 +156,7 @@ pub fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
         if active_workers > 0 {
             while let Ok(event) = receiver.try_recv() {
                 // If Done, decrement active_workers
-                if let WorkerEvent::Done {
+                if let ProverEvent::Done {
                     worker_id: _worker_id,
                 } = &event
                 {
@@ -183,9 +187,9 @@ fn render(f: &mut Frame, app: &App) {
     }
 }
 
-/// Events emitted by worker threads.
+/// Events emitted by prover threads.
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub enum WorkerEvent {
+pub enum ProverEvent {
     Message {
         worker_id: usize,
         data: String,
@@ -196,11 +200,52 @@ pub enum WorkerEvent {
     },
 }
 
-fn spawn_worker(
+/// Spawns a new thread for the anonymous prover.
+fn spawn_anonymous_prover(
+    worker_id: usize,
+    sender: crossbeam::channel::Sender<ProverEvent>,
+) -> JoinHandle<()> {
+    thread::spawn(move || {
+        // Create a new runtime for each thread
+        let rt = Runtime::new().expect("Failed to create Tokio runtime");
+        loop {
+            rt.block_on(async {
+                match prove_anonymously() {
+                    Ok(_) => {
+                        let now = Local::now();
+                        let timestamp = now.format("%Y-%m-%d %H:%M:%S").to_string();
+                        let message = format!(
+                            "✅ [{}] Proof completed successfully [Anonymous Prover {}]",
+                            timestamp, worker_id
+                        );
+                        sender
+                            .send(ProverEvent::Message {
+                                worker_id,
+                                data: message,
+                            })
+                            .unwrap();
+                    }
+                    Err(e) => {
+                        let message = format!("Anonymous Prover {}: Error - {}", worker_id, e);
+                        sender
+                            .send(ProverEvent::Message {
+                                worker_id,
+                                data: message,
+                            })
+                            .unwrap();
+                    }
+                }
+            });
+        }
+    })
+}
+
+/// Spawns a new thread for the prover.
+fn spawn_prover(
     worker_id: usize,
     node_id: u64,
     orchestrator_client: OrchestratorClient,
-    sender: crossbeam::channel::Sender<WorkerEvent>,
+    sender: crossbeam::channel::Sender<ProverEvent>,
 ) -> JoinHandle<()> {
     thread::spawn(move || {
         // Create a new runtime for each thread
@@ -218,7 +263,7 @@ fn spawn_worker(
                             timestamp, worker_id
                         );
                         sender
-                            .send(WorkerEvent::Message {
+                            .send(ProverEvent::Message {
                                 worker_id,
                                 data: message,
                             })
@@ -227,7 +272,7 @@ fn spawn_worker(
                     Err(e) => {
                         let message = format!("Worker {}: Error - {}", worker_id, e);
                         sender
-                            .send(WorkerEvent::Message {
+                            .send(ProverEvent::Message {
                                 worker_id,
                                 data: message,
                             })

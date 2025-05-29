@@ -1,7 +1,7 @@
 //! Dashboard screen rendering.
 
 use crate::environment::Environment;
-use crate::ui::WorkerEvent;
+use crate::ui::ProverEvent;
 use crate::utils::system;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout};
 use ratatui::prelude::{Color, Modifier, Style};
@@ -34,7 +34,7 @@ pub struct DashboardState {
     pub total_ram_gb: f64,
 
     /// A queue of events received from worker threads.
-    pub events: VecDeque<WorkerEvent>,
+    pub events: VecDeque<ProverEvent>,
 }
 
 impl DashboardState {
@@ -48,7 +48,7 @@ impl DashboardState {
         node_id: Option<u64>,
         environment: Environment,
         start_time: Instant,
-        events: &VecDeque<WorkerEvent>,
+        events: &VecDeque<ProverEvent>,
     ) -> Self {
         Self {
             node_id,
@@ -111,11 +111,18 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
 
         let mut items: Vec<ListItem> = Vec::new();
 
-        // Node ID
-        items.push(ListItem::new(format!(
-            "NODE ID: {}",
-            state.node_id.unwrap_or(0)
-        )));
+        // Display the node ID, if any, or "Not connected" if not available
+        let node_id_text = if let Some(id) = state.node_id {
+            format!("NODE ID: {}", id)
+        } else {
+            "NODE ID: Not connected".to_string()
+        };
+        items.push(ListItem::new(node_id_text));
+        //
+        // items.push(ListItem::new(format!(
+        //     "NODE ID: {}",
+        //     state.node_id.unwrap_or(0)
+        // )));
 
         // Environment
         items.push(ListItem::new(format!("ENVIRONMENT: {}", state.environment)));
@@ -162,11 +169,11 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
         .events
         .iter()
         .map(|event| match event {
-            WorkerEvent::Message {
+            ProverEvent::Message {
                 worker_id: _worker_id,
                 data,
             } => data.to_string(),
-            WorkerEvent::Done { worker_id } => {
+            ProverEvent::Done { worker_id } => {
                 format!("[{}] Task completed", worker_id)
             }
         })
