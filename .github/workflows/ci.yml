@@ -34,6 +34,11 @@ jobs:
           toolchain: nightly-2025-04-06
           target: ${{ matrix.target }}
           components: rustfmt, clippy
+          
+      - name: Install ARM64 Linux linker
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross
 
       - name: Set up Rust cache
         uses: Swatinem/rust-cache@v2
