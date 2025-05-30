@@ -13,6 +13,12 @@ jobs:
   build:
     name: Build and Test
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
+          - x86_64-apple-darwin
 
     steps:
       - name: Checkout repository
@@ -28,7 +34,7 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: nightly-2025-04-06
-          target: x86_64-unknown-linux-gnu
+          target: ${{ matrix.target }}
           components: rustfmt, clippy
 
       - name: Set up Rust cache
@@ -51,9 +57,10 @@ jobs:
 
       - name: Build
         working-directory: clients/cli
-        run: cargo build --profile=ci-build
+        run: cargo build --profile=ci-build --target=${{ matrix.target }} --verbose
 
-      - name: Test
+      - name: Test (native target only)
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
         working-directory: clients/cli
         run: cargo test --profile=ci-build --tests
 
