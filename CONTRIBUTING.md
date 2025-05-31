@@ -1,6 +1,6 @@
 # Contributing to the Nexus network
 
-> **Note:** This guide is for contributors who want to modify or improve the CLI itself. If you're just looking to use the CLI, please see the [main README](../README.md) for installation and usage instructions.
+> **Note:** This guide is for contributors who want to modify or improve the CLI itself. If you're just looking to use the CLI, please see the [main README](README.md) for installation and usage instructions.
 
 The Nexus network is contributor-friendly.
 We welcome all contributions, no matter your experience with Rust or cryptography.
