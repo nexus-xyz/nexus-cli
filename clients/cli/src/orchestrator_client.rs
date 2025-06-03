@@ -6,7 +6,7 @@ use crate::environment;
 use crate::nexus_orchestrator::{
     GetProofTaskRequest, GetProofTaskResponse, NodeType, SubmitProofRequest,
 };
-use crate::utils::system::{get_memory_info, measure_gflops};
+use crate::system::{get_memory_info, measure_gflops};
 use prost::Message;
 use reqwest::{Client, ClientBuilder};
 use std::time::Duration;

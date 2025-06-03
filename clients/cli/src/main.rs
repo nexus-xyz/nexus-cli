@@ -7,8 +7,9 @@ mod environment;
 mod nexus_orchestrator;
 mod orchestrator_client;
 mod prover;
+pub mod system;
 mod ui;
-mod utils;
+
 use crate::config::Config;
 use crate::environment::Environment;
 use crate::orchestrator_client::OrchestratorClient;

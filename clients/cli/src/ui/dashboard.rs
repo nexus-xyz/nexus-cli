@@ -1,8 +1,8 @@
 //! Dashboard screen rendering.
 
 use crate::environment::Environment;
+use crate::system;
 use crate::ui::ProverEvent;
-use crate::utils::system;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout};
 use ratatui::prelude::{Color, Modifier, Style};
 use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
