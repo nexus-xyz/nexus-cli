@@ -48,6 +48,12 @@ enum Command {
         #[arg(long)]
         max_threads: Option<u32>,
     },
+    /// Login / Register with the Nexus orchestrator
+    Login {
+        /// Environment to connect to.
+        #[arg(long, value_enum)]
+        env: Option<Environment>,
+    },
     /// Logout from the current session
     Logout,
 }
@@ -85,6 +91,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             let config_path = get_config_path().expect("Failed to get config path");
             Config::clear_node_config(&config_path).map_err(Into::into)
         }
+        Command::Login { env: _ } => todo!(),
     }
 }
 

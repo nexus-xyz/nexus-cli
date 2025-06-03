@@ -7,12 +7,36 @@ syntax = "proto3";
 
 package nexus.orchestrator;
 
+// Register a User.
+message RegisterUserRequest {
+  // UUIDv4 identifier for the user.
+  string uuid = 1;
+
+  // The user's wallet public address.
+  string wallet_address = 2;
+}
+
 enum NodeType {
   // The node is a web prover.
   WEB_PROVER = 0;
 
   // The node is a CLI prover.
   CLI_PROVER = 1;
+}
+
+// Register a node.
+message RegisterNodeRequest {
+  // The type of this node.
+  NodeType node_type = 1;
+
+  // The owner of the node.
+  string user_id = 2;
+}
+
+// Response to a node registration request.
+message RegisterNodeResponse {
+  // The node's ID.
+  string node_id = 1;
 }
 
 // Request a prover task.
