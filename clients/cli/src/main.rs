@@ -7,14 +7,11 @@ mod environment;
 mod nexus_orchestrator;
 mod orchestrator_client;
 mod prover;
-mod setup;
 mod ui;
 mod utils;
-
 use crate::config::Config;
 use crate::environment::Environment;
 use crate::orchestrator_client::OrchestratorClient;
-use crate::setup::clear_node_config;
 use clap::{Parser, Subcommand};
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
@@ -87,7 +84,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
         Command::Logout => {
             let config_path = get_config_path().expect("Failed to get config path");
-            clear_node_config(&config_path).map_err(Into::into)
+            Config::clear_node_config(&config_path).map_err(Into::into)
         }
     }
 }

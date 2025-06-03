@@ -46,6 +46,26 @@ impl Config {
         fs::write(path, json)?;
         Ok(())
     }
+
+    /// Clear the node ID configuration file.
+    pub fn clear_node_config(path: &Path) -> std::io::Result<()> {
+        // Check that the path ends with config.json
+        if !path.ends_with("config.json") {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "Path must end with config.json",
+            ));
+        }
+
+        // If no file exists, return OK
+        if !path.exists() {
+            println!("No config file found at {}", path.display());
+            return Ok(());
+        }
+
+        // If the file exists, remove it
+        fs::remove_file(path)
+    }
 }
 
 #[cfg(test)]
@@ -116,5 +136,22 @@ mod tests {
 
         let result = Config::load_from_file(&path);
         assert!(result.is_err());
+    }
+
+    #[test]
+    // Clearing the node configuration file should remove it if it exists.
+    fn test_clear_node_config_removes_file() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("config.json");
+
+        // Create a config file
+        let config = Config::new("test_node_id".to_string());
+        config.save(&path).unwrap();
+
+        // Clear the config file
+        Config::clear_node_config(&path).unwrap();
+
+        // Check that the file no longer exists
+        assert!(!path.exists(), "Config file was not removed");
     }
 }
