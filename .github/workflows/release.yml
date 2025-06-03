@@ -4,7 +4,7 @@ on:
   push:
     tags:
       - "v*"            # Trigger on tag push (e.g. "v1.0.0"). Adjust pattern as needed.
-  workflow_dispatch:    # Allow manual triggering of the workflow.
+  workflow_dispatch: # Allow manual triggering of the workflow.
     inputs:
       create_release:
         description: 'Create a GitHub release from the latest tag'
@@ -13,8 +13,8 @@ on:
         default: false
 
 env:
-    # Set the default Rust toolchain to use for all jobs
-    RUSTUP_TOOLCHAIN: nightly-2025-04-06
+  # Set the default Rust toolchain to use for all jobs
+  RUSTUP_TOOLCHAIN: nightly-2025-04-06
 
 jobs:
   build-docker:
@@ -176,7 +176,7 @@ jobs:
         working-directory: clients/cli
         run: cargo +nightly-2025-04-06 build --release --target=x86_64-apple-darwin -Z build-std=std,panic_abort
         env:
-          RUSTUP_TOOLCHAIN:  ${{ env.RUSTUP_TOOLCHAIN }}
+          RUSTUP_TOOLCHAIN: ${{ env.RUSTUP_TOOLCHAIN }}
           RUSTC_BOOTSTRAP: 1
 
       # Rename the binary to indicate the target OS
@@ -196,7 +196,7 @@ jobs:
   build-macos-arm64:
     name: Build macOS (ARM64)
     runs-on: macos-latest
-#    needs: build-linux   # Ensure Linux job (and release creation) runs first
+    #    needs: build-linux   # Ensure Linux job (and release creation) runs first
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -206,7 +206,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain:  ${{ env.RUSTUP_TOOLCHAIN }}
+          toolchain: ${{ env.RUSTUP_TOOLCHAIN }}
           targets: aarch64-apple-darwin
           components: rustfmt, rust-src
 
@@ -249,7 +249,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain:  ${{ env.RUSTUP_TOOLCHAIN }}
+          toolchain: ${{ env.RUSTUP_TOOLCHAIN }}
           targets: x86_64-pc-windows-msvc
           components: rustfmt, rust-src
 
@@ -278,37 +278,49 @@ jobs:
           name: nexus-network-windows-x86_64.exe # Name of the artifact
           path: clients/cli/target/x86_64-pc-windows-msvc/release/nexus-network-windows-x86_64.exe # Path to file to upload
 
+
   release:
-    # Create a GitHub release with the built binaries
     name: Create Release
-    needs: [build-linux-x86_64, build-linux-arm64, build-macos-x86_64, build-macos-arm64, build-windows-x86_64]
+    needs: [ build-linux-x86_64, build-linux-arm64, build-macos-x86_64, build-macos-arm64, build-windows-x86_64 ]
     if: github.event.inputs.create_release == 'true' || github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
-      # Check out the repo again (needed to include metadata like tags)
       - uses: actions/checkout@v4
 
-      # Download all build artifacts uploaded by the matrix build
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-          merge-multiple: true # Merge multiple artifacts into a single directory
+          merge-multiple: true
 
       - name: List downloaded artifacts (debug)
-        run: ls -R artifacts
+        run: ls -lh artifacts/
 
-      # Use the `gh-release` action to publish a release with the downloaded binaries
+      - name: Generate individual .sha256 files
+        run: |
+          cd artifacts
+          for file in *; do
+            if [ -f "$file" ]; then
+              sha256sum "$file" | awk '{print $1}' > "$file.sha256"
+            fi
+          done
+          ls -lh
+
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             artifacts/nexus-network-macos-arm64
+            artifacts/nexus-network-macos-arm64.sha256
             artifacts/nexus-network-macos-x86_64
+            artifacts/nexus-network-macos-x86_64.sha256
             artifacts/nexus-network-linux-arm64
+            artifacts/nexus-network-linux-arm64.sha256
             artifacts/nexus-network-linux-x86_64
+            artifacts/nexus-network-linux-x86_64.sha256
             artifacts/nexus-network-windows-x86_64.exe
+            artifacts/nexus-network-windows-x86_64.exe.sha256
           draft: false
           prerelease: false
           generate_release_notes: true
