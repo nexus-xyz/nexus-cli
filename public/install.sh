@@ -148,10 +148,27 @@ curl -L -o "$BIN_DIR/nexus-network" "$LATEST_RELEASE_URL"
 chmod +x "$BIN_DIR/nexus-network"
 
 # Create a symlink in a directory that's likely in the user's PATH
-if [ -d "$HOME/.local/bin" ]; then
+SYMLINK_CREATED=false
+
+# Try ~/.local/bin (common for user-installed binaries)
+if [ -d "$HOME/.local/bin" ] || mkdir -p "$HOME/.local/bin"; then
     ln -sf "$BIN_DIR/nexus-network" "$HOME/.local/bin/nexus-network"
-elif [ -d "/usr/local/bin" ] && [ -w "/usr/local/bin" ]; then
+    SYMLINK_CREATED=true
+    echo "${GREEN}Symlink created at $HOME/.local/bin/nexus-network${NC}"
+fi
+
+# Try /usr/local/bin if writable
+if [ "$SYMLINK_CREATED" = false ] && [ -w "/usr/local/bin" ]; then
     ln -sf "$BIN_DIR/nexus-network" "/usr/local/bin/nexus-network"
+    SYMLINK_CREATED=true
+    echo "${GREEN}Symlink created at /usr/local/bin/nexus-network${NC}"
+fi
+
+# Fallback message if no symlink created
+if [ "$SYMLINK_CREATED" = false ]; then
+    echo "${ORANGE}Could not create a symlink in your PATH.${NC}"
+    echo "You can add the following to your shell profile:"
+    echo "  export PATH=\"$BIN_DIR:\$PATH\""
 fi
 
 echo "${GREEN}Installation complete!${NC}"
