@@ -125,7 +125,9 @@ case "$(uname -s)" in
         ;;
 esac
 
-# Get the latest release URL
+# -----------------------------------------------------------------------------
+# 5) Download latest release binary
+# -----------------------------------------------------------------------------
 LATEST_RELEASE_URL=$(curl -s https://api.github.com/repos/nexus-xyz/nexus-cli/releases/latest |
     grep "browser_download_url" |
     grep "$BINARY_NAME\"" |       # Match exact file name (not .sha256)
@@ -140,42 +142,38 @@ if [ -z "$LATEST_RELEASE_URL" ]; then
     exit 1
 fi
 
-# Download the binary
 echo "Downloading latest release for $PLATFORM-$ARCH..."
 curl -L -o "$BIN_DIR/nexus-network" "$LATEST_RELEASE_URL"
-
-# Make it executable
 chmod +x "$BIN_DIR/nexus-network"
 
-# Create a symlink in a directory that's likely in the user's PATH
-SYMLINK_CREATED=false
 
-# Try ~/.local/bin (common for user-installed binaries)
-if [ -d "$HOME/.local/bin" ] || mkdir -p "$HOME/.local/bin"; then
-    ln -sf "$BIN_DIR/nexus-network" "$HOME/.local/bin/nexus-network"
-    SYMLINK_CREATED=true
-    echo "${GREEN}Symlink created at $HOME/.local/bin/nexus-network${NC}"
+# -----------------------------------------------------------------------------
+# 6) Add $BIN_DIR to PATH if not already present
+# -----------------------------------------------------------------------------
+case "$SHELL" in
+    */bash)
+        PROFILE_FILE="$HOME/.bashrc"
+        ;;
+    */zsh)
+        PROFILE_FILE="$HOME/.zshrc"
+        ;;
+    *)
+        PROFILE_FILE="$HOME/.profile"
+        ;;
+esac
+
+# Only append if not already in PATH
+if ! echo "$PATH" | grep -q "$BIN_DIR"; then
+    if ! grep -qs "$BIN_DIR" "$PROFILE_FILE"; then
+        echo "" >> "$PROFILE_FILE"
+        echo "# Add Nexus CLI to PATH" >> "$PROFILE_FILE"
+        echo "export PATH=\"$BIN_DIR:\$PATH\"" >> "$PROFILE_FILE"
+        echo "${GREEN}Updated PATH in $PROFILE_FILE${NC}"
+    fi
 fi
 
-# Try /usr/local/bin if writable
-if [ "$SYMLINK_CREATED" = false ] && [ -w "/usr/local/bin" ]; then
-    ln -sf "$BIN_DIR/nexus-network" "/usr/local/bin/nexus-network"
-    SYMLINK_CREATED=true
-    echo "${GREEN}Symlink created at /usr/local/bin/nexus-network${NC}"
-fi
-
-# Fallback message if no symlink created
-if [ "$SYMLINK_CREATED" = false ]; then
-    echo "${ORANGE}Could not create a symlink in your PATH.${NC}"
-    echo "You can add the following to your shell profile:"
-    echo "  export PATH=\"$BIN_DIR:\$PATH\""
-fi
-
+echo ""
 echo "${GREEN}Installation complete!${NC}"
-echo "The nexus-network binary has been installed to $BIN_DIR"
-echo "You can run it with: nexus-network start --env beta"
-
-# -----------------------------------------------------------------------------
-# 5) Run the CLI in interactive mode
-# -----------------------------------------------------------------------------
-"$BIN_DIR/nexus-network" start --env beta < /dev/tty
+echo "To use the Nexus CLI, restart your terminal or run:"
+echo "  source $PROFILE_FILE"
+echo "You can now run the Nexus CLI with: nexus-network start --env beta"
