@@ -128,6 +128,7 @@ esac
 # Get the latest release URL
 LATEST_RELEASE_URL=$(curl -s https://api.github.com/repos/nexus-xyz/nexus-cli/releases/latest |
     grep "browser_download_url.*$BINARY_NAME" |
+    grep -v ".sha256" |
     cut -d '"' -f 4)
 
 if [ -z "$LATEST_RELEASE_URL" ]; then
