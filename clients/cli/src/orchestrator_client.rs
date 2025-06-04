@@ -28,6 +28,12 @@ impl OrchestratorClient {
         }
     }
 
+    /// Makes a request to the Nexus Orchestrator.
+    ///
+    /// # Arguments:
+    /// * `url` - The endpoint to call, e.g., "/tasks".
+    /// * `method` - The HTTP method to use, e.g., "POST" or "GET".
+    /// * `request_data` - The request data to send, which must implement the `Message` trait.
     async fn make_request<T, U>(
         &self,
         url: &str,
@@ -74,19 +80,7 @@ impl OrchestratorClient {
                 error_text
             };
 
-            let friendly_message = match status.as_u16() {
-                400 => "[400] Invalid request".to_string(),
-                401 => "[401] Authentication failed. Please check your credentials.".to_string(),
-                403 => "[403] You don't have permission to perform this action.".to_string(),
-                404 => "[404] The requested resource was not found.".to_string(),
-                408 => "[408] The server timed out waiting for your request. Please try again.".to_string(),
-                429 => "[429] Too many requests. Please try again later.".to_string(),
-                502 => "[502] Unable to reach the server. Please try again later.".to_string(),
-                504 => "[504] Gateway Timeout: The server took too long to respond. Please try again later.".to_string(),
-                500..=599 => format!("[{}] A server error occurred. Our team has been notified. Please try again later.", status),
-                _ => format!("[{}] Unexpected error: {}", status, clean_error),
-            };
-
+            let friendly_message = friendly_error_message(status, clean_error);
             return Err(friendly_message.into());
         }
 
@@ -97,11 +91,46 @@ impl OrchestratorClient {
 
         match U::decode(response_bytes) {
             Ok(msg) => Ok(Some(msg)),
-            Err(_e) => {
-                // println!("Failed to decode response: {:?}", e);
-                Ok(None)
-            }
+            Err(_e) => Ok(None),
         }
+    }
+
+    /// Registers a new node with the orchestrator.
+    pub async fn register_user(
+        &self,
+        user_id: &str,
+        wallet_address: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let request = crate::nexus_orchestrator::RegisterUserRequest {
+            uuid: user_id.to_string(),
+            wallet_address: wallet_address.to_string(),
+        };
+
+        self.make_request::<crate::nexus_orchestrator::RegisterUserRequest, ()>(
+            "/users", "POST", &request,
+        )
+        .await?;
+
+        Ok(())
+    }
+
+    /// Registers a new node with the orchestrator.
+    pub async fn register_node(&self, user_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+        let request = crate::nexus_orchestrator::RegisterNodeRequest {
+            node_type: NodeType::CliProver as i32,
+            user_id: user_id.to_string(),
+        };
+
+        let response = self
+            .make_request::<crate::nexus_orchestrator::RegisterNodeRequest, crate::nexus_orchestrator::RegisterNodeResponse>(
+                "/nodes",
+                "POST",
+                &request,
+            )
+            .await?
+            .ok_or("No response received from register_node")?;
+
+        Ok(response.node_id)
     }
 
     pub async fn get_proof_task(
@@ -147,5 +176,27 @@ impl OrchestratorClient {
             .await?;
 
         Ok(())
+    }
+}
+
+/// Converts an HTTP status code and error text into a user-friendly error message.
+fn friendly_error_message(status: reqwest::StatusCode, error_text: String) -> String {
+    match status.as_u16() {
+        400 => "[400] Invalid request".to_string(),
+        401 => "[401] Authentication failed. Please check your credentials.".to_string(),
+        403 => "[403] You don't have permission to perform this action.".to_string(),
+        404 => "[404] The requested resource was not found.".to_string(),
+        408 => "[408] The server timed out waiting for your request. Please try again.".to_string(),
+        429 => "[429] Too many requests. Please try again later.".to_string(),
+        502 => "[502] Unable to reach the server. Please try again later.".to_string(),
+        504 => {
+            "[504] Gateway Timeout: The server took too long to respond. Please try again later."
+                .to_string()
+        }
+        500..=599 => format!(
+            "[{}] A server error occurred. Our team has been notified. Please try again later.",
+            status
+        ),
+        _ => format!("[{}] Unexpected error: {}", status, error_text),
     }
 }

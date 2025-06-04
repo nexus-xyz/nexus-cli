@@ -1,7 +1,7 @@
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 
 /// Represents the different deployment environments available for the CLI.
-#[derive(clap::ValueEnum, Debug, Clone, Default, Copy, PartialEq, Eq)]
+#[derive(clap::ValueEnum, Clone, Default, Copy, PartialEq, Eq)]
 pub enum Environment {
     /// Local development environment.
     Local,
@@ -34,5 +34,11 @@ impl Display for Environment {
             Environment::Staging => write!(f, "Staging"),
             Environment::Beta => write!(f, "Beta"),
         }
+    }
+}
+
+impl Debug for Environment {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Environment::{}, URL: {}", self, self.orchestrator_url())
     }
 }

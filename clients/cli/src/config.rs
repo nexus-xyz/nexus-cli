@@ -1,18 +1,33 @@
 //! Application configuration.
 
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use std::{fs, path::Path};
+
+/// Get the path to the Nexus config file, typically located at ~/.nexus/config.json.
+pub fn get_config_path() -> Result<PathBuf, ()> {
+    let home_path = home::home_dir().expect("Failed to get home directory");
+    let config_path = home_path.join(".nexus").join("config.json");
+    Ok(config_path)
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct Config {
+    /// Environment
+    // pub environment: Environment,
+
+    /// The unique identifier for the node, UUIDv4 format.
+    pub user_id: String,
+
+    /// The node's unique identifier, probably an integer
     pub node_id: String,
 }
 
 impl Config {
     /// Create Config with the given node_id.
     #[allow(unused)]
-    pub fn new(node_id: String) -> Self {
-        Config { node_id }
+    pub fn new(user_id: String, node_id: String) -> Self {
+        Config { user_id, node_id }
     }
 
     /// Loads configuration from a JSON file at the given path.
@@ -81,7 +96,9 @@ mod tests {
         let dir = tempdir().unwrap();
         let path = dir.path().join("config.json");
 
-        let config = Config::new("test_node_id".to_string());
+        let user_id = "test_user_id".to_string();
+        let node_id = "test_node_id".to_string();
+        let config = Config::new(user_id, node_id);
         config.save(&path).unwrap();
 
         let loaded_config = Config::load_from_file(&path).unwrap();
@@ -94,8 +111,10 @@ mod tests {
         let dir = tempdir().unwrap();
         let path = dir.path().join("nonexistent_dir").join("config.json");
 
+        let user_id = "test_user_id".to_string();
+        let node_id = "test_node_id".to_string();
+        let config = Config::new(user_id, node_id);
         // Attempt to save the configuration
-        let config = Config::new("test_node_id".to_string());
         let result = config.save(&path);
 
         // Check if the directories were created
@@ -113,11 +132,14 @@ mod tests {
         let path = dir.path().join("config.json");
 
         // Create an initial config and save it
-        let config1 = Config::new("test_node_id_1".to_string());
+        let user_id = "test_user_id".to_string();
+        let node_id = "test_node_id".to_string();
+        let config1 = Config::new(user_id, node_id);
         config1.save(&path).unwrap();
 
         // Create a new config and save it to the same path
-        let config2 = Config::new("test_node_id_2".to_string());
+        let user_id = "test_user_id".to_string();
+        let config2 = Config::new(user_id, "test_node_id_2".to_string());
         config2.save(&path).unwrap();
 
         // Load the saved config and check if it matches the second one
@@ -145,7 +167,9 @@ mod tests {
         let path = dir.path().join("config.json");
 
         // Create a config file
-        let config = Config::new("test_node_id".to_string());
+        let user_id = "test_user_id".to_string();
+        let node_id = "test_node_id".to_string();
+        let config = Config::new(user_id, node_id);
         config.save(&path).unwrap();
 
         // Clear the config file

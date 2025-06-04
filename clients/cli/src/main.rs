@@ -3,6 +3,7 @@
 mod analytics;
 mod config;
 mod environment;
+mod keys;
 #[path = "proto/nexus.orchestrator.rs"]
 mod nexus_orchestrator;
 mod orchestrator_client;
@@ -10,7 +11,7 @@ mod prover;
 pub mod system;
 mod ui;
 
-use crate::config::Config;
+use crate::config::{get_config_path, Config};
 use crate::environment::Environment;
 use crate::orchestrator_client::OrchestratorClient;
 use clap::{Parser, Subcommand};
@@ -20,7 +21,6 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use ratatui::{backend::CrosstermBackend, Terminal};
-use std::path::PathBuf;
 use std::{error::Error, io};
 
 #[derive(Parser)]
@@ -48,24 +48,27 @@ enum Command {
         #[arg(long)]
         max_threads: Option<u32>,
     },
-    /// Login / Register with the Nexus orchestrator
-    Login {
+    /// Register a new user
+    RegisterUser {
+        /// Environment to connect to.
+        #[arg(long, value_enum)]
+        env: Option<Environment>,
+
+        /// User's public Ethereum wallet address. 42-character hex string starting with '0x'
+        wallet_address: String,
+    },
+    /// Register a new node to an existing user
+    RegisterNode {
         /// Environment to connect to.
         #[arg(long, value_enum)]
         env: Option<Environment>,
     },
-    /// Logout from the current session
+    /// Clear the node configuration and logout.
     Logout,
 }
 
-/// Get the path to the Nexus config file, typically located at ~/.nexus/config.json.
-fn get_config_path() -> Result<PathBuf, ()> {
-    let home_path = home::home_dir().expect("Failed to get home directory");
-    let config_path = home_path.join(".nexus").join("config.json");
-    Ok(config_path)
-}
-
-fn main() -> Result<(), Box<dyn Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
     match args.command {
         Command::Start {
@@ -91,7 +94,78 @@ fn main() -> Result<(), Box<dyn Error>> {
             let config_path = get_config_path().expect("Failed to get config path");
             Config::clear_node_config(&config_path).map_err(Into::into)
         }
-        Command::Login { env: _ } => todo!(),
+        Command::RegisterUser {
+            env,
+            wallet_address,
+        } => {
+            let environment = env.unwrap_or_default();
+            println!(
+                "Registering user with wallet address: {} in environment: {:?}",
+                wallet_address, environment
+            );
+            // Check if the wallet address is valid
+            if !keys::is_valid_eth_address(&wallet_address) {
+                let err_msg = format!(
+                    "Invalid Ethereum wallet address: {}. It should be a 42-character hex string starting with '0x'.",
+                    wallet_address
+                );
+                return Err(Box::from(err_msg));
+            }
+            let orchestrator_client = OrchestratorClient::new(environment);
+            let uuid = uuid::Uuid::new_v4().to_string();
+            match orchestrator_client
+                .register_user(&uuid, &wallet_address)
+                .await
+            {
+                Ok(_) => println!("User {} registered successfully.", uuid),
+                Err(e) => {
+                    eprintln!("Failed to register user: {}", e);
+                    return Err(e.into());
+                }
+            }
+            // TODO: save the user ID to the config file
+            let config = Config::new(uuid, String::new());
+            let config_path = get_config_path().expect("Failed to get config path");
+            config
+                .save(&config_path)
+                .map_err(|e| format!("Failed to save config: {}", e))?;
+            Ok(())
+        }
+        Command::RegisterNode { env } => {
+            let environment = env.unwrap_or_default();
+            println!("Registering node in environment: {:?}", environment);
+            // Check if the user is registered
+            let config_path = get_config_path().expect("Failed to get config path");
+            if !config_path.exists() {
+                return Err(Box::from(
+                    "No user registered. Please register a user first.",
+                ));
+            }
+            let config = Config::load_from_file(&config_path)
+                .map_err(|e| format!("Failed to load config: {}", e))?;
+            if config.user_id.is_empty() {
+                return Err(Box::from(
+                    "No user registered. Please register a user first.",
+                ));
+            }
+            let orchestrator_client = OrchestratorClient::new(environment);
+            match orchestrator_client.register_node(&config.user_id).await {
+                Ok(node_id) => {
+                    println!("Node registered successfully with ID: {}", node_id);
+                    // Update the config with the new node ID
+                    let mut updated_config = config;
+                    updated_config.node_id = node_id;
+                    updated_config
+                        .save(&config_path)
+                        .map_err(|e| format!("Failed to save updated config: {}", e))?;
+                    Ok(())
+                }
+                Err(e) => {
+                    eprintln!("Failed to register node: {}", e);
+                    Err(e.into())
+                }
+            }
+        }
     }
 }
 
