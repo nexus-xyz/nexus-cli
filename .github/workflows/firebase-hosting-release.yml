@@ -4,7 +4,8 @@
 name: Deploy to Firebase Hosting on release
 on:
   release:
-    types: [published]
+    types: [ published ]
+  workflow_dispatch:  # Manual trigger
 
 jobs:
   build_and_deploy:
