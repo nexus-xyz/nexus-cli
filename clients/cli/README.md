@@ -14,6 +14,13 @@ curl https://cli.nexus.xyz/ | sh
 nexus-network start --node-id <your-node-id>
 ```
 
+You may register a user account and obtain a node ID at [app.nexus.xyz](https://app.nexus.xyz), or with:
+
+```bash
+nexus-network register-user --wallet-address <your-wallet-address>
+nexus-network register-node
+```
+
 For troubleshooting or to see available command line options, run:
 
 ```bash
