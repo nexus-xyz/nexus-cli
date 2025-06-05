@@ -20,6 +20,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use ed25519_dalek::SigningKey;
 use ratatui::{backend::CrosstermBackend, Terminal};
 use std::{error::Error, io};
 
@@ -62,7 +63,6 @@ enum Command {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    // Read "environment" from the environment variable
     let nexus_environment_str = std::env::var("NEXUS_ENVIRONMENT").unwrap_or_default();
     let environment = nexus_environment_str
         .parse::<Environment>()
@@ -199,7 +199,10 @@ fn start(
 
     // Create the application and run it.
     let orchestrator_client = OrchestratorClient::new(env);
-    let app = ui::App::new(node_id, env, orchestrator_client);
+    // TODO: Persist the signing key in the config file.
+    let mut csprng = rand_core::OsRng;
+    let signing_key: SigningKey = SigningKey::generate(&mut csprng);
+    let app = ui::App::new(node_id, orchestrator_client, signing_key);
     let res = ui::run(&mut terminal, app);
 
     // Clean up the terminal after running the application.

@@ -30,6 +30,9 @@ clap = { version = "4.5", features = ["derive"] }
 colored = "2.1.0"
 crossbeam = "0.8.4"
 crossterm = "0.29.0"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+rand = "0.8"
+rand_core = "0.6"
 home = "0.5.9"
 iana-time-zone = "0.1.60"
 log = "0.4.26"

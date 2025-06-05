@@ -11,6 +11,7 @@ use crate::ui::splash::render_splash;
 use chrono::Local;
 use crossbeam::channel::unbounded;
 use crossterm::event::{self, Event, KeyCode};
+use ed25519_dalek::SigningKey;
 use ratatui::{backend::Backend, Frame, Terminal};
 use std::collections::VecDeque;
 use std::thread;
@@ -43,6 +44,7 @@ pub struct App {
     /// The environment in which the application is running.
     pub environment: Environment,
 
+    /// The client used to interact with the Nexus Orchestrator.
     pub orchestrator_client: OrchestratorClient,
 
     /// The current screen being displayed in the application.
@@ -50,22 +52,26 @@ pub struct App {
 
     /// Events received from worker threads.
     pub events: VecDeque<ProverEvent>,
+
+    /// Proof-signing key.
+    signing_key: SigningKey,
 }
 
 impl App {
     /// Creates a new instance of the application.
     pub fn new(
         node_id: Option<u64>,
-        env: Environment,
         orchestrator_client: OrchestratorClient,
+        signing_key: SigningKey,
     ) -> Self {
         Self {
             start_time: Instant::now(),
             node_id,
-            environment: env,
+            environment: *orchestrator_client.environment(),
             orchestrator_client,
             current_screen: Screen::Splash,
             events: Default::default(),
+            signing_key,
         }
     }
 
@@ -92,6 +98,7 @@ pub fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
                 worker_id,
                 node_id,
                 app.orchestrator_client.clone(),
+                app.signing_key.clone(),
                 sender.clone(),
             ),
             None => spawn_anonymous_prover(worker_id, sender.clone()),
@@ -245,6 +252,7 @@ fn spawn_prover(
     worker_id: usize,
     node_id: u64,
     orchestrator_client: OrchestratorClient,
+    signing_key: SigningKey,
     sender: crossbeam::channel::Sender<ProverEvent>,
 ) -> JoinHandle<()> {
     thread::spawn(move || {
@@ -254,7 +262,14 @@ fn spawn_prover(
             rt.block_on(async {
                 let stwo_prover =
                     crate::prover::get_default_stwo_prover().expect("Failed to create Stwo prover");
-                match authenticated_proving(node_id, &orchestrator_client, stwo_prover).await {
+                match authenticated_proving(
+                    node_id,
+                    &orchestrator_client,
+                    stwo_prover,
+                    signing_key.clone(),
+                )
+                .await
+                {
                     Ok(_) => {
                         let now = Local::now();
                         let timestamp = now.format("%Y-%m-%d %H:%M:%S").to_string();

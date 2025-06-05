@@ -33,6 +33,7 @@ pub fn analytics_api_key(environment: &Environment) -> String {
     }
 }
 
+#[allow(unused)]
 pub fn track(
     event_name: String,
     description: String,
