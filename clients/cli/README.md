@@ -7,10 +7,11 @@ It is the **highest-performance** way to participate.
 
 ## 🪄 Quick Start
 
-Install and run the CLI via the install script:
+Run the installation script and start the CLI with your node ID:
 
 ```bash
 curl https://cli.nexus.xyz/ | sh
+nexus start --node-id <your-node-id>
 ```
 
 Or, with Docker:
