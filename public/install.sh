@@ -174,6 +174,6 @@ fi
 
 echo ""
 echo "${GREEN}Installation complete!${NC}"
-echo "To use the Nexus CLI, restart your terminal or run:"
+echo "Restart your terminal or run the following command to update your PATH:"
 echo "  source $PROFILE_FILE"
-echo "You can now run the Nexus CLI with: nexus-network start --env beta"
+echo "Start the Nexus CLI with: nexus-network start --node-id <your-node-id>"
