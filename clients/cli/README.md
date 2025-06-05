@@ -55,6 +55,10 @@ The first time you run it, it prompts you to accept the terms. To accept the ter
 noninteractively (for example, in a continuous integration environment),
 add `NONINTERACTIVE=1` before `sh`.
 
+## System Requirements
+
+The Nexus CLI requires at least 4 GB of RAM. If multithreading is enabled, allot 2.5GB of RAM per thread.
+
 ## ⚠️ Known issues
 
 * Only the latest version of the CLI is currently supported.
