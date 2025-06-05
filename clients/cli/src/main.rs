@@ -55,6 +55,7 @@ enum Command {
         env: Option<Environment>,
 
         /// User's public Ethereum wallet address. 42-character hex string starting with '0x'
+        #[arg(long, value_name = "WALLET_ADDRESS")]
         wallet_address: String,
     },
     /// Register a new node to an existing user, or link an existing node to a user.
@@ -85,12 +86,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
             // If no node ID is provided, try to load it from the config file.
             if node_id.is_none() && config_path.exists() {
                 if let Ok(config) = Config::load_from_file(&config_path) {
-                    node_id = Some(
-                        config
-                            .node_id
-                            .parse::<u64>()
-                            .map_err(|_| "Failed to parse node_id in config file as u64")?,
-                    );
+                    if let Ok(id) = config.node_id.parse::<u64>() {
+                        node_id = Some(id);
+                    }
                 }
             }
             let environment = env.unwrap_or_default();
