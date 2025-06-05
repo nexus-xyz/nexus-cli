@@ -72,18 +72,16 @@ fn main() -> Result<(), Box<dyn Error>> {
             let config_path = get_config_path().expect("Failed to get config path");
             if node_id.is_none() && config_path.exists() {
                 if let Ok(config) = Config::load_from_file(&config_path) {
-                    let node_id_as_u64 = config
-                        .node_id
-                        .parse::<u64>()
-                        .expect("Failed to parse node ID");
-                    node_id = Some(node_id_as_u64);
+                    if let Ok(node_id_as_u64) = config.node_id.parse::<u64>() {
+                        node_id = Some(node_id_as_u64);
+                    }
                 }
             }
-
             let environment = env.unwrap_or_default();
             start(node_id, environment, max_threads)
         }
         Command::Logout => {
+            println!("Logging out and clearing node configuration file...");
             let config_path = get_config_path().expect("Failed to get config path");
             Config::clear_node_config(&config_path).map_err(Into::into)
         }
