@@ -40,30 +40,18 @@ enum Command {
         #[arg(long, value_name = "NODE_ID")]
         node_id: Option<u64>,
 
-        /// Environment to connect to.
-        #[arg(long, value_enum)]
-        env: Option<Environment>,
-
         /// Maximum number of threads to use for proving.
         #[arg(long)]
         max_threads: Option<u32>,
     },
     /// Register a new user
     RegisterUser {
-        /// Environment to connect to.
-        #[arg(long, value_enum)]
-        env: Option<Environment>,
-
         /// User's public Ethereum wallet address. 42-character hex string starting with '0x'
         #[arg(long, value_name = "WALLET_ADDRESS")]
         wallet_address: String,
     },
     /// Register a new node to an existing user, or link an existing node to a user.
     RegisterNode {
-        /// Environment to connect to.
-        #[arg(long, value_enum)]
-        env: Option<Environment>,
-
         /// ID of the node to register. If not provided, a new node will be created.
         #[arg(long, value_name = "NODE_ID")]
         node_id: Option<u64>,
@@ -74,12 +62,17 @@ enum Command {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    // Read "environment" from the environment variable
+    let nexus_environment_str = std::env::var("NEXUS_ENVIRONMENT").unwrap_or_default();
+    let environment = nexus_environment_str
+        .parse::<Environment>()
+        .unwrap_or(Environment::default());
+
     let config_path = get_config_path()?;
     let args = Args::parse();
     match args.command {
         Command::Start {
             node_id,
-            env,
             max_threads,
         } => {
             let mut node_id = node_id;
@@ -91,18 +84,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     }
                 }
             }
-            let environment = env.unwrap_or_default();
             start(node_id, environment, max_threads)
         }
         Command::Logout => {
             println!("Logging out and clearing node configuration file...");
             Config::clear_node_config(&config_path).map_err(Into::into)
         }
-        Command::RegisterUser {
-            env,
-            wallet_address,
-        } => {
-            let environment = env.unwrap_or_default();
+        Command::RegisterUser { wallet_address } => {
             println!(
                 "Registering user with wallet address: {} in environment: {:?}",
                 wallet_address, environment
@@ -140,7 +128,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 .map_err(|e| format!("Failed to save config: {}", e))?;
             Ok(())
         }
-        Command::RegisterNode { env, node_id } => {
+        Command::RegisterNode { node_id } => {
             // Register a new node, or link an existing node to a user.
             // Requires: a config file with a registered user
             // If a node_id is provided, update the config with it and use it.
@@ -163,7 +151,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 println!("Successfully registered node with ID: {}", node_id);
                 Ok(())
             } else {
-                let environment = env.unwrap_or_default();
                 println!(
                     "No node ID provided. Registering a new node in environment: {:?}",
                     environment

@@ -1,7 +1,8 @@
 use std::fmt::{Debug, Display, Formatter};
+use std::str::FromStr;
 
 /// Represents the different deployment environments available for the CLI.
-#[derive(clap::ValueEnum, Clone, Default, Copy, PartialEq, Eq)]
+#[derive(Clone, Default, Copy, PartialEq, Eq)]
 pub enum Environment {
     /// Local development environment.
     Local,
@@ -22,6 +23,20 @@ impl Environment {
             Environment::Dev => "https://dev.orchestrator.nexus.xyz".to_string(),
             Environment::Staging => "https://staging.orchestrator.nexus.xyz".to_string(),
             Environment::Beta => "https://beta.orchestrator.nexus.xyz".to_string(),
+        }
+    }
+}
+
+impl FromStr for Environment {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "local" => Ok(Environment::Local),
+            "dev" => Ok(Environment::Dev),
+            "staging" => Ok(Environment::Staging),
+            "beta" => Ok(Environment::Beta),
+            _ => Err(()),
         }
     }
 }
