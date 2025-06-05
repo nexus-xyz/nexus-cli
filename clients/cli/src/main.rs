@@ -124,7 +124,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
             }
             // TODO: save the user ID to the config file
-            let config = Config::new(uuid, String::new());
+            let config = Config::new(uuid, wallet_address, String::new());
             let config_path = get_config_path().expect("Failed to get config path");
             config
                 .save(&config_path)

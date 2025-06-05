@@ -14,10 +14,12 @@ pub fn get_config_path() -> Result<PathBuf, ()> {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct Config {
     /// Environment
-    // pub environment: Environment,
+    pub environment: String,
 
     /// The unique identifier for the node, UUIDv4 format.
     pub user_id: String,
+
+    pub wallet_address: String,
 
     /// The node's unique identifier, probably an integer
     pub node_id: String,
@@ -26,8 +28,12 @@ pub struct Config {
 impl Config {
     /// Create Config with the given node_id.
     #[allow(unused)]
-    pub fn new(user_id: String, node_id: String) -> Self {
-        Config { user_id, node_id }
+    pub fn new(user_id: String, wallet_address: String, node_id: String) -> Self {
+        Config {
+            user_id,
+            wallet_address,
+            node_id,
+        }
     }
 
     /// Loads configuration from a JSON file at the given path.
@@ -90,15 +96,23 @@ mod tests {
     use std::io::Write;
     use tempfile::tempdir;
 
+    /// Helper function to create a test configuration.
+    fn get_config() -> Config {
+        Config {
+            environment: "test".to_string(),
+            user_id: "test_user_id".to_string(),
+            wallet_address: "0x1234567890abcdef1234567890abcdef12345678".to_string(),
+            node_id: "test_node_id".to_string(),
+        }
+    }
+
     #[test]
     // Loading a saved configuration file should return the same configuration.
     fn test_load_recovers_saved_config() {
         let dir = tempdir().unwrap();
         let path = dir.path().join("config.json");
 
-        let user_id = "test_user_id".to_string();
-        let node_id = "test_node_id".to_string();
-        let config = Config::new(user_id, node_id);
+        let config = get_config();
         config.save(&path).unwrap();
 
         let loaded_config = Config::load_from_file(&path).unwrap();
@@ -110,11 +124,7 @@ mod tests {
     fn test_save_creates_directories() {
         let dir = tempdir().unwrap();
         let path = dir.path().join("nonexistent_dir").join("config.json");
-
-        let user_id = "test_user_id".to_string();
-        let node_id = "test_node_id".to_string();
-        let config = Config::new(user_id, node_id);
-        // Attempt to save the configuration
+        let config = get_config();
         let result = config.save(&path);
 
         // Check if the directories were created
