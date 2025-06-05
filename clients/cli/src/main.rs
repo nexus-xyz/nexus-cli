@@ -57,11 +57,15 @@ enum Command {
         /// User's public Ethereum wallet address. 42-character hex string starting with '0x'
         wallet_address: String,
     },
-    /// Register a new node to an existing user
+    /// Register a new node to an existing user, or link an existing node to a user.
     RegisterNode {
         /// Environment to connect to.
         #[arg(long, value_enum)]
         env: Option<Environment>,
+
+        /// ID of the node to register. If not provided, a new node will be created.
+        #[arg(long, value_name = "NODE_ID")]
+        node_id: Option<u64>,
     },
     /// Clear the node configuration and logout.
     Logout,
@@ -69,6 +73,7 @@ enum Command {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    let config_path = get_config_path()?;
     let args = Args::parse();
     match args.command {
         Command::Start {
@@ -78,12 +83,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
         } => {
             let mut node_id = node_id;
             // If no node ID is provided, try to load it from the config file.
-            let config_path = get_config_path().expect("Failed to get config path");
             if node_id.is_none() && config_path.exists() {
                 if let Ok(config) = Config::load_from_file(&config_path) {
-                    if let Ok(node_id_as_u64) = config.node_id.parse::<u64>() {
-                        node_id = Some(node_id_as_u64);
-                    }
+                    node_id = Some(
+                        config
+                            .node_id
+                            .parse::<u64>()
+                            .map_err(|_| "Failed to parse node_id in config file as u64")?,
+                    );
                 }
             }
             let environment = env.unwrap_or_default();
@@ -91,7 +98,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
         Command::Logout => {
             println!("Logging out and clearing node configuration file...");
-            let config_path = get_config_path().expect("Failed to get config path");
             Config::clear_node_config(&config_path).map_err(Into::into)
         }
         Command::RegisterUser {
@@ -120,49 +126,66 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 Ok(_) => println!("User {} registered successfully.", uuid),
                 Err(e) => {
                     eprintln!("Failed to register user: {}", e);
-                    return Err(e.into());
+                    return Err(e);
                 }
             }
-            // TODO: save the user ID to the config file
-            let config = Config::new(uuid, wallet_address, String::new());
-            let config_path = get_config_path().expect("Failed to get config path");
+
+            // Save the configuration file with the user ID and wallet address
+            let config = Config::new(
+                uuid,
+                wallet_address,
+                String::new(), // node_id is empty for now
+                environment,
+            );
             config
                 .save(&config_path)
                 .map_err(|e| format!("Failed to save config: {}", e))?;
             Ok(())
         }
-        Command::RegisterNode { env } => {
-            let environment = env.unwrap_or_default();
-            println!("Registering node in environment: {:?}", environment);
-            // Check if the user is registered
-            let config_path = get_config_path().expect("Failed to get config path");
-            if !config_path.exists() {
-                return Err(Box::from(
-                    "No user registered. Please register a user first.",
-                ));
-            }
-            let config = Config::load_from_file(&config_path)
-                .map_err(|e| format!("Failed to load config: {}", e))?;
+        Command::RegisterNode { env, node_id } => {
+            // Register a new node, or link an existing node to a user.
+            // Requires: a config file with a registered user
+            // If a node_id is provided, update the config with it and use it.
+            // If no node_id is provided, generate a new one.
+            let mut config = Config::load_from_file(&config_path).map_err(|e| {
+                format!("Failed to load config: {}. Please register a user first", e)
+            })?;
             if config.user_id.is_empty() {
                 return Err(Box::from(
                     "No user registered. Please register a user first.",
                 ));
             }
-            let orchestrator_client = OrchestratorClient::new(environment);
-            match orchestrator_client.register_node(&config.user_id).await {
-                Ok(node_id) => {
-                    println!("Node registered successfully with ID: {}", node_id);
-                    // Update the config with the new node ID
-                    let mut updated_config = config;
-                    updated_config.node_id = node_id;
-                    updated_config
-                        .save(&config_path)
-                        .map_err(|e| format!("Failed to save updated config: {}", e))?;
-                    Ok(())
-                }
-                Err(e) => {
-                    eprintln!("Failed to register node: {}", e);
-                    Err(e.into())
+            if let Some(node_id) = node_id {
+                // If a node_id is provided, update the config with it.
+                println!("Registering node ID: {}", node_id);
+                config.node_id = node_id.to_string();
+                config
+                    .save(&config_path)
+                    .map_err(|e| format!("Failed to save updated config: {}", e))?;
+                println!("Successfully registered node with ID: {}", node_id);
+                Ok(())
+            } else {
+                let environment = env.unwrap_or_default();
+                println!(
+                    "No node ID provided. Registering a new node in environment: {:?}",
+                    environment
+                );
+                let orchestrator_client = OrchestratorClient::new(environment);
+                match orchestrator_client.register_node(&config.user_id).await {
+                    Ok(node_id) => {
+                        println!("Node registered successfully with ID: {}", node_id);
+                        // Update the config with the new node ID
+                        let mut updated_config = config;
+                        updated_config.node_id = node_id;
+                        updated_config
+                            .save(&config_path)
+                            .map_err(|e| format!("Failed to save updated config: {}", e))?;
+                        Ok(())
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to register node: {}", e);
+                        Err(e)
+                    }
                 }
             }
         }
