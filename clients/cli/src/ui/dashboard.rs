@@ -197,7 +197,7 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
     f.render_widget(log_widget, body_chunks[1]);
 
     // Footer
-    let footer = Paragraph::new("[Q] Quit q [S] Settings  [←][→] Navigate")
+    let footer = Paragraph::new("[Q] Quit")
         .alignment(Alignment::Center) // ← Horizontally center the text
         .style(
             Style::default()
