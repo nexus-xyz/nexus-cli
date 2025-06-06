@@ -186,7 +186,6 @@ impl OrchestratorClient {
             }),
             ed25519_public_key: verifying_key.to_bytes().to_vec(),
             signature: signature.to_bytes().to_vec(),
-            signature_version,
         };
 
         self.make_request::<SubmitProofRequest, ()>("/tasks/submit", "POST", &request)
