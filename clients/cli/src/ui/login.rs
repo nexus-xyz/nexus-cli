@@ -1,8 +1,8 @@
 //! Login screen module
 
+use ratatui::Frame;
 use ratatui::prelude::{Color, Style};
 use ratatui::widgets::{Block, Borders, Paragraph};
-use ratatui::Frame;
 
 /// Renders the login screen with a simple message and instructions.
 pub fn render_login(f: &mut Frame) {

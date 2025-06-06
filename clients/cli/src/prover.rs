@@ -1,4 +1,4 @@
-use nexus_sdk::{stwo::seq::Stwo, Local, Prover, Viewable};
+use nexus_sdk::{Local, Prover, Viewable, stwo::seq::Stwo};
 use std::time::Duration;
 
 use crate::orchestrator_client::OrchestratorClient;

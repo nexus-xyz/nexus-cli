@@ -11,17 +11,17 @@ mod prover;
 pub mod system;
 mod ui;
 
-use crate::config::{get_config_path, Config};
+use crate::config::{Config, get_config_path};
 use crate::environment::Environment;
 use crate::orchestrator_client::OrchestratorClient;
 use clap::{Parser, Subcommand};
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ed25519_dalek::SigningKey;
-use ratatui::{backend::CrosstermBackend, Terminal};
+use ratatui::{Terminal, backend::CrosstermBackend};
 use std::{error::Error, io};
 
 #[derive(Parser)]

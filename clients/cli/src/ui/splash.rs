@@ -1,10 +1,10 @@
 //! Splash screen rendering module.
 
+use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
-use ratatui::Frame;
 
 pub const LOGO_NAME: &str = r#"
   ███╗   ██╗  ███████╗  ██╗  ██╗  ██╗   ██╗  ███████╗

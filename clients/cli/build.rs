@@ -8,7 +8,9 @@ use std::{env, path::Path};
 fn main() -> Result<(), Box<dyn Error>> {
     // Skip proto compilation unless build_proto feature is enabled.
     if !cfg!(feature = "build_proto") {
-        println!("cargo:warning=Skipping proto compilation. Enable with `cargo clean && cargo build --features build_proto`");
+        println!(
+            "cargo:warning=Skipping proto compilation. Enable with `cargo clean && cargo build --features build_proto`"
+        );
         return Ok(());
     }
 

@@ -2,7 +2,7 @@ use crate::environment::Environment;
 use chrono::Datelike;
 use chrono::Timelike;
 use reqwest::header::ACCEPT;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::{
     env,
     time::{SystemTime, UNIX_EPOCH},
