@@ -13,7 +13,7 @@ mod ui;
 
 use crate::config::{get_config_path, Config};
 use crate::environment::Environment;
-use crate::orchestrator_client::OrchestratorClient;
+use crate::orchestrator_client::{Orchestrator, OrchestratorClient};
 use clap::{Parser, Subcommand};
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},

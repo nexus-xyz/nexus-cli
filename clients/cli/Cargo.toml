@@ -47,6 +47,7 @@ sysinfo = "0.33.1"
 thiserror = "2.0.12"
 tokio = { version = "1.38", features = ["full"] }
 uuid = "1.16.0"
+async-trait = "0.1.88"
 
 [dev-dependencies]
 assert_cmd = "2"

@@ -1,7 +1,7 @@
 use nexus_sdk::{stwo::seq::Stwo, Local, Prover, Viewable};
 use std::time::Duration;
 
-use crate::orchestrator_client::OrchestratorClient;
+use crate::orchestrator_client::{Orchestrator, OrchestratorClient};
 use crate::{analytics, environment::Environment};
 use colored::Colorize;
 use log::{error, info, warn};

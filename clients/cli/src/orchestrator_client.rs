@@ -11,10 +11,121 @@ use prost::Message;
 use reqwest::{Client, ClientBuilder};
 use std::time::Duration;
 
+#[async_trait::async_trait]
+pub trait Orchestrator: Send + Sync {
+    /// Registers a new user with the orchestrator.
+    async fn register_user(
+        &self,
+        user_id: &str,
+        wallet_address: &str,
+    ) -> Result<(), Box<dyn std::error::Error>>;
+
+    /// Registers a new node with the orchestrator.
+    async fn register_node(&self, user_id: &str) -> Result<String, Box<dyn std::error::Error>>;
+
+    /// Retrieves a proof task for the node.
+    async fn get_proof_task(
+        &self,
+        node_id: &str,
+    ) -> Result<GetProofTaskResponse, Box<dyn std::error::Error>>;
+
+    /// Submits a proof to the orchestrator.
+    async fn submit_proof(
+        &self,
+        task_id: &str,
+        proof_hash: &str,
+        proof: Vec<u8>,
+    ) -> Result<(), Box<dyn std::error::Error>>;
+}
+
 #[derive(Debug, Clone)]
 pub struct OrchestratorClient {
     client: Client,
     base_url: String,
+}
+
+#[async_trait::async_trait]
+impl Orchestrator for OrchestratorClient {
+    async fn register_user(
+        &self,
+        user_id: &str,
+        wallet_address: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let request = crate::nexus_orchestrator::RegisterUserRequest {
+            uuid: user_id.to_string(),
+            wallet_address: wallet_address.to_string(),
+        };
+
+        self.make_request::<crate::nexus_orchestrator::RegisterUserRequest, ()>(
+            "/users", "POST", &request,
+        )
+        .await?;
+
+        Ok(())
+    }
+
+    async fn register_node(&self, user_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+        let request = crate::nexus_orchestrator::RegisterNodeRequest {
+            node_type: NodeType::CliProver as i32,
+            user_id: user_id.to_string(),
+        };
+
+        let response = self
+            .make_request::<crate::nexus_orchestrator::RegisterNodeRequest, crate::nexus_orchestrator::RegisterNodeResponse>(
+                "/nodes",
+                "POST",
+                &request,
+            )
+            .await?
+            .ok_or("No response received from register_node")?;
+
+        Ok(response.node_id)
+    }
+
+    async fn get_proof_task(
+        &self,
+        node_id: &str,
+    ) -> Result<GetProofTaskResponse, Box<dyn std::error::Error>> {
+        let request = GetProofTaskRequest {
+            node_id: node_id.to_string(),
+            node_type: NodeType::CliProver as i32,
+        };
+
+        let response = self
+            .make_request("/tasks", "POST", &request)
+            .await?
+            .ok_or("No response received from get_proof_task")?;
+
+        Ok(response)
+    }
+
+    async fn submit_proof(
+        &self,
+        task_id: &str,
+        proof_hash: &str,
+        proof: Vec<u8>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let (program_memory, total_memory) = get_memory_info();
+        let flops = measure_gflops();
+
+        let request = SubmitProofRequest {
+            task_id: task_id.to_string(),
+            node_type: NodeType::CliProver as i32,
+            proof_hash: proof_hash.to_string(),
+            proof,
+            node_telemetry: Some(crate::nexus_orchestrator::NodeTelemetry {
+                flops_per_sec: Some(flops as i32),
+                memory_used: Some(program_memory),
+                memory_capacity: Some(total_memory),
+                location: Some("US".to_string()),
+            }),
+        };
+
+        self.make_request::<SubmitProofRequest, ()>("/tasks/submit", "POST", &request)
+            .await?;
+
+        Ok(())
+    }
 }
 
 impl OrchestratorClient {
@@ -93,89 +204,6 @@ impl OrchestratorClient {
             Ok(msg) => Ok(Some(msg)),
             Err(_e) => Ok(None),
         }
-    }
-
-    /// Registers a new node with the orchestrator.
-    pub async fn register_user(
-        &self,
-        user_id: &str,
-        wallet_address: &str,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let request = crate::nexus_orchestrator::RegisterUserRequest {
-            uuid: user_id.to_string(),
-            wallet_address: wallet_address.to_string(),
-        };
-
-        self.make_request::<crate::nexus_orchestrator::RegisterUserRequest, ()>(
-            "/users", "POST", &request,
-        )
-        .await?;
-
-        Ok(())
-    }
-
-    /// Registers a new node with the orchestrator.
-    pub async fn register_node(&self, user_id: &str) -> Result<String, Box<dyn std::error::Error>> {
-        let request = crate::nexus_orchestrator::RegisterNodeRequest {
-            node_type: NodeType::CliProver as i32,
-            user_id: user_id.to_string(),
-        };
-
-        let response = self
-            .make_request::<crate::nexus_orchestrator::RegisterNodeRequest, crate::nexus_orchestrator::RegisterNodeResponse>(
-                "/nodes",
-                "POST",
-                &request,
-            )
-            .await?
-            .ok_or("No response received from register_node")?;
-
-        Ok(response.node_id)
-    }
-
-    pub async fn get_proof_task(
-        &self,
-        node_id: &str,
-    ) -> Result<GetProofTaskResponse, Box<dyn std::error::Error>> {
-        let request = GetProofTaskRequest {
-            node_id: node_id.to_string(),
-            node_type: NodeType::CliProver as i32,
-        };
-
-        let response = self
-            .make_request("/tasks", "POST", &request)
-            .await?
-            .ok_or("No response received from get_proof_task")?;
-
-        Ok(response)
-    }
-
-    pub async fn submit_proof(
-        &self,
-        task_id: &str,
-        proof_hash: &str,
-        proof: Vec<u8>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let (program_memory, total_memory) = get_memory_info();
-        let flops = measure_gflops();
-
-        let request = SubmitProofRequest {
-            task_id: task_id.to_string(),
-            node_type: NodeType::CliProver as i32,
-            proof_hash: proof_hash.to_string(),
-            proof,
-            node_telemetry: Some(crate::nexus_orchestrator::NodeTelemetry {
-                flops_per_sec: Some(flops as i32),
-                memory_used: Some(program_memory),
-                memory_capacity: Some(total_memory),
-                location: Some("US".to_string()),
-            }),
-        };
-
-        self.make_request::<SubmitProofRequest, ()>("/tasks/submit", "POST", &request)
-            .await?;
-
-        Ok(())
     }
 }
 
