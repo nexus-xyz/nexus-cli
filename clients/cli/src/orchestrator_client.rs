@@ -16,8 +16,6 @@ use std::time::Duration;
 pub struct OrchestratorClient {
     client: Client,
     environment: Environment,
-    // signing_key: SigningKey,
-    // verifying_key: VerifyingKey,
 }
 
 impl OrchestratorClient {
@@ -166,9 +164,6 @@ impl OrchestratorClient {
     ) -> Result<(), Box<dyn std::error::Error>> {
         let (program_memory, total_memory) = get_memory_info();
         let flops = measure_gflops();
-
-        // let mut csprng = rand_core::OsRng;
-        // let signing_key: SigningKey = SigningKey::generate(&mut csprng);
         let verifying_key: VerifyingKey = signing_key.verifying_key();
         let msg_hash = proof_hash.as_bytes();
         let signature = signing_key.sign(msg_hash);
