@@ -1,8 +1,8 @@
 [package]
 name = "nexus-network"
 version = "0.8.1"
-edition = "2021"
-rust-version = "1.75"
+edition = "2024"
+rust-version = "1.85"
 build = "build.rs"
 
 [features]
