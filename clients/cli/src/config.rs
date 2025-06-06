@@ -23,6 +23,7 @@ pub struct Config {
     /// The unique identifier for the node, UUIDv4 format.
     pub user_id: String,
 
+    /// The wallet address associated with the user, typically an Ethereum address.
     pub wallet_address: String,
 
     /// The node's unique identifier, probably an integer
