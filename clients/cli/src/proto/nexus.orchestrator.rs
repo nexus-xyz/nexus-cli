@@ -77,6 +77,9 @@ pub struct SubmitProofRequest {
     /// corresponding to the public key.
     #[prost(bytes = "vec", tag = "8")]
     pub signature: ::prost::alloc::vec::Vec<u8>,
+    /// Signature Version
+    #[prost(int32, tag = "9")]
+    pub signature_version: i32,
 }
 /// Performance stats of a node.
 #[derive(Clone, PartialEq, ::prost::Message)]

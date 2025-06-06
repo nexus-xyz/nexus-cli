@@ -165,8 +165,13 @@ impl OrchestratorClient {
         let (program_memory, total_memory) = get_memory_info();
         let flops = measure_gflops();
 
+        let signature_version = 0; // Version of the signature format
+        let msg = format!(
+            "version: {} | task_id: {} | proof_hash: {}",
+            signature_version, task_id, proof_hash
+        );
+        let signature = signing_key.sign(msg.as_bytes());
         let verifying_key: VerifyingKey = signing_key.verifying_key();
-        let signature = signing_key.sign(proof_hash.as_bytes());
 
         let request = SubmitProofRequest {
             task_id: task_id.to_string(),
@@ -181,6 +186,7 @@ impl OrchestratorClient {
             }),
             ed25519_public_key: verifying_key.to_bytes().to_vec(),
             signature: signature.to_bytes().to_vec(),
+            signature_version,
         };
 
         self.make_request::<SubmitProofRequest, ()>("/tasks/submit", "POST", &request)

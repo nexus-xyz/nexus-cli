@@ -89,6 +89,9 @@ message SubmitProofRequest {
   // task_id + hash(proof) with the Ed25519 private key
   // corresponding to the public key.
   bytes signature = 8;
+
+  // Signature Version
+  int32 signature_version = 9;
 }
 
 // Performance stats of a node.
