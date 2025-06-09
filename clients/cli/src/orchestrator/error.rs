@@ -20,4 +20,8 @@ pub enum OrchestratorError {
     /// An unsupported HTTP method was used in a request.
     #[error("Unsupported HTTP method: {0}")]
     UnsupportedMethod(String),
+
+    /// An error occurred while processing the request.
+    #[error("HTTP error with status {status}: {message}")]
+    HTTPError { status: u16, message: String },
 }

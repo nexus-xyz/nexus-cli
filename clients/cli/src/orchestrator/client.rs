@@ -60,7 +60,14 @@ impl OrchestratorClient {
                     .send()
                     .await?
             }
-            Method::GET => self.client.get(&url).send().await?,
+            Method::GET => {
+                self.client
+                    .get(&url)
+                    .header("Content-Type", "application/octet-stream")
+                    .body(request_bytes)
+                    .send()
+                    .await?
+            }
             _ => return Err(OrchestratorError::UnsupportedMethod(method.to_string())),
         };
         let response_bytes = response.bytes().await?;
@@ -124,19 +131,51 @@ impl Orchestrator for OrchestratorClient {
             node_id: node_id.to_string(),
             next_cursor: "".to_string(),
         };
-        let url = format!("/tasks/{}", node_id);
-        match self
-            .make_request::<GetTasksRequest, GetTasksResponse>(&url, Method::POST, &request)
-            .await?
-        {
-            Some(response) => {
-                let tasks = response.tasks.iter().map(Task::from).collect();
-                Ok(tasks)
-            }
-            None => Err(OrchestratorError::ResponseError(
-                "No tasks found".to_string(),
-            )),
+        let request_bytes = request.encode_to_vec();
+
+        // let url = format!("{}/v3/tasks/", self.environment.orchestrator_url());
+        let url = format!(
+            "{}/v3/tasks/?nodeId={}",
+            self.environment.orchestrator_url(),
+            node_id
+        );
+        println!("Requesting tasks from URL: {}", url);
+        let response = self
+            .client
+            .get(&url)
+            .header("Content-Type", "application/octet-stream")
+            // .query(&[("nodeId", node_id.to_string())]) // still send nodeId as query param
+            .body(request_bytes)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            return Err(OrchestratorError::HTTPError {
+                status: response.status().as_u16(),
+                message: response
+                    .text()
+                    .await
+                    .unwrap_or_else(|_| "Failed to read response text".to_string()),
+            });
         }
+
+        let response_bytes = response.bytes().await?;
+        if response_bytes.is_empty() {
+            return Err(OrchestratorError::ResponseError(
+                "No tasks found".to_string(),
+            ));
+        }
+
+        println!("Received response bytes: {:?}", response_bytes);
+        // Decode the response bytes into the GetTasksResponse message
+        let get_tasks_response: GetTasksResponse = match GetTasksResponse::decode(response_bytes) {
+            Ok(msg) => msg,
+            Err(_e) => return Err(OrchestratorError::DecodeError(_e)),
+        };
+
+        // Convert the tasks into the Task struct
+        let tasks = get_tasks_response.tasks.iter().map(Task::from).collect();
+        Ok(tasks)
     }
 
     async fn get_proof_task(&self, node_id: &str) -> Result<Task, OrchestratorError> {
@@ -197,5 +236,27 @@ impl Orchestrator for OrchestratorClient {
             .await?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::environment::Environment;
+    use crate::orchestrator::Orchestrator;
+    use tokio::test;
+
+    #[test]
+    // Should return a list of tasks for the node.
+    async fn test_get_tasks() {
+        let client = super::OrchestratorClient::new(Environment::Beta);
+
+        for node_id in 1000..2000 {
+            let result = client.get_tasks(&node_id.to_string()).await;
+            println!("{:?}", result);
+        }
+
+        // let node_id = 102;
+        // let tasks = client.get_tasks(&node_id.to_string()).await;
+        // assert!(tasks.is_ok(), "Failed to get tasks: {:?}", tasks.err());
     }
 }
