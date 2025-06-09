@@ -13,7 +13,7 @@ use crate::system::{get_memory_info, measure_gflops};
 use crate::task::Task;
 use ed25519_dalek::{Signer, SigningKey, VerifyingKey};
 use prost::Message;
-use reqwest::{Client, ClientBuilder};
+use reqwest::{Client, ClientBuilder, Method};
 use std::time::Duration;
 
 #[derive(Debug, Clone)]
@@ -42,7 +42,7 @@ impl OrchestratorClient {
     async fn make_request<T, U>(
         &self,
         url: &str,
-        method: &str,
+        method: Method,
         request_data: &T,
     ) -> Result<Option<U>, OrchestratorError>
     where
@@ -52,7 +52,7 @@ impl OrchestratorClient {
         let request_bytes = request_data.encode_to_vec();
         let url = format!("{}/v3{}", self.environment.orchestrator_url(), url);
         let response = match method {
-            "POST" => {
+            Method::POST => {
                 self.client
                     .post(&url)
                     .header("Content-Type", "application/octet-stream")
@@ -60,7 +60,7 @@ impl OrchestratorClient {
                     .send()
                     .await?
             }
-            "GET" => self.client.get(&url).send().await?,
+            Method::GET => self.client.get(&url).send().await?,
             _ => return Err(OrchestratorError::UnsupportedMethod(method.to_string())),
         };
         let response_bytes = response.bytes().await?;
@@ -92,9 +92,8 @@ impl Orchestrator for OrchestratorClient {
             wallet_address: wallet_address.to_string(),
         };
 
-        self.make_request::<RegisterUserRequest, ()>("/users", "POST", &request)
+        self.make_request::<RegisterUserRequest, ()>("/users", Method::POST, &request)
             .await?;
-
         Ok(())
     }
 
@@ -106,7 +105,11 @@ impl Orchestrator for OrchestratorClient {
         };
 
         match self
-            .make_request::<RegisterNodeRequest, RegisterNodeResponse>("/nodes", "POST", &request)
+            .make_request::<RegisterNodeRequest, RegisterNodeResponse>(
+                "/nodes",
+                Method::POST,
+                &request,
+            )
             .await?
         {
             Some(response) => Ok(response.node_id),
@@ -123,7 +126,7 @@ impl Orchestrator for OrchestratorClient {
         };
         let url = format!("/tasks/{}", node_id);
         match self
-            .make_request::<GetTasksRequest, GetTasksResponse>(&url, "POST", &request)
+            .make_request::<GetTasksRequest, GetTasksResponse>(&url, Method::POST, &request)
             .await?
         {
             Some(response) => {
@@ -143,7 +146,11 @@ impl Orchestrator for OrchestratorClient {
         };
 
         match self
-            .make_request::<GetProofTaskRequest, GetProofTaskResponse>("/tasks", "POST", &request)
+            .make_request::<GetProofTaskRequest, GetProofTaskResponse>(
+                "/tasks",
+                Method::POST,
+                &request,
+            )
             .await?
         {
             Some(get_proof_task_response) => Ok(Task::from(&get_proof_task_response)),
@@ -186,32 +193,9 @@ impl Orchestrator for OrchestratorClient {
             signature: signature.to_bytes().to_vec(),
         };
 
-        self.make_request::<SubmitProofRequest, ()>("/tasks/submit", "POST", &request)
+        self.make_request::<SubmitProofRequest, ()>("/tasks/submit", Method::POST, &request)
             .await?;
 
         Ok(())
-    }
-}
-
-/// Converts an HTTP status code and error text into a user-friendly error message.
-#[allow(unused)]
-fn friendly_error_message(status: reqwest::StatusCode, error_text: String) -> String {
-    match status.as_u16() {
-        400 => "[400] Invalid request".to_string(),
-        401 => "[401] Authentication failed. Please check your credentials.".to_string(),
-        403 => "[403] You don't have permission to perform this action.".to_string(),
-        404 => "[404] The requested resource was not found.".to_string(),
-        408 => "[408] The server timed out waiting for your request. Please try again.".to_string(),
-        429 => "[429] Too many requests. Please try again later.".to_string(),
-        502 => "[502] Unable to reach the server. Please try again later.".to_string(),
-        504 => {
-            "[504] Gateway Timeout: The server took too long to respond. Please try again later."
-                .to_string()
-        }
-        500..=599 => format!(
-            "[{}] A server error occurred. Our team has been notified. Please try again later.",
-            status
-        ),
-        _ => format!("[{}] Unexpected error: {}", status, error_text),
     }
 }
