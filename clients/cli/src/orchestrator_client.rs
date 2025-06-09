@@ -4,8 +4,8 @@
 
 use crate::environment::Environment;
 use crate::nexus_orchestrator::{
-    GetProofTaskRequest, GetProofTaskResponse, NodeType, RegisterNodeRequest, RegisterNodeResponse,
-    RegisterUserRequest, SubmitProofRequest,
+    GetProofTaskRequest, GetProofTaskResponse, GetTasksRequest, GetTasksResponse, NodeType,
+    RegisterNodeRequest, RegisterNodeResponse, RegisterUserRequest, SubmitProofRequest,
 };
 use crate::orchestrator_error::OrchestratorError;
 use crate::system::{get_memory_info, measure_gflops};
@@ -16,6 +16,7 @@ use reqwest::{Client, ClientBuilder};
 use std::time::Duration;
 
 #[async_trait::async_trait]
+#[allow(dead_code)]
 pub trait Orchestrator {
     fn environment(&self) -> &Environment;
 
@@ -30,7 +31,7 @@ pub trait Orchestrator {
     async fn register_node(&self, user_id: &str) -> Result<String, OrchestratorError>;
 
     /// Get the list of tasks currently assigned to the node.
-    async fn get_tasks() -> Result<Vec<Task>, OrchestratorError>;
+    async fn get_tasks(&self, node_id: &str) -> Result<Vec<Task>, OrchestratorError>;
 
     /// Retrieves a proof task for the node.
     async fn get_proof_task(
@@ -148,8 +149,24 @@ impl Orchestrator for OrchestratorClient {
         }
     }
 
-    async fn get_tasks() -> Result<Vec<Task>, OrchestratorError> {
-        todo!()
+    async fn get_tasks(&self, node_id: &str) -> Result<Vec<Task>, OrchestratorError> {
+        let request = GetTasksRequest {
+            node_id: "".to_string(),
+            next_cursor: "".to_string(),
+        };
+        let url = format!("/tasks/{}", node_id);
+        match self
+            .make_request::<GetTasksRequest, GetTasksResponse>(&url, "GET", &request)
+            .await?
+        {
+            Some(response) => {
+                let tasks = response.tasks.iter().map(Task::from).collect();
+                Ok(tasks)
+            }
+            None => Err(OrchestratorError::ResponseError(
+                "No tasks found".to_string(),
+            )),
+        }
     }
 
     async fn get_proof_task(
