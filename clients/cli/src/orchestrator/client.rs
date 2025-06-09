@@ -118,12 +118,12 @@ impl Orchestrator for OrchestratorClient {
 
     async fn get_tasks(&self, node_id: &str) -> Result<Vec<Task>, OrchestratorError> {
         let request = GetTasksRequest {
-            node_id: "".to_string(),
+            node_id: node_id.to_string(),
             next_cursor: "".to_string(),
         };
         let url = format!("/tasks/{}", node_id);
         match self
-            .make_request::<GetTasksRequest, GetTasksResponse>(&url, "GET", &request)
+            .make_request::<GetTasksRequest, GetTasksResponse>(&url, "POST", &request)
             .await?
         {
             Some(response) => {
