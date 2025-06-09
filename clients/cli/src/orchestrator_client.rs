@@ -34,10 +34,7 @@ pub trait Orchestrator {
     async fn get_tasks(&self, node_id: &str) -> Result<Vec<Task>, OrchestratorError>;
 
     /// Retrieves a proof task for the node.
-    async fn get_proof_task(
-        &self,
-        node_id: &str,
-    ) -> Result<GetProofTaskResponse, OrchestratorError>;
+    async fn get_proof_task(&self, node_id: &str) -> Result<Task, OrchestratorError>;
 
     /// Submits a proof to the orchestrator.
     async fn submit_proof(
@@ -169,17 +166,17 @@ impl Orchestrator for OrchestratorClient {
         }
     }
 
-    async fn get_proof_task(
-        &self,
-        node_id: &str,
-    ) -> Result<GetProofTaskResponse, OrchestratorError> {
+    async fn get_proof_task(&self, node_id: &str) -> Result<Task, OrchestratorError> {
         let request = GetProofTaskRequest {
             node_id: node_id.to_string(),
             node_type: NodeType::CliProver as i32,
         };
 
-        match self.make_request("/tasks", "POST", &request).await? {
-            Some(resp) => Ok(resp),
+        match self
+            .make_request::<GetProofTaskRequest, GetProofTaskResponse>("/tasks", "POST", &request)
+            .await?
+        {
+            Some(get_proof_task_response) => Ok(Task::from(&get_proof_task_response)),
             None => Err(OrchestratorError::ResponseError(
                 "No task found".to_string(),
             )),
