@@ -6,8 +6,7 @@ mod environment;
 mod keys;
 #[path = "proto/nexus.orchestrator.rs"]
 mod nexus_orchestrator;
-mod orchestrator_client;
-mod orchestrator_error;
+mod orchestrator;
 mod prover;
 pub mod system;
 mod task;
@@ -15,7 +14,7 @@ mod ui;
 
 use crate::config::{Config, get_config_path};
 use crate::environment::Environment;
-use crate::orchestrator_client::{Orchestrator, OrchestratorClient};
+use crate::orchestrator::{Orchestrator, OrchestratorClient};
 use clap::{Parser, Subcommand};
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},

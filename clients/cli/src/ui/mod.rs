@@ -3,7 +3,7 @@ mod login;
 mod splash;
 
 use crate::environment::Environment;
-use crate::orchestrator_client::{Orchestrator, OrchestratorClient};
+use crate::orchestrator::{Orchestrator, OrchestratorClient};
 use crate::prover::{authenticated_proving, prove_anonymously};
 use crate::ui::dashboard::{DashboardState, render_dashboard};
 use crate::ui::login::render_login;

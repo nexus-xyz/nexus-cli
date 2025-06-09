@@ -7,44 +7,14 @@ use crate::nexus_orchestrator::{
     GetProofTaskRequest, GetProofTaskResponse, GetTasksRequest, GetTasksResponse, NodeType,
     RegisterNodeRequest, RegisterNodeResponse, RegisterUserRequest, SubmitProofRequest,
 };
-use crate::orchestrator_error::OrchestratorError;
+use crate::orchestrator::Orchestrator;
+use crate::orchestrator::error::OrchestratorError;
 use crate::system::{get_memory_info, measure_gflops};
 use crate::task::Task;
 use ed25519_dalek::{Signer, SigningKey, VerifyingKey};
 use prost::Message;
 use reqwest::{Client, ClientBuilder};
 use std::time::Duration;
-
-#[async_trait::async_trait]
-#[allow(dead_code)]
-pub trait Orchestrator {
-    fn environment(&self) -> &Environment;
-
-    /// Registers a new user with the orchestrator.
-    async fn register_user(
-        &self,
-        user_id: &str,
-        wallet_address: &str,
-    ) -> Result<(), OrchestratorError>;
-
-    /// Registers a new node with the orchestrator.
-    async fn register_node(&self, user_id: &str) -> Result<String, OrchestratorError>;
-
-    /// Get the list of tasks currently assigned to the node.
-    async fn get_tasks(&self, node_id: &str) -> Result<Vec<Task>, OrchestratorError>;
-
-    /// Retrieves a proof task for the node.
-    async fn get_proof_task(&self, node_id: &str) -> Result<Task, OrchestratorError>;
-
-    /// Submits a proof to the orchestrator.
-    async fn submit_proof(
-        &self,
-        task_id: &str,
-        proof_hash: &str,
-        proof: Vec<u8>,
-        signing_key: SigningKey,
-    ) -> Result<(), OrchestratorError>;
-}
 
 #[derive(Debug, Clone)]
 pub struct OrchestratorClient {

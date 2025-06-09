@@ -1,7 +1,7 @@
 use nexus_sdk::{Local, Prover, Viewable, stwo::seq::Stwo};
 use std::time::Duration;
 
-use crate::orchestrator_client::{Orchestrator, OrchestratorClient};
+use crate::orchestrator::{Orchestrator, OrchestratorClient};
 use crate::{analytics, environment::Environment};
 use colored::Colorize;
 use ed25519_dalek::SigningKey;
