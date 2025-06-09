@@ -109,3 +109,11 @@ then see Linux instructions above.
 # Install using Chocolatey
 choco install protobuf
 ```
+
+### Building ProtoBuf files
+
+To build the ProtoBuf files, run the following command in the `clients/cli` directory:
+
+```bash
+cargo build --features build_proto
+```
