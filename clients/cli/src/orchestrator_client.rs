@@ -4,9 +4,12 @@
 
 use crate::environment::Environment;
 use crate::nexus_orchestrator::{
-    GetProofTaskRequest, GetProofTaskResponse, NodeType, SubmitProofRequest,
+    GetProofTaskRequest, GetProofTaskResponse, NodeType, RegisterNodeRequest, RegisterNodeResponse,
+    RegisterUserRequest, SubmitProofRequest,
 };
+use crate::orchestrator_error::OrchestratorError;
 use crate::system::{get_memory_info, measure_gflops};
+use crate::task::Task;
 use ed25519_dalek::{Signer, SigningKey, VerifyingKey};
 use prost::Message;
 use reqwest::{Client, ClientBuilder};
@@ -21,16 +24,19 @@ pub trait Orchestrator {
         &self,
         user_id: &str,
         wallet_address: &str,
-    ) -> Result<(), Box<dyn std::error::Error>>;
+    ) -> Result<(), OrchestratorError>;
 
     /// Registers a new node with the orchestrator.
-    async fn register_node(&self, user_id: &str) -> Result<String, Box<dyn std::error::Error>>;
+    async fn register_node(&self, user_id: &str) -> Result<String, OrchestratorError>;
+
+    /// Get the list of tasks currently assigned to the node.
+    async fn get_tasks() -> Result<Vec<Task>, OrchestratorError>;
 
     /// Retrieves a proof task for the node.
     async fn get_proof_task(
         &self,
         node_id: &str,
-    ) -> Result<GetProofTaskResponse, Box<dyn std::error::Error>>;
+    ) -> Result<GetProofTaskResponse, OrchestratorError>;
 
     /// Submits a proof to the orchestrator.
     async fn submit_proof(
@@ -39,7 +45,7 @@ pub trait Orchestrator {
         proof_hash: &str,
         proof: Vec<u8>,
         signing_key: SigningKey,
-    ) -> Result<(), Box<dyn std::error::Error>>;
+    ) -> Result<(), OrchestratorError>;
 }
 
 #[derive(Debug, Clone)]
@@ -70,52 +76,26 @@ impl OrchestratorClient {
         url: &str,
         method: &str,
         request_data: &T,
-    ) -> Result<Option<U>, Box<dyn std::error::Error>>
+    ) -> Result<Option<U>, OrchestratorError>
     where
         T: Message,
         U: Message + Default,
     {
         let request_bytes = request_data.encode_to_vec();
         let url = format!("{}/v3{}", self.environment.orchestrator_url(), url);
-
-        let friendly_connection_error =
-            "[CONNECTION] Unable to reach server. The service might be temporarily unavailable."
-                .to_string();
-        let friendly_messages = match method {
-            "POST" => match self
-                .client
-                .post(&url)
-                .header("Content-Type", "application/octet-stream")
-                .body(request_bytes)
-                .send()
-                .await
-            {
-                Ok(resp) => resp,
-                Err(_) => return Err(friendly_connection_error.into()),
-            },
-            "GET" => match self.client.get(&url).send().await {
-                Ok(resp) => resp,
-                Err(_) => return Err(friendly_connection_error.into()),
-            },
-            _ => return Err("[METHOD] Unsupported HTTP method".into()),
+        let response = match method {
+            "POST" => {
+                self.client
+                    .post(&url)
+                    .header("Content-Type", "application/octet-stream")
+                    .body(request_bytes)
+                    .send()
+                    .await?
+            }
+            "GET" => self.client.get(&url).send().await?,
+            _ => return Err(OrchestratorError::UnsupportedMethod(method.to_string())),
         };
-
-        if !friendly_messages.status().is_success() {
-            let status = friendly_messages.status();
-            let error_text = friendly_messages.text().await?;
-
-            // Clean up error text by removing HTML
-            let clean_error = if error_text.contains("<html>") {
-                format!("HTTP {}", status.as_u16())
-            } else {
-                error_text
-            };
-
-            let friendly_message = friendly_error_message(status, clean_error);
-            return Err(friendly_message.into());
-        }
-
-        let response_bytes = friendly_messages.bytes().await?;
+        let response_bytes = response.bytes().await?;
         if response_bytes.is_empty() {
             return Ok(None);
         }
@@ -138,54 +118,55 @@ impl Orchestrator for OrchestratorClient {
         &self,
         user_id: &str,
         wallet_address: &str,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let request = crate::nexus_orchestrator::RegisterUserRequest {
+    ) -> Result<(), OrchestratorError> {
+        let request = RegisterUserRequest {
             uuid: user_id.to_string(),
             wallet_address: wallet_address.to_string(),
         };
 
-        self.make_request::<crate::nexus_orchestrator::RegisterUserRequest, ()>(
-            "/users", "POST", &request,
-        )
-        .await?;
+        self.make_request::<RegisterUserRequest, ()>("/users", "POST", &request)
+            .await?;
 
         Ok(())
     }
 
     /// Registers a new node with the orchestrator.
-    async fn register_node(&self, user_id: &str) -> Result<String, Box<dyn std::error::Error>> {
-        let request = crate::nexus_orchestrator::RegisterNodeRequest {
+    async fn register_node(&self, user_id: &str) -> Result<String, OrchestratorError> {
+        let request = RegisterNodeRequest {
             node_type: NodeType::CliProver as i32,
             user_id: user_id.to_string(),
         };
 
-        let response = self
-            .make_request::<crate::nexus_orchestrator::RegisterNodeRequest, crate::nexus_orchestrator::RegisterNodeResponse>(
-                "/nodes",
-                "POST",
-                &request,
-            )
+        match self
+            .make_request::<RegisterNodeRequest, RegisterNodeResponse>("/nodes", "POST", &request)
             .await?
-            .ok_or("No response received from register_node")?;
+        {
+            Some(response) => Ok(response.node_id),
+            None => Err(OrchestratorError::ResponseError(
+                "No node ID received".to_string(),
+            )),
+        }
+    }
 
-        Ok(response.node_id)
+    async fn get_tasks() -> Result<Vec<Task>, OrchestratorError> {
+        todo!()
     }
 
     async fn get_proof_task(
         &self,
         node_id: &str,
-    ) -> Result<GetProofTaskResponse, Box<dyn std::error::Error>> {
+    ) -> Result<GetProofTaskResponse, OrchestratorError> {
         let request = GetProofTaskRequest {
             node_id: node_id.to_string(),
             node_type: NodeType::CliProver as i32,
         };
 
-        let response = self
-            .make_request("/tasks", "POST", &request)
-            .await?
-            .ok_or("No response received from get_proof_task")?;
-
-        Ok(response)
+        match self.make_request("/tasks", "POST", &request).await? {
+            Some(resp) => Ok(resp),
+            None => Err(OrchestratorError::ResponseError(
+                "No task found".to_string(),
+            )),
+        }
     }
 
     async fn submit_proof(
@@ -194,7 +175,7 @@ impl Orchestrator for OrchestratorClient {
         proof_hash: &str,
         proof: Vec<u8>,
         signing_key: SigningKey,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> Result<(), OrchestratorError> {
         let (program_memory, total_memory) = get_memory_info();
         let flops = measure_gflops();
 
@@ -229,6 +210,7 @@ impl Orchestrator for OrchestratorClient {
 }
 
 /// Converts an HTTP status code and error text into a user-friendly error message.
+#[allow(unused)]
 fn friendly_error_message(status: reqwest::StatusCode, error_text: String) -> String {
     match status.as_u16() {
         400 => "[400] Invalid request".to_string(),

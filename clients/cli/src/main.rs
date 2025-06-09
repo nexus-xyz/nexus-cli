@@ -7,8 +7,10 @@ mod keys;
 #[path = "proto/nexus.orchestrator.rs"]
 mod nexus_orchestrator;
 mod orchestrator_client;
+mod orchestrator_error;
 mod prover;
 pub mod system;
+mod task;
 mod ui;
 
 use crate::config::{Config, get_config_path};
@@ -112,7 +114,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 Ok(_) => println!("User {} registered successfully.", uuid),
                 Err(e) => {
                     eprintln!("Failed to register user: {}", e);
-                    return Err(e);
+                    return Err(e.into());
                 }
             }
 
@@ -169,7 +171,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     }
                     Err(e) => {
                         eprintln!("Failed to register node: {}", e);
-                        Err(e)
+                        Err(e.into())
                     }
                 }
             }
