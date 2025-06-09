@@ -7,6 +7,8 @@ syntax = "proto3";
 
 package nexus.orchestrator;
 
+import "google/protobuf/timestamp.proto";
+
 // Register a User.
 message RegisterUserRequest {
   // UUIDv4 identifier for the user.
@@ -37,6 +39,26 @@ message RegisterNodeRequest {
 message RegisterNodeResponse {
   // The node's ID.
   string node_id = 1;
+}
+
+// A Prover task
+message Task {
+  string task_id = 1;
+  string program_id = 2;
+  bytes public_inputs = 3;
+  google.protobuf.Timestamp created_at = 4;
+}
+
+// Get outstanding tasks for a node.
+message GetTasksRequest {
+  string node_id = 1;
+  string next_cursor = 2;
+}
+
+// Tasks assigned to a node.
+message GetTasksResponse {
+  repeated Task tasks = 1;
+  string next_cursor = 2;
 }
 
 // Request a prover task.

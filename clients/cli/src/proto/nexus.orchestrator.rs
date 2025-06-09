@@ -26,6 +26,34 @@ pub struct RegisterNodeResponse {
     #[prost(string, tag = "1")]
     pub node_id: ::prost::alloc::string::String,
 }
+/// A Prover task
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Task {
+    #[prost(string, tag = "1")]
+    pub task_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub program_id: ::prost::alloc::string::String,
+    #[prost(bytes = "vec", tag = "3")]
+    pub public_inputs: ::prost::alloc::vec::Vec<u8>,
+    #[prost(message, optional, tag = "4")]
+    pub created_at: ::core::option::Option<::prost_types::Timestamp>,
+}
+/// Get outstanding tasks for a node.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetTasksRequest {
+    #[prost(string, tag = "1")]
+    pub node_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub next_cursor: ::prost::alloc::string::String,
+}
+/// Tasks assigned to a node.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetTasksResponse {
+    #[prost(message, repeated, tag = "1")]
+    pub tasks: ::prost::alloc::vec::Vec<Task>,
+    #[prost(string, tag = "2")]
+    pub next_cursor: ::prost::alloc::string::String,
+}
 /// Request a prover task.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetProofTaskRequest {
