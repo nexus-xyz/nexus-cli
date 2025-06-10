@@ -7,17 +7,25 @@ use thiserror::Error;
 pub enum OrchestratorError {
     /// Failed to decode a Protobuf message from the server
     #[error("Decoding error: {0}")]
-    DecodeError(#[from] DecodeError),
+    Decode(#[from] DecodeError),
 
     /// Reqwest error, typically related to network issues or request failures.
     #[error("Reqwest error: {0}")]
-    ReqwestError(#[from] reqwest::Error),
-
-    /// An unsupported HTTP method was used in a request.
-    #[error("Unsupported HTTP method: {0}")]
-    UnsupportedMethod(String),
+    Reqwest(#[from] reqwest::Error),
 
     /// An error occurred while processing the request.
     #[error("HTTP error with status {status}: {message}")]
-    HTTPError { status: u16, message: String },
+    Http { status: u16, message: String },
+}
+
+impl OrchestratorError {
+    pub async fn from_response(response: reqwest::Response) -> OrchestratorError {
+        let status = response.status().as_u16();
+        let message = response
+            .text()
+            .await
+            .unwrap_or_else(|_| "Failed to read response text".to_string());
+
+        OrchestratorError::Http { status, message }
+    }
 }
