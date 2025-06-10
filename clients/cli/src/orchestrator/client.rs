@@ -260,7 +260,7 @@ mod live_orchestrator_tests {
     }
 
     #[tokio::test]
-    // #[ignore] // This test requires a live orchestrator instance.
+    #[ignore] // This test requires a live orchestrator instance.
     /// Should return the list of existing tasks for the node.
     async fn test_get_tasks() {
         let client = super::OrchestratorClient::new(Environment::Beta);
