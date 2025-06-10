@@ -133,18 +133,12 @@ impl Orchestrator for OrchestratorClient {
         };
         let request_bytes = request.encode_to_vec();
 
-        // let url = format!("{}/v3/tasks/", self.environment.orchestrator_url());
-        let url = format!(
-            "{}/v3/tasks/?nodeId={}",
-            self.environment.orchestrator_url(),
-            node_id
-        );
-        println!("Requesting tasks from URL: {}", url);
+        let url = format!("{}/v3/tasks", self.environment.orchestrator_url());
         let response = self
             .client
             .get(&url)
             .header("Content-Type", "application/octet-stream")
-            // .query(&[("nodeId", node_id.to_string())]) // still send nodeId as query param
+            .query(&[("nodeId", node_id.to_string())]) // Send nodeId as query param?
             .body(request_bytes)
             .send()
             .await?;
@@ -158,16 +152,8 @@ impl Orchestrator for OrchestratorClient {
                     .unwrap_or_else(|_| "Failed to read response text".to_string()),
             });
         }
-
         let response_bytes = response.bytes().await?;
-        if response_bytes.is_empty() {
-            return Err(OrchestratorError::ResponseError(
-                "No tasks found".to_string(),
-            ));
-        }
 
-        println!("Received response bytes: {:?}", response_bytes);
-        // Decode the response bytes into the GetTasksResponse message
         let get_tasks_response: GetTasksResponse = match GetTasksResponse::decode(response_bytes) {
             Ok(msg) => msg,
             Err(_e) => return Err(OrchestratorError::DecodeError(_e)),
@@ -246,6 +232,7 @@ mod tests {
     use tokio::test;
 
     #[test]
+    #[ignore] // Ignored because it queries a live orchestrator.
     // Should return a list of tasks for the node.
     async fn test_get_tasks() {
         let client = super::OrchestratorClient::new(Environment::Beta);
