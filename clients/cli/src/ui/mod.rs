@@ -5,11 +5,12 @@ mod splash;
 use crate::environment::Environment;
 use crate::orchestrator::{Orchestrator, OrchestratorClient};
 use crate::prover::{authenticated_proving, prove_anonymously};
+use crate::task::Task;
 use crate::ui::dashboard::{DashboardState, render_dashboard};
 use crate::ui::login::render_login;
 use crate::ui::splash::render_splash;
 use chrono::Local;
-use crossbeam::channel::unbounded;
+use crossbeam::channel::{bounded, unbounded};
 use crossterm::event::{self, Event, KeyCode};
 use ed25519_dalek::SigningKey;
 use ratatui::{Frame, Terminal, backend::Backend};
@@ -87,6 +88,21 @@ impl App {
 pub fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Result<()> {
     let splash_start = Instant::now();
     let splash_duration = Duration::from_secs(2);
+
+    // Spawn a thread for fetching tasks from the orchestrator.
+    let task_queue_size = 10;
+    let (task_sender, task_receiver) = bounded::<Task>(task_queue_size);
+    let _task_master_handle = {
+        let orchestrator_client = app.orchestrator_client.clone();
+        let sender_clone = task_sender.clone();
+        thread::spawn(move || {
+            task_master(
+                app.node_id.expect("Node ID must be set"),
+                sender_clone,
+                orchestrator_client,
+            )
+        })
+    };
 
     // Spawn worker threads for background tasks
     let num_workers = 1; // TODO: Keep this low for now to avoid hitting rate limits.
@@ -190,6 +206,35 @@ fn render(f: &mut Frame, app: &App) {
             let state =
                 DashboardState::new(app.node_id, app.environment, app.start_time, &app.events);
             render_dashboard(f, &state)
+        }
+    }
+}
+
+/// Fetches tasks from the orchestrator and place them in the task queue.
+async fn task_master(
+    node_id: u64,
+    sender: crossbeam::channel::Sender<Task>,
+    orchestrator_client: OrchestratorClient,
+) {
+    loop {
+        // If the task queue is empty, fetch new tasks
+        if sender.is_empty() {
+            match orchestrator_client
+                .get_proof_task(&node_id.to_string())
+                .await
+            {
+                Ok(task) => {
+                    if sender.send(task).is_err() {
+                        // If the channel is closed, exit the loop
+                        return;
+                    }
+                }
+                Err(_e) => {
+                    // TODO: log the error
+                    // Wait before retrying to avoid spamming the orchestrator
+                    tokio::time::sleep(Duration::from_secs(2)).await;
+                }
+            }
         }
     }
 }
