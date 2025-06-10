@@ -7,9 +7,9 @@ pub enum Environment {
     /// Local development environment.
     Local,
     /// Staging environment for pre-production testing.
-    #[default]
     Staging,
     /// Beta environment for limited user exposure.
+    #[default]
     Beta,
 }
 
