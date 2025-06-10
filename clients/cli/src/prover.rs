@@ -6,9 +6,6 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum ProverError {
-    #[error("Orchestrator error: {0}")]
-    Orchestrator(String),
-
     #[error("Stwo prover error: {0}")]
     Stwo(String),
 
@@ -17,6 +14,7 @@ pub enum ProverError {
 }
 
 /// Proves a program locally with hardcoded inputs.
+#[allow(unused)]
 pub fn prove_anonymously() -> Result<(), ProverError> {
     let stwo_prover = get_default_stwo_prover()?;
     // The 10th term of the Fibonacci sequence is 55

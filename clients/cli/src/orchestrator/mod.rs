@@ -8,7 +8,7 @@ pub use client::OrchestratorClient;
 pub mod error;
 
 #[cfg(test)]
-use mockall::{automock, mock, predicate::*};
+use mockall::{automock, predicate::*};
 
 #[allow(dead_code)]
 #[cfg_attr(test, automock)]
