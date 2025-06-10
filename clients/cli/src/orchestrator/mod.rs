@@ -1,7 +1,7 @@
 use crate::environment::Environment;
 use crate::orchestrator::error::OrchestratorError;
 use crate::task::Task;
-use ed25519_dalek::SigningKey;
+use ed25519_dalek::{SigningKey, VerifyingKey};
 
 mod client;
 pub use client::OrchestratorClient;
@@ -25,8 +25,12 @@ pub trait Orchestrator {
     /// Get the list of tasks currently assigned to the node.
     async fn get_tasks(&self, node_id: &str) -> Result<Vec<Task>, OrchestratorError>;
 
-    /// Retrieves a proof task for the node.
-    async fn get_proof_task(&self, node_id: &str) -> Result<Task, OrchestratorError>;
+    /// Request a new proof task for the node.
+    async fn get_proof_task(
+        &self,
+        node_id: &str,
+        verifying_key: VerifyingKey,
+    ) -> Result<Task, OrchestratorError>;
 
     /// Submits a proof to the orchestrator.
     async fn submit_proof(

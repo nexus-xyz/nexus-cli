@@ -68,6 +68,9 @@ message GetProofTaskRequest {
 
   // The type of this node.
   NodeType node_type = 2;
+
+  // The client's Ed25519 public key for proof authentication.Add commentMore actions
+  bytes ed25519PublicKey = 3;
 }
 
 // A Prover task.

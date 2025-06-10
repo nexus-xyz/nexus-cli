@@ -5,10 +5,6 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum OrchestratorError {
-    /// Failed to read or interpret the server's response.
-    #[error("Invalid response from server: {0}")]
-    ResponseError(String),
-
     /// Failed to decode a Protobuf message from the server
     #[error("Decoding error: {0}")]
     DecodeError(#[from] DecodeError),

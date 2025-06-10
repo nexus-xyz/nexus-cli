@@ -63,6 +63,9 @@ pub struct GetProofTaskRequest {
     /// The type of this node.
     #[prost(enumeration = "NodeType", tag = "2")]
     pub node_type: i32,
+    /// The client's Ed25519 public key for proof authentication.Add commentMore actions
+    #[prost(bytes = "vec", tag = "3")]
+    pub ed25519_public_key: ::prost::alloc::vec::Vec<u8>,
 }
 /// A Prover task.
 #[derive(Clone, PartialEq, ::prost::Message)]

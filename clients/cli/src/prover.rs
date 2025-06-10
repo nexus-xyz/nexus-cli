@@ -32,8 +32,9 @@ pub async fn authenticated_proving(
     stwo_prover: Stwo<Local>,
     signing_key: SigningKey,
 ) -> Result<(), ProverError> {
+    let verifying_key = signing_key.verifying_key();
     let task = orchestrator_client
-        .get_proof_task(&node_id.to_string())
+        .get_proof_task(&node_id.to_string(), verifying_key)
         .await
         .map_err(|e| ProverError::Orchestrator(format!("Failed to fetch proof task: {}", e)))?;
 
