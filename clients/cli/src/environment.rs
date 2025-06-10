@@ -6,12 +6,10 @@ use std::str::FromStr;
 pub enum Environment {
     /// Local development environment.
     Local,
-    /// Development environment (shared).
-    Dev,
     /// Staging environment for pre-production testing.
+    #[default]
     Staging,
     /// Beta environment for limited user exposure.
-    #[default]
     Beta,
 }
 
@@ -20,7 +18,6 @@ impl Environment {
     pub fn orchestrator_url(&self) -> String {
         match self {
             Environment::Local => "http://localhost:50505".to_string(),
-            Environment::Dev => "https://dev.orchestrator.nexus.xyz".to_string(),
             Environment::Staging => "https://staging.orchestrator.nexus.xyz".to_string(),
             Environment::Beta => "https://beta.orchestrator.nexus.xyz".to_string(),
         }
@@ -33,7 +30,6 @@ impl FromStr for Environment {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "local" => Ok(Environment::Local),
-            "dev" => Ok(Environment::Dev),
             "staging" => Ok(Environment::Staging),
             "beta" => Ok(Environment::Beta),
             _ => Err(()),
@@ -45,7 +41,6 @@ impl Display for Environment {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Environment::Local => write!(f, "Local"),
-            Environment::Dev => write!(f, "Development"),
             Environment::Staging => write!(f, "Staging"),
             Environment::Beta => write!(f, "Beta"),
         }
