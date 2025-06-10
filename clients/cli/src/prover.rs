@@ -1,5 +1,5 @@
 use crate::task::Task;
-use log::{error, info, warn};
+use log::error;
 use nexus_sdk::stwo::seq::Proof;
 use nexus_sdk::{Local, Prover, Viewable, stwo::seq::Stwo};
 use thiserror::Error;
@@ -27,7 +27,6 @@ pub fn prove_anonymously() -> Result<(), ProverError> {
 
 /// Proves a program with a given node ID
 pub async fn authenticated_proving(
-    node_id: u64,
     task: Task,
     stwo_prover: Stwo<Local>,
 ) -> Result<Proof, ProverError> {
@@ -44,16 +43,6 @@ pub async fn authenticated_proving(
     assert_eq!(exit_code, 0, "Unexpected exit code!");
 
     Ok(proof)
-
-    // let proof_bytes = prove_helper(stwo_prover, public_input)?;
-    // let proof_hash = format!("{:x}", Keccak256::digest(&proof_bytes));
-    // orchestrator_client
-    //     .submit_proof(&task.task_id, &proof_hash, proof_bytes, signing_key)
-    //     .await
-    //     .map_err(|e| ProverError::Orchestrator(format!("Failed to submit proof: {}", e)))?;
-    //
-    // info!("{}", "ZK proof successfully submitted".green());
-    // Ok(())
 }
 
 /// Create a Stwo prover for the default program.

@@ -10,7 +10,6 @@ use crate::ui::dashboard::{DashboardState, render_dashboard};
 use crate::ui::login::render_login;
 use crate::ui::splash::render_splash;
 use chrono::Local;
-use crossbeam::channel::{bounded, unbounded};
 use crossterm::event::{self, Event, KeyCode};
 use ed25519_dalek::SigningKey;
 use ratatui::{Frame, Terminal, backend::Backend};
@@ -19,8 +18,11 @@ use std::thread;
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 use tokio::runtime::Runtime;
+use tokio::sync::mpsc::{Receiver, Sender, channel};
+use tokio::time::sleep;
 
 /// The different screens in the application.
+#[derive(Debug, Clone)]
 pub enum Screen {
     /// Splash screen shown at the start of the application.
     Splash,
@@ -35,6 +37,7 @@ pub enum Screen {
 const MAX_EVENTS: usize = 100;
 
 /// Application state
+#[derive(Debug, Clone)]
 pub struct App {
     /// The start time of the application, used for computing uptime.
     pub start_time: Instant,
@@ -89,122 +92,154 @@ pub fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
     let splash_start = Instant::now();
     let splash_duration = Duration::from_secs(2);
 
-    // Spawn a thread for fetching tasks from the orchestrator.
+    // Create a task master that fetches tasks from the orchestrator
     let task_queue_size = 10;
-    let (task_sender, task_receiver) = bounded::<Task>(task_queue_size);
-    let _task_master_handle = {
-        let orchestrator_client = app.orchestrator_client.clone();
-        let sender_clone = task_sender.clone();
-        thread::spawn(move || {
-            task_master(
-                app.node_id.expect("Node ID must be set"),
-                sender_clone,
-                orchestrator_client,
-            )
-        })
-    };
+    let (task_sender, mut task_receiver) = channel::<Task>(task_queue_size);
+    let task_master_handle = tokio::spawn(async move {
+        let orchestrator_client = Box::new(app.orchestrator_client.clone());
+        let node_id = app.node_id.expect("Node ID must be set");
+        task_master(node_id, orchestrator_client, task_sender).await;
+    });
 
-    // Spawn worker threads for background tasks
+    // Create workers
     let num_workers = 1; // TODO: Keep this low for now to avoid hitting rate limits.
-    let mut workers: Vec<JoinHandle<()>> = Vec::with_capacity(num_workers);
-    let (sender, receiver) = unbounded::<ProverEvent>();
+
+    // Channel for sending events from workers to the main thread
+    let (prover_event_sender, mut prover_event_receiver) = channel::<ProverEvent>(100);
+
+    // One channel per worker for sending tasks.
+    let mut worker_senders: Vec<Sender<Task>> = Vec::with_capacity(num_workers);
+
     for worker_id in 0..num_workers {
-        let handle = match app.node_id {
-            Some(node_id) => spawn_prover(
-                worker_id,
-                node_id,
-                app.signing_key.clone(),
-                task_receiver.clone(),
-                sender.clone(),
-            ),
-            None => spawn_anonymous_prover(worker_id, sender.clone()),
-        };
-
-        workers.push(handle);
-    }
-    drop(sender); // Drop original sender to allow receiver to detect end-of-stream.
-    let mut active_workers = num_workers;
-
-    loop {
-        terminal.draw(|f| render(f, &app))?;
-
-        // Handle splash-to-login transition
-        if let Screen::Splash = app.current_screen {
-            if splash_start.elapsed() >= splash_duration {
-                app.current_screen = Screen::Dashboard(DashboardState::new(
-                    app.node_id,
-                    app.environment,
-                    app.start_time,
-                    &app.events,
-                ));
-                continue;
-            }
-        }
-
-        // Poll for key events
-        if event::poll(Duration::from_millis(100))? {
-            if let Event::Key(key) = event::read()? {
-                // Skip events that are not KeyEventKind::Press
-                if key.kind == event::KeyEventKind::Release {
-                    continue;
-                }
-
-                // Handle exit events
-                if matches!(key.code, KeyCode::Esc | KeyCode::Char('q')) {
-                    return Ok(());
-                }
-
-                match &mut app.current_screen {
-                    Screen::Splash => {
-                        // Any key press will skip the splash screen
-                        if key.code != KeyCode::Esc && key.code != KeyCode::Char('q') {
-                            app.current_screen = Screen::Dashboard(DashboardState::new(
-                                app.node_id,
-                                app.environment,
-                                app.start_time,
-                                &app.events,
-                            ));
-                        }
+        let prover_event_sender = prover_event_sender.clone();
+        let (worker_sender, mut worker_receiver) = channel::<Task>(8);
+        worker_senders.push(worker_sender);
+        tokio::spawn(async move {
+            while let Some(task) = worker_receiver.recv().await {
+                // println!("Worker {} processing {:?}", worker_id, task);
+                let stwo_prover =
+                    crate::prover::get_default_stwo_prover().expect("Failed to create Stwo prover");
+                match authenticated_proving(task, stwo_prover).await {
+                    Ok(_) => {
+                        let now = Local::now();
+                        let timestamp = now.format("%Y-%m-%d %H:%M:%S").to_string();
+                        let message = format!(
+                            "✅ [{}] Proof completed successfully [Prover {}]",
+                            timestamp, worker_id
+                        );
+                        let _ = prover_event_sender
+                            .send(ProverEvent::Message {
+                                worker_id,
+                                data: message,
+                            })
+                            .await;
                     }
-                    Screen::Login => {
-                        if key.code == KeyCode::Enter {
-                            app.login();
-                        }
+                    Err(e) => {
+                        let message = format!("Worker {}: Error - {}", worker_id, e);
+                        let _ = prover_event_sender
+                            .send(ProverEvent::Message {
+                                worker_id,
+                                data: message,
+                            })
+                            .await;
                     }
-                    Screen::Dashboard(_dashboard_state) => {}
                 }
             }
-        }
-
-        if active_workers > 0 {
-            while let Ok(event) = receiver.try_recv() {
-                // If Done, decrement active_workers
-                if let ProverEvent::Done {
-                    worker_id: _worker_id,
-                } = &event
-                {
-                    active_workers -= 1;
-                };
-
-                // Add to bounded event buffer
-                if app.events.len() >= MAX_EVENTS {
-                    app.events.pop_front(); // Evict oldest
-                }
-                app.events.push_back(event);
-            }
-        }
+        });
     }
+
+    // Dispatch tasks to workers. This emulates a SPMC (Single Producer, Multiple Consumer) pattern.
+    tokio::spawn(async move {
+        let mut next_worker = 0;
+        while let Some(task) = task_receiver.recv().await {
+            let target = next_worker % worker_senders.len();
+            if let Err(_) = worker_senders[target].send(task).await {
+                eprintln!("Worker {} has closed channel", target);
+            }
+            next_worker += 1;
+        }
+        // println!("Dispatcher exiting");
+    });
+
+    Ok(())
+    // Wait for threads to finish
+
+    // drop(sender); // Drop original sender to allow receiver to detect end-of-stream.
+    // let mut active_workers = num_workers;
+
+    // loop {
+    //     match app.current_screen {
+    //         Screen::Splash => {}
+    //         Screen::Login => {}
+    //         Screen::Dashboard(_) => {
+    //             let state =
+    //                 DashboardState::new(app.node_id, app.environment, app.start_time, &app.events);
+    //             app.current_screen = Screen::Dashboard(state);
+    //         }
+    //     }
+    //     terminal.draw(|f| render(f, &app.current_screen))?;
+    //
+    //     // Handle splash-to-login transition
+    //     if let Screen::Splash = app.current_screen {
+    //         if splash_start.elapsed() >= splash_duration {
+    //             app.current_screen = Screen::Dashboard(DashboardState::new(
+    //                 app.node_id,
+    //                 app.environment,
+    //                 app.start_time,
+    //                 &app.events,
+    //             ));
+    //             continue;
+    //         }
+    //     }
+    //
+    //     // Poll for key events
+    //     if event::poll(Duration::from_millis(100))? {
+    //         if let Event::Key(key) = event::read()? {
+    //             // Skip events that are not KeyEventKind::Press
+    //             if key.kind == event::KeyEventKind::Release {
+    //                 continue;
+    //             }
+    //
+    //             // Handle exit events
+    //             if matches!(key.code, KeyCode::Esc | KeyCode::Char('q')) {
+    //                 // TODO: Close worker threads
+    //                 return Ok(());
+    //             }
+    //
+    //             match &mut app.current_screen {
+    //                 Screen::Splash => {
+    //                     // Any key press will skip the splash screen
+    //                     if key.code != KeyCode::Esc && key.code != KeyCode::Char('q') {
+    //                         app.current_screen = Screen::Dashboard(DashboardState::new(
+    //                             app.node_id,
+    //                             app.environment,
+    //                             app.start_time,
+    //                             &app.events,
+    //                         ));
+    //                     }
+    //                 }
+    //                 Screen::Login => {
+    //                     todo!()
+    //                     // if key.code == KeyCode::Enter {
+    //                     //     app.login();
+    //                     // }
+    //                 }
+    //                 Screen::Dashboard(_dashboard_state) => {}
+    //             }
+    //         }
+    //     }
+    // }
 }
 
 /// Renders the current screen based on the application state.
-fn render(f: &mut Frame, app: &App) {
-    match &app.current_screen {
+fn render(f: &mut Frame, screen: &Screen) {
+    match screen {
         Screen::Splash => render_splash(f),
         Screen::Login => render_login(f),
-        Screen::Dashboard(_state) => {
+        Screen::Dashboard(state) => {
             // Update the dashboard state with the latest events
-            let state =
-                DashboardState::new(app.node_id, app.environment, app.start_time, &app.events);
+            // let state =
+            //     DashboardState::new(app.node_id, app.environment, app.start_time, &app.events);
             render_dashboard(f, &state)
         }
     }
@@ -213,29 +248,28 @@ fn render(f: &mut Frame, app: &App) {
 /// Fetches tasks from the orchestrator and place them in the task queue.
 async fn task_master(
     node_id: u64,
-    sender: crossbeam::channel::Sender<Task>,
-    orchestrator_client: OrchestratorClient,
+    orchestrator_client: Box<dyn Orchestrator>,
+    sender: Sender<Task>,
 ) {
+    println!("Task master started for node ID: {}", node_id);
+
     loop {
-        // If the task queue is empty, fetch new tasks
-        if sender.is_empty() {
-            match orchestrator_client
-                .get_proof_task(&node_id.to_string())
-                .await
-            {
-                Ok(task) => {
-                    if sender.send(task).is_err() {
-                        // If the channel is closed, exit the loop
-                        return;
-                    }
-                }
-                Err(_e) => {
-                    // TODO: log the error
-                    // Wait before retrying to avoid spamming the orchestrator
-                    tokio::time::sleep(Duration::from_secs(2)).await;
+        match orchestrator_client
+            .get_proof_task(&node_id.to_string())
+            .await
+        {
+            Ok(task) => {
+                if sender.send(task).await.is_err() {
+                    println!("sender.send() failed, task queue is closed");
+                    return;
                 }
             }
+            Err(e) => {
+                println!("Failed to fetch task: {}", e);
+            }
         }
+
+        tokio::time::sleep(Duration::from_secs(1)).await;
     }
 }
 
@@ -253,10 +287,7 @@ pub enum ProverEvent {
 }
 
 /// Spawns a new thread for the anonymous prover.
-fn spawn_anonymous_prover(
-    worker_id: usize,
-    sender: crossbeam::channel::Sender<ProverEvent>,
-) -> JoinHandle<()> {
+fn spawn_anonymous_prover(worker_id: usize, sender: Sender<ProverEvent>) -> JoinHandle<()> {
     thread::spawn(move || {
         // Create a new runtime for each thread
         let rt = Runtime::new().expect("Failed to create Tokio runtime");
@@ -270,21 +301,21 @@ fn spawn_anonymous_prover(
                             "✅ [{}] Proof completed successfully [Anonymous Prover {}]",
                             timestamp, worker_id
                         );
-                        sender
+                        let _ = sender
                             .send(ProverEvent::Message {
                                 worker_id,
                                 data: message,
                             })
-                            .unwrap();
+                            .await;
                     }
                     Err(e) => {
                         let message = format!("Anonymous Prover {}: Error - {}", worker_id, e);
-                        sender
+                        let _ = sender
                             .send(ProverEvent::Message {
                                 worker_id,
                                 data: message,
                             })
-                            .unwrap();
+                            .await;
                     }
                 }
             });
@@ -295,26 +326,16 @@ fn spawn_anonymous_prover(
 /// Spawns a new thread for the prover.
 fn spawn_prover(
     worker_id: usize,
-    node_id: u64,
-    signing_key: SigningKey,
-    task_receiver: crossbeam::channel::Receiver<Task>,
-    sender: crossbeam::channel::Sender<ProverEvent>,
+    mut task_receiver: Receiver<Task>,
+    sender: Sender<ProverEvent>,
 ) -> JoinHandle<()> {
     thread::spawn(move || {
-        // Create a new runtime for each thread
         let rt = Runtime::new().expect("Failed to create Tokio runtime");
-        loop {
-            rt.block_on(async {
+        rt.block_on(async {
+            while let Some(task) = task_receiver.recv().await {
                 let stwo_prover =
                     crate::prover::get_default_stwo_prover().expect("Failed to create Stwo prover");
-                match authenticated_proving(
-                    node_id,
-                    task_receiver.clone(),
-                    stwo_prover,
-                    signing_key.clone(),
-                )
-                .await
-                {
+                match authenticated_proving(task, stwo_prover).await {
                     Ok(_) => {
                         let now = Local::now();
                         let timestamp = now.format("%Y-%m-%d %H:%M:%S").to_string();
@@ -322,24 +343,91 @@ fn spawn_prover(
                             "✅ [{}] Proof completed successfully [Prover {}]",
                             timestamp, worker_id
                         );
-                        sender
+                        let _ = sender
                             .send(ProverEvent::Message {
                                 worker_id,
                                 data: message,
                             })
-                            .unwrap();
+                            .await;
                     }
                     Err(e) => {
                         let message = format!("Worker {}: Error - {}", worker_id, e);
-                        sender
+                        let _ = sender
                             .send(ProverEvent::Message {
                                 worker_id,
                                 data: message,
                             })
-                            .unwrap();
+                            .await;
                     }
                 }
-            });
-        }
+            }
+        });
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::orchestrator::MockOrchestrator;
+    use crate::task::Task;
+    use crate::ui::task_master;
+    use std::time::Duration;
+    use tokio::sync::mpsc;
+
+    /// Creates a mock orchestrator client that simulates fetching tasks.
+    fn get_mock_orchestrator_client(num_task_requests: usize) -> MockOrchestrator {
+        let tasks = (0..num_task_requests)
+            .map(|i| Task::new(i.to_string(), format!("Task {}", i), vec![1, 2, 3]))
+            .collect::<Vec<_>>();
+
+        let mut call_index = 0;
+
+        let mut mock = MockOrchestrator::new();
+        mock.expect_get_proof_task()
+            .times(num_task_requests)
+            .returning_st(move |_| {
+                println!("Mock get_proof_task called with index {}", call_index);
+                // Simulate a task with dummy data
+                // let task = Task::new("1".to_string(), "Test Task".to_string(), vec![1, 2, 3]);
+                let task = tasks[call_index].clone();
+                call_index += 1;
+                Ok(task)
+            });
+        mock
+    }
+
+    #[tokio::test]
+    // The task master should fetch and enqueue tasks from the orchestrator.
+    async fn test_task_master() {
+        let orchestrator_client = Box::new(get_mock_orchestrator_client(10));
+        let node_id = 1003;
+
+        let task_queue_size = 10;
+        let (task_sender, mut task_receiver) = mpsc::channel::<Task>(task_queue_size);
+
+        // Run task_master in a tokio task to stay in the same thread context
+        let task_handle = tokio::spawn(async move {
+            task_master(node_id, orchestrator_client, task_sender).await;
+        });
+
+        // Receive tasks
+        let mut received = 0;
+        for i in 0..task_queue_size {
+            match tokio::time::timeout(Duration::from_secs(2), task_receiver.recv()).await {
+                Ok(Some(task)) => {
+                    println!("Received task {}: {:?}", received, task);
+                    received += 1;
+                }
+                Ok(None) => {
+                    eprintln!("Channel closed unexpectedly");
+                    break;
+                }
+                Err(_) => {
+                    eprintln!("Timed out waiting for task {}", received);
+                    break;
+                }
+            }
+        }
+
+        task_handle.await.unwrap();
+    }
 }

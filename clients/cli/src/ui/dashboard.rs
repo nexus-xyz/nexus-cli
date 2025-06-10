@@ -11,6 +11,7 @@ use std::collections::VecDeque;
 use std::time::Instant;
 
 /// State for the dashboard screen, containing node information and menu items.
+#[derive(Debug, Clone)]
 pub struct DashboardState {
     /// Unique identifier for the node.
     pub node_id: Option<u64>,

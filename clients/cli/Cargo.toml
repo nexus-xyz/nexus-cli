@@ -55,6 +55,8 @@ prost-types = "0.13.5"
 
 [dev-dependencies]
 assert_cmd = "2"
+async-trait = "0.1.88"
+mockall = "0.12"
 predicates = "3"
 tempfile = "3.20.0"
 
