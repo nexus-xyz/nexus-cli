@@ -113,8 +113,8 @@ pub fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
             Some(node_id) => spawn_prover(
                 worker_id,
                 node_id,
-                app.orchestrator_client.clone(),
                 app.signing_key.clone(),
+                task_receiver.clone(),
                 sender.clone(),
             ),
             None => spawn_anonymous_prover(worker_id, sender.clone()),
@@ -296,8 +296,8 @@ fn spawn_anonymous_prover(
 fn spawn_prover(
     worker_id: usize,
     node_id: u64,
-    orchestrator_client: OrchestratorClient,
     signing_key: SigningKey,
+    task_receiver: crossbeam::channel::Receiver<Task>,
     sender: crossbeam::channel::Sender<ProverEvent>,
 ) -> JoinHandle<()> {
     thread::spawn(move || {
@@ -309,7 +309,7 @@ fn spawn_prover(
                     crate::prover::get_default_stwo_prover().expect("Failed to create Stwo prover");
                 match authenticated_proving(
                     node_id,
-                    &orchestrator_client,
+                    task_receiver.clone(),
                     stwo_prover,
                     signing_key.clone(),
                 )

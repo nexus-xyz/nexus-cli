@@ -1,7 +1,7 @@
-use crate::orchestrator::{Orchestrator, OrchestratorClient};
-use ed25519_dalek::SigningKey;
+use crate::task::Task;
+use log::{error, info, warn};
+use nexus_sdk::stwo::seq::Proof;
 use nexus_sdk::{Local, Prover, Viewable, stwo::seq::Stwo};
-use sha3::{Digest, Keccak256};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -28,24 +28,32 @@ pub fn prove_anonymously() -> Result<(), ProverError> {
 /// Proves a program with a given node ID
 pub async fn authenticated_proving(
     node_id: u64,
-    orchestrator_client: &OrchestratorClient,
+    task: Task,
     stwo_prover: Stwo<Local>,
-    signing_key: SigningKey,
-) -> Result<(), ProverError> {
-    let verifying_key = signing_key.verifying_key();
-    let task = orchestrator_client
-        .get_proof_task(&node_id.to_string(), verifying_key)
-        .await
-        .map_err(|e| ProverError::Orchestrator(format!("Failed to fetch proof task: {}", e)))?;
-
+) -> Result<Proof, ProverError> {
     let public_input: u32 = task.public_inputs.first().cloned().unwrap_or_default() as u32;
-    let proof_bytes = prove_helper(stwo_prover, public_input)?;
-    let proof_hash = format!("{:x}", Keccak256::digest(&proof_bytes));
-    orchestrator_client
-        .submit_proof(&task.task_id, &proof_hash, proof_bytes, signing_key)
-        .await
-        .map_err(|e| ProverError::Orchestrator(format!("Failed to submit proof: {}", e)))?;
-    Ok(())
+
+    let (view, proof) = stwo_prover
+        .prove_with_input::<(), u32>(&(), &public_input)
+        .map_err(|e| ProverError::Stwo(format!("Failed to run prover: {}", e)))?;
+
+    let exit_code = view
+        .exit_code()
+        .map_err(|e| ProverError::Stwo(format!("Failed to retrieve exit code: {}", e)))?;
+    // TODO: Return an error if the exit code is not 0.
+    assert_eq!(exit_code, 0, "Unexpected exit code!");
+
+    Ok(proof)
+
+    // let proof_bytes = prove_helper(stwo_prover, public_input)?;
+    // let proof_hash = format!("{:x}", Keccak256::digest(&proof_bytes));
+    // orchestrator_client
+    //     .submit_proof(&task.task_id, &proof_hash, proof_bytes, signing_key)
+    //     .await
+    //     .map_err(|e| ProverError::Orchestrator(format!("Failed to submit proof: {}", e)))?;
+    //
+    // info!("{}", "ZK proof successfully submitted".green());
+    // Ok(())
 }
 
 /// Create a Stwo prover for the default program.
