@@ -11,7 +11,7 @@ use crate::ui::login::render_login;
 use crate::ui::splash::render_splash;
 use chrono::Local;
 use crossterm::event::{self, Event, KeyCode};
-use ed25519_dalek::SigningKey;
+use ed25519_dalek::{SigningKey, VerifyingKey};
 use ratatui::{Frame, Terminal, backend::Backend};
 use std::collections::VecDeque;
 use std::thread;
@@ -88,21 +88,22 @@ impl App {
 }
 
 /// Runs the application UI in a loop, handling events and rendering the appropriate screen.
-pub fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Result<()> {
+pub async fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Result<()> {
     let splash_start = Instant::now();
     let splash_duration = Duration::from_secs(2);
 
     // Create a task master that fetches tasks from the orchestrator
     let task_queue_size = 10;
     let (task_sender, mut task_receiver) = channel::<Task>(task_queue_size);
+    let verifying_key = app.signing_key.verifying_key();
     let task_master_handle = tokio::spawn(async move {
         let orchestrator_client = Box::new(app.orchestrator_client.clone());
         let node_id = app.node_id.expect("Node ID must be set");
-        task_master(node_id, orchestrator_client, task_sender).await;
+        task_master(node_id, verifying_key, orchestrator_client, task_sender).await;
     });
 
     // Create workers
-    let num_workers = 1; // TODO: Keep this low for now to avoid hitting rate limits.
+    let num_workers = 3; // TODO: Keep this low for now to avoid hitting rate limits.
 
     // Channel for sending events from workers to the main thread
     let (prover_event_sender, mut prover_event_receiver) = channel::<ProverEvent>(100);
@@ -164,6 +165,14 @@ pub fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
     // let mut active_workers = num_workers;
 
     loop {
+        // Drain prover events from the async channel into app.events
+        while let Ok(event) = prover_event_receiver.try_recv() {
+            if app.events.len() >= MAX_EVENTS {
+                app.events.pop_front();
+            }
+            app.events.push_back(event);
+        }
+
         match app.current_screen {
             Screen::Splash => {}
             Screen::Login => {}
@@ -244,13 +253,14 @@ fn render(f: &mut Frame, screen: &Screen) {
 /// Fetches tasks from the orchestrator and place them in the task queue.
 async fn task_master(
     node_id: u64,
+    verifying_key: VerifyingKey,
     orchestrator_client: Box<dyn Orchestrator>,
     sender: Sender<Task>,
 ) {
     println!("Task master started for node ID: {}", node_id);
     loop {
         match orchestrator_client
-            .get_proof_task(&node_id.to_string())
+            .get_proof_task(&node_id.to_string(), verifying_key)
             .await
         {
             Ok(task) => {
@@ -264,7 +274,7 @@ async fn task_master(
             }
         }
         // Be polite to the orchestrator and wait a bit before fetching the next task.
-        // tokio::time::sleep(Duration::from_secs(1)).await;
+        tokio::time::sleep(Duration::from_millis(200)).await;
     }
 }
 
@@ -372,7 +382,7 @@ mod tests {
     fn get_mock_orchestrator_client() -> MockOrchestrator {
         let mut i = 0;
         let mut mock = MockOrchestrator::new();
-        mock.expect_get_proof_task().returning_st(move |_| {
+        mock.expect_get_proof_task().returning_st(move |_, _| {
             // Simulate a task with dummy data
             let task = Task::new(i.to_string(), format!("Task {}", i), vec![1, 2, 3]);
             i += 1;
@@ -385,14 +395,16 @@ mod tests {
     // The task master should fetch and enqueue tasks from the orchestrator.
     async fn test_task_master() {
         let orchestrator_client = Box::new(get_mock_orchestrator_client());
-        let node_id = 1003;
+        let signer_key = ed25519_dalek::SigningKey::generate(&mut rand::rngs::OsRng);
+        let verifying_key = signer_key.verifying_key();
+        let node_id = 1234;
 
         let task_queue_size = 10;
         let (task_sender, mut task_receiver) = mpsc::channel::<Task>(task_queue_size);
 
         // Run task_master in a tokio task to stay in the same thread context
         let task_master_handle = tokio::spawn(async move {
-            task_master(node_id, orchestrator_client, task_sender).await;
+            task_master(node_id, verifying_key, orchestrator_client, task_sender).await;
         });
 
         // Receive tasks
