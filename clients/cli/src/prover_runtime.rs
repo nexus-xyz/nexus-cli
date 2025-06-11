@@ -16,7 +16,7 @@ use ed25519_dalek::{SigningKey, VerifyingKey};
 use nexus_sdk::stwo::seq::Proof;
 use sha3::{Digest, Keccak256};
 use std::time::Duration;
-use tokio::sync::mpsc::{channel, Receiver, Sender};
+use tokio::sync::mpsc::{Receiver, Sender, channel};
 use tokio::task::JoinHandle;
 
 /// Events emitted by prover (worker) threads.
