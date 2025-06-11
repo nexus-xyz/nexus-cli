@@ -37,7 +37,7 @@ pub fn render_splash(f: &mut Frame) {
     // Add version line
     lines.push(
         Span::styled(
-            format!("Version {}", env!("CARGO_PKG_VERSION")),
+            format!("Version {}", env!("APP_VERSION")),
             Style::default()
                 .fg(Color::LightBlue)
                 .add_modifier(Modifier::ITALIC),

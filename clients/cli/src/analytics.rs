@@ -81,7 +81,7 @@ pub fn track(
         "platform": "CLI",
         "os": env::consts::OS,
         "os_version": env::consts::OS,  // We could get more specific version if needed
-        "app_version": env!("CARGO_PKG_VERSION"),
+        "app_version": env!("APP_VERSION"),
         "node_id": event_properties["node_id"],
         "timezone": timezone,
         "local_hour": local_now.hour(),

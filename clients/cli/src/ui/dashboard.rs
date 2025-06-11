@@ -78,8 +78,8 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
         .split(f.area());
 
     // Title section
-    let version = env!("CARGO_PKG_VERSION");
-    let title_text = format!("=== NEXUS PROVER v{} ===", version);
+    let version = env!("APP_VERSION");
+    let title_text = format!("=== NEXUS PROVER {} ===", version);
     let title_block = Block::default().borders(Borders::BOTTOM);
     let title = Paragraph::new(title_text)
         .alignment(Alignment::Center) // ← Horizontally center the text
