@@ -8,6 +8,7 @@ mod keys;
 mod nexus_orchestrator;
 mod orchestrator;
 mod prover;
+mod prover_runtime;
 pub mod system;
 mod task;
 mod ui;

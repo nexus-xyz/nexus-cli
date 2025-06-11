@@ -15,12 +15,28 @@ pub enum ProverError {
 
 /// Proves a program locally with hardcoded inputs.
 #[allow(unused)]
-pub fn prove_anonymously() -> Result<(), ProverError> {
-    let stwo_prover = get_default_stwo_prover()?;
+pub fn prove_anonymously() -> Result<Proof, ProverError> {
     // The 10th term of the Fibonacci sequence is 55
     let public_input: u32 = 9;
-    let _proof_bytes = prove_helper(stwo_prover, public_input)?;
-    Ok(())
+
+    let stwo_prover = get_default_stwo_prover()?;
+    let (view, proof) = stwo_prover
+        .prove_with_input::<(), u32>(&(), &public_input)
+        .map_err(|e| ProverError::Stwo(format!("Failed to run prover: {}", e)))?;
+
+    let exit_code = view
+        .exit_code()
+        .map_err(|e| ProverError::Stwo(format!("Failed to retrieve exit code: {}", e)))?;
+
+    if exit_code != 0 {
+        error!("Prover exited with non-zero exit code: {}", exit_code);
+        return Err(ProverError::Stwo(format!(
+            "Prover exited with non-zero exit code: {}",
+            exit_code
+        )));
+    }
+
+    Ok(proof)
 }
 
 /// Proves a program with a given node ID
@@ -50,19 +66,6 @@ pub fn get_default_stwo_prover() -> Result<Stwo<Local>, ProverError> {
         let msg = format!("Failed to load guest program: {}", e);
         ProverError::Stwo(msg)
     })
-}
-
-fn prove_helper(stwo_prover: Stwo<Local>, public_input: u32) -> Result<Vec<u8>, ProverError> {
-    let (view, proof) = stwo_prover
-        .prove_with_input::<(), u32>(&(), &public_input)
-        .map_err(|e| ProverError::Stwo(format!("Failed to run prover: {}", e)))?;
-
-    let exit_code = view
-        .exit_code()
-        .map_err(|e| ProverError::Stwo(format!("Failed to retrieve exit code: {}", e)))?;
-    assert_eq!(exit_code, 0, "Unexpected exit code!");
-
-    postcard::to_allocvec(&proof).map_err(ProverError::from)
 }
 
 #[cfg(test)]
