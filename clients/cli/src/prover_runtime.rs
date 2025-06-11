@@ -8,6 +8,7 @@
 //! - Worker management and task dispatching
 //! - Prover event reporting
 
+use crate::orchestrator::error::OrchestratorError;
 use crate::orchestrator::{Orchestrator, OrchestratorClient};
 use crate::prover::authenticated_proving;
 use crate::task::Task;
@@ -16,7 +17,7 @@ use ed25519_dalek::{SigningKey, VerifyingKey};
 use nexus_sdk::stwo::seq::Proof;
 use sha3::{Digest, Keccak256};
 use std::time::Duration;
-use tokio::sync::mpsc::{Receiver, Sender, channel};
+use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::task::JoinHandle;
 
 /// Events emitted by prover (worker) threads.
@@ -113,7 +114,39 @@ pub async fn fetch_prover_tasks(
     orchestrator_client: Box<dyn Orchestrator>,
     sender: Sender<Task>,
 ) {
+    // At startup, fetch all existing tasks for the node.
+    match orchestrator_client.get_tasks(&node_id.to_string()).await {
+        Ok(tasks) => {
+            for task in tasks {
+                if sender.send(task).await.is_err() {
+                    println!("sender.send() failed, task queue is closed");
+                    return;
+                }
+            }
+        }
+        Err(_e) => {
+            // TODO: Log error.
+        }
+    }
+    let mut fetch_existing_tasks = true;
     loop {
+        if fetch_existing_tasks {
+            match orchestrator_client.get_tasks(&node_id.to_string()).await {
+                Ok(tasks) => {
+                    for task in tasks {
+                        if sender.send(task).await.is_err() {
+                            println!("sender.send() failed, task queue is closed");
+                            return;
+                        }
+                    }
+                }
+                Err(_e) => {
+                    // TODO: Log error.
+                }
+            }
+            fetch_existing_tasks = false;
+        }
+
         match orchestrator_client
             .get_proof_task(&node_id.to_string(), verifying_key)
             .await
@@ -124,9 +157,12 @@ pub async fn fetch_prover_tasks(
                     return;
                 }
             }
-            Err(_e) => {
-                // TODO: Log error.
-                // println!("Failed to fetch task: {}", e);
+            Err(e) => {
+                if let OrchestratorError::Http { status, message: _ } = e {
+                    if status == 429 {
+                        fetch_existing_tasks = true;
+                    }
+                }
             }
         }
         // Be polite to the orchestrator and wait a bit before fetching the next task.

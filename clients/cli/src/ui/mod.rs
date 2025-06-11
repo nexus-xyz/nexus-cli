@@ -4,13 +4,13 @@ mod splash;
 
 use crate::environment::Environment;
 use crate::orchestrator::{Orchestrator, OrchestratorClient};
-use crate::prover_runtime::{ProverEvent, start_anonymous_workers, start_authenticated_workers};
-use crate::ui::dashboard::{DashboardState, render_dashboard};
+use crate::prover_runtime::{start_anonymous_workers, start_authenticated_workers, ProverEvent};
+use crate::ui::dashboard::{render_dashboard, DashboardState};
 use crate::ui::login::render_login;
 use crate::ui::splash::render_splash;
 use crossterm::event::{self, Event, KeyCode};
 use ed25519_dalek::SigningKey;
-use ratatui::{Frame, Terminal, backend::Backend};
+use ratatui::{backend::Backend, Frame, Terminal};
 use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
@@ -86,7 +86,7 @@ pub async fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::i
     let splash_start = Instant::now();
     let splash_duration = Duration::from_secs(2);
 
-    let num_workers = 2; // TODO: Keep this low for now to avoid hitting rate limits.
+    let num_workers = 3; // TODO: Keep this low for now to avoid hitting rate limits.
 
     // Receives events from prover worker threads.
     let mut prover_event_receiver = match app.node_id {
