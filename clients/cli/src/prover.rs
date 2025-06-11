@@ -1,7 +1,7 @@
 use crate::task::Task;
 use log::error;
 use nexus_sdk::stwo::seq::Proof;
-use nexus_sdk::{Local, Prover, Viewable, stwo::seq::Stwo};
+use nexus_sdk::{stwo::seq::Stwo, Local, Prover, Viewable};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -41,7 +41,7 @@ pub fn prove_anonymously() -> Result<Proof, ProverError> {
 
 /// Proves a program with a given node ID
 pub async fn authenticated_proving(
-    task: Task,
+    task: &Task,
     stwo_prover: Stwo<Local>,
 ) -> Result<Proof, ProverError> {
     let public_input: u32 = task.public_inputs.first().cloned().unwrap_or_default() as u32;
@@ -85,7 +85,8 @@ mod tests {
     #[tokio::test]
     // Proves a program with hardcoded inputs should succeed.
     async fn test_prove_anonymously() {
-        let result = prove_anonymously();
-        assert!(result.is_ok(), "Anonymous proving failed: {:?}", result);
+        if let Err(e) = prove_anonymously() {
+            panic!("Failed to prove anonymously: {}", e);
+        }
     }
 }
