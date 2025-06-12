@@ -4,13 +4,13 @@ mod splash;
 
 use crate::environment::Environment;
 use crate::orchestrator::{Orchestrator, OrchestratorClient};
-use crate::prover_runtime::{ProverEvent, start_anonymous_workers, start_authenticated_workers};
-use crate::ui::dashboard::{DashboardState, render_dashboard};
+use crate::prover_runtime::{start_anonymous_workers, start_authenticated_workers, WorkerEvent};
+use crate::ui::dashboard::{render_dashboard, DashboardState};
 use crate::ui::login::render_login;
 use crate::ui::splash::render_splash;
 use crossterm::event::{self, Event, KeyCode};
 use ed25519_dalek::SigningKey;
-use ratatui::{Frame, Terminal, backend::Backend};
+use ratatui::{backend::Backend, Frame, Terminal};
 use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 use tokio::sync::broadcast;
@@ -50,7 +50,7 @@ pub struct App {
     pub current_screen: Screen,
 
     /// Events received from worker threads.
-    pub events: VecDeque<ProverEvent>,
+    pub events: VecDeque<WorkerEvent>,
 
     /// Proof-signing key.
     signing_key: SigningKey,
@@ -157,12 +157,12 @@ pub async fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::i
 
                 // Handle exit events
                 if matches!(key.code, KeyCode::Esc | KeyCode::Char('q')) {
-                    // Signal shutdown
+                    // Send shutdown signal to workers
                     let _ = app.shutdown_sender.send(());
-                    // Wait for workers to exit
-                    for handle in app.worker_handles.drain(..) {
-                        let _ = handle.await;
-                    }
+                    // Waiting for all worker threads to finish makes the UI unresponsive.
+                    // for handle in app.worker_handles.drain(..) {
+                    //     let _ = handle.await;
+                    // }
                     return Ok(());
                 }
 

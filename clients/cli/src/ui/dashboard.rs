@@ -2,11 +2,11 @@
 
 use crate::environment::Environment;
 use crate::system;
-use crate::ui::ProverEvent;
-use ratatui::Frame;
+use crate::ui::WorkerEvent;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout};
 use ratatui::prelude::{Color, Modifier, Style};
 use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
+use ratatui::Frame;
 use std::collections::VecDeque;
 use std::time::Instant;
 
@@ -35,7 +35,7 @@ pub struct DashboardState {
     pub total_ram_gb: f64,
 
     /// A queue of events received from worker threads.
-    pub events: VecDeque<ProverEvent>,
+    pub events: VecDeque<WorkerEvent>,
 }
 
 impl DashboardState {
@@ -49,7 +49,7 @@ impl DashboardState {
         node_id: Option<u64>,
         environment: Environment,
         start_time: Instant,
-        events: &VecDeque<ProverEvent>,
+        events: &VecDeque<WorkerEvent>,
     ) -> Self {
         Self {
             node_id,
@@ -170,12 +170,13 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
         .events
         .iter()
         .map(|event| match event {
-            ProverEvent::Message {
+            WorkerEvent::Prover {
                 worker_id: _worker_id,
                 data,
             } => data.to_string(),
-            ProverEvent::Done { worker_id } => {
-                format!("[{}] Task completed", worker_id)
+            WorkerEvent::TaskFetcher { data } => data.to_string(),
+            WorkerEvent::ProofSubmitter { data } => {
+                format!("[Proof Submitter] {}", data)
             }
         })
         .collect();

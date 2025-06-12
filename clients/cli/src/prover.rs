@@ -1,7 +1,7 @@
 use crate::task::Task;
 use log::error;
 use nexus_sdk::stwo::seq::Proof;
-use nexus_sdk::{Local, Prover, Viewable, stwo::seq::Stwo};
+use nexus_sdk::{stwo::seq::Stwo, Local, Prover, Viewable};
 use thiserror::Error;
 
 #[derive(Error, Debug)]

@@ -13,17 +13,17 @@ pub mod system;
 mod task;
 mod ui;
 
-use crate::config::{Config, get_config_path};
+use crate::config::{get_config_path, Config};
 use crate::environment::Environment;
 use crate::orchestrator::{Orchestrator, OrchestratorClient};
 use clap::{Parser, Subcommand};
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
     execute,
-    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use ed25519_dalek::SigningKey;
-use ratatui::{Terminal, backend::CrosstermBackend};
+use ratatui::{backend::CrosstermBackend, Terminal};
 use std::{error::Error, io};
 
 #[derive(Parser)]
@@ -220,5 +220,6 @@ async fn start(
     terminal.show_cursor()?;
 
     res?;
+    println!("Nexus CLI application exited successfully.");
     Ok(())
 }
