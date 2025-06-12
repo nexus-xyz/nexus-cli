@@ -198,12 +198,10 @@ async fn start(
     headless: bool,
     _max_threads: Option<u32>,
 ) -> Result<(), Box<dyn Error>> {
-    // TODO: Persist the signing key in the config file.
+    // Create a signing key for the prover.
     let mut csprng = rand_core::OsRng;
     let signing_key: SigningKey = SigningKey::generate(&mut csprng);
-
     let orchestrator_client = OrchestratorClient::new(env);
-
     let num_workers = 3; // TODO: Keep this low for now to avoid hitting rate limits.
     let (shutdown_sender, _) = broadcast::channel(1); // Only one shutdown signal needed
     let (mut event_receiver, mut join_handles) = match node_id {
@@ -237,8 +235,7 @@ async fn start(
             event_receiver,
             shutdown_sender,
         );
-        let res = ui::run(&mut terminal, app) // this call must now be `async fn run()`
-            .await;
+        let res = ui::run(&mut terminal, app).await;
 
         // Clean up the terminal after running the application.
         disable_raw_mode()?;
