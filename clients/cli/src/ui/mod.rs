@@ -4,11 +4,11 @@ mod splash;
 
 use crate::environment::Environment;
 use crate::prover_runtime::Event as WorkerEvent;
-use crate::ui::dashboard::{render_dashboard, DashboardState};
+use crate::ui::dashboard::{DashboardState, render_dashboard};
 use crate::ui::login::render_login;
 use crate::ui::splash::render_splash;
 use crossterm::event::{self, Event, KeyCode};
-use ratatui::{backend::Backend, Frame, Terminal};
+use ratatui::{Frame, Terminal, backend::Backend};
 use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 use tokio::sync::{broadcast, mpsc};

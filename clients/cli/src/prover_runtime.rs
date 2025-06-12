@@ -432,7 +432,7 @@ pub fn start_workers(
 #[cfg(test)]
 mod tests {
     use crate::orchestrator::MockOrchestrator;
-    use crate::prover_runtime::{fetch_prover_tasks, Event};
+    use crate::prover_runtime::{Event, fetch_prover_tasks};
     use crate::task::Task;
     use std::time::Duration;
     use tokio::sync::{broadcast, mpsc};

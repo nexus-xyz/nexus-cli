@@ -3,10 +3,10 @@
 use crate::environment::Environment;
 use crate::prover_runtime::Event as WorkerEvent;
 use crate::system;
+use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout};
 use ratatui::prelude::{Color, Modifier, Style};
 use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
-use ratatui::Frame;
 use std::collections::VecDeque;
 use std::time::Instant;
 
