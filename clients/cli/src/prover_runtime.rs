@@ -219,25 +219,6 @@ pub async fn fetch_prover_tasks(
     }
 }
 
-// /// Submits proofs to the orchestrator
-// pub async fn submit_proofs(
-//     signing_key: SigningKey,
-//     orchestrator: Box<dyn Orchestrator>,
-//     mut results: Receiver<(Task, Proof)>,
-// ) -> JoinHandle<()> {
-//     tokio::spawn(async move {
-//         while let Some((task, proof)) = results.recv().await {
-//             let proof_bytes = postcard::to_allocvec(&proof).expect("Failed to serialize proof");
-//             let proof_hash = format!("{:x}", Keccak256::digest(&proof_bytes));
-//
-//             // TODO: Handle error
-//             let _res = orchestrator
-//                 .submit_proof(&task.task_id, &proof_hash, proof_bytes, signing_key.clone())
-//                 .await;
-//         }
-//     })
-// }
-
 /// Submits proofs to the orchestrator
 pub async fn submit_proofs(
     signing_key: SigningKey,
@@ -274,24 +255,6 @@ pub async fn submit_proofs(
         }
     })
 }
-
-// /// Spawns a dispatcher that forwards tasks to available workers in round-robin fashion.
-// pub fn start_dispatcher(
-//     mut task_receiver: Receiver<Task>,
-//     worker_senders: Vec<Sender<Task>>,
-//     mut shutdown: broadcast::Receiver<()>,
-// ) -> JoinHandle<()> {
-//     tokio::spawn(async move {
-//         let mut next_worker = 0;
-//         while let Some(task) = task_receiver.recv().await {
-//             let target = next_worker % worker_senders.len();
-//             if (worker_senders[target].send(task).await).is_err() {
-//                 eprintln!("Dispatcher: worker {} channel closed", target);
-//             }
-//             next_worker += 1;
-//         }
-//     })
-// }
 
 /// Spawns a dispatcher that forwards tasks to available workers in round-robin fashion.
 pub fn start_dispatcher(
