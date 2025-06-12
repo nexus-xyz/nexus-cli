@@ -377,7 +377,7 @@ pub fn start_workers(
 #[cfg(test)]
 mod tests {
     use crate::orchestrator::MockOrchestrator;
-    use crate::prover_runtime::fetch_prover_tasks;
+    use crate::prover_runtime::{fetch_prover_tasks, WorkerEvent};
     use crate::task::Task;
     use std::time::Duration;
     use tokio::sync::{broadcast, mpsc};
@@ -408,6 +408,7 @@ mod tests {
 
         // Run task_master in a tokio task to stay in the same thread context
         let (shutdown_sender, _) = broadcast::channel(1); // Only one shutdown signal needed
+        let (event_sender, _event_receiver) = mpsc::channel::<WorkerEvent>(100);
         let shutdown_receiver = shutdown_sender.subscribe();
         let task_master_handle = tokio::spawn(async move {
             fetch_prover_tasks(
@@ -415,6 +416,7 @@ mod tests {
                 verifying_key,
                 orchestrator_client,
                 task_sender,
+                event_sender,
                 shutdown_receiver,
             )
             .await;
