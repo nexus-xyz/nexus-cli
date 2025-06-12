@@ -29,6 +29,11 @@ pub enum WorkerEvent {
     ProofSubmitter { data: String },
 }
 
+// Queue sizes. Chosen to be larger than the tasks API page size (currently, 50)
+const TASK_QUEUE_SIZE: usize = 100;
+const EVENT_QUEUE_SIZE: usize = 100;
+const RESULT_QUEUE_SIZE: usize = 100;
+
 /// Starts authenticated workers that fetch tasks from the orchestrator and process them.
 pub async fn start_authenticated_workers(
     node_id: u64,
@@ -39,11 +44,10 @@ pub async fn start_authenticated_workers(
 ) -> (mpsc::Receiver<WorkerEvent>, Vec<JoinHandle<()>>) {
     let mut join_handles = Vec::new();
     // Worker events
-    let (event_sender, event_receiver) = mpsc::channel::<WorkerEvent>(100);
+    let (event_sender, event_receiver) = mpsc::channel::<WorkerEvent>(EVENT_QUEUE_SIZE);
 
     // Task fetching
-    let task_queue_size = 100;
-    let (task_sender, task_receiver) = mpsc::channel::<Task>(task_queue_size);
+    let (task_sender, task_receiver) = mpsc::channel::<Task>(TASK_QUEUE_SIZE);
     let verifying_key = signing_key.verifying_key();
     let fetch_prover_tasks_handle = {
         let orchestrator = orchestrator.clone();
@@ -64,7 +68,7 @@ pub async fn start_authenticated_workers(
     join_handles.push(fetch_prover_tasks_handle);
 
     // Workers
-    let (result_sender, result_receiver) = mpsc::channel::<(Task, Proof)>(1000);
+    let (result_sender, result_receiver) = mpsc::channel::<(Task, Proof)>(RESULT_QUEUE_SIZE);
 
     let (worker_senders, worker_handles) = start_workers(
         num_workers,
@@ -184,7 +188,7 @@ pub async fn fetch_prover_tasks(
                             fetch_existing_tasks = false;
                         }
                         Err(e) => {
-                            let message = format!("⚠️ Failed to fetch existing tasks for node {}: {}", node_id, e);
+                            let message = format!("⚠️ Failed to fetch existing tasks: {}", e);
                             let _ = event_sender
                                 .send(WorkerEvent::TaskFetcher { data: message })
                                 .await;
@@ -221,7 +225,7 @@ pub async fn submit_proofs(
     signing_key: SigningKey,
     orchestrator: Box<dyn Orchestrator>,
     mut results: mpsc::Receiver<(Task, Proof)>,
-    _event_sender: mpsc::Sender<WorkerEvent>,
+    event_sender: mpsc::Sender<WorkerEvent>,
     mut shutdown: broadcast::Receiver<()>,
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
@@ -233,25 +237,47 @@ pub async fn submit_proofs(
                             let proof_bytes = postcard::to_allocvec(&proof)
                                 .expect("Failed to serialize proof");
                             let proof_hash = format!("{:x}", Keccak256::digest(&proof_bytes));
+                            let now = Local::now();
+                            let timestamp = now.format("%Y-%m-%d %H:%M:%S").to_string();
                             match orchestrator
                                 .submit_proof(&task.task_id, &proof_hash, proof_bytes, signing_key.clone())
                                 .await
                             {
-                                Ok(_) => {}
-                                Err(_e) => {
-                                    // TODO: These are noisy.
-                                    // let msg = format!(
-                                    //     "Failed to submit proof for task {}: {}",
-                                    //     task.task_id, e
-                                    // );
-                                    // let _ = event_sender
-                                    //     .send(WorkerEvent::ProofSubmitter { data: msg })
-                                    //     .await;
+                                Ok(_) => {
+                                    let msg = format!(
+                                        "✅ [{}] Successfully submitted proof for task {}",
+                                        timestamp,
+                                        task.task_id
+                                    );
+                                    let _ = event_sender
+                                        .send(WorkerEvent::ProofSubmitter { data: msg })
+                                        .await;
+                            }
+                                Err(OrchestratorError::Http {status, message: _message}) => {
+                                    let msg = format!(
+                                        "⚠️ [{}] Failed to submit proof for task {}. Status: {}",
+                                        timestamp,
+                                        task.task_id,
+                                        status,
+                                    );
+                                    let _ = event_sender
+                                        .send(WorkerEvent::ProofSubmitter { data: msg })
+                                        .await;
+                                }
+                                Err(e) => {
+                                    let msg = format!(
+                                        "⚠️ [{}] Failed to submit proof for task {}: {}",
+                                        timestamp,
+                                        task.task_id,
+                                        e
+                                    );
+                                    let _ = event_sender
+                                        .send(WorkerEvent::ProofSubmitter { data: msg })
+                                        .await;
                                 }
                             }
                         }
                         None => {
-                            // eprintln!("submit_proofs: result channel closed");
                             break;
                         }
                     }
@@ -278,8 +304,8 @@ pub fn start_dispatcher(
                 Some(task) = task_receiver.recv() => {
                     let target = next_worker % worker_senders.len();
                     if let Err(_e) = worker_senders[target].send(task).await {
-                        // eprintln!("Dispatcher: failed to send task to worker {}: {}", target, e);
-                        // TODO:
+                        // Channel is closed, stop dispatching tasks
+                        return;
                     }
                     next_worker += 1;
                 }
@@ -333,12 +359,10 @@ pub fn start_workers(
                     }
                     _ = tokio::time::sleep(Duration::from_millis(100)) => {
                         // Continue processing the task
-                        let stwo_prover =
-                           crate::prover::get_default_stwo_prover().expect("Failed to create prover");
-                        match authenticated_proving(&task, stwo_prover).await {
+                        let now = Local::now();
+                        let timestamp = now.format("%Y-%m-%d %H:%M:%S").to_string();
+                        match authenticated_proving(&task).await {
                             Ok(proof) => {
-                                let now = Local::now();
-                                let timestamp = now.format("%Y-%m-%d %H:%M:%S").to_string();
                                 let message = format!(
                                     "✅ [{}] Proof completed successfully [Prover {}]",
                                     timestamp, worker_id
@@ -353,7 +377,7 @@ pub fn start_workers(
                                 let _ = results_sender.send((task, proof)).await; // Send the task and proof to the results channel
                             }
                             Err(e) => {
-                                let message = format!("Worker {}: Error - {}", worker_id, e);
+                                let message = format!("⚠️ [{}] Error - {}", timestamp, e);
                                 let _ = prover_event_sender
                                     .send(WorkerEvent::Prover {
                                         worker_id,
@@ -377,7 +401,7 @@ pub fn start_workers(
 #[cfg(test)]
 mod tests {
     use crate::orchestrator::MockOrchestrator;
-    use crate::prover_runtime::{WorkerEvent, fetch_prover_tasks};
+    use crate::prover_runtime::{fetch_prover_tasks, WorkerEvent};
     use crate::task::Task;
     use std::time::Duration;
     use tokio::sync::{broadcast, mpsc};

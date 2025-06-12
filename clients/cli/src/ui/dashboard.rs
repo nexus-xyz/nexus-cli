@@ -3,10 +3,10 @@
 use crate::environment::Environment;
 use crate::system;
 use crate::ui::WorkerEvent;
-use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout};
 use ratatui::prelude::{Color, Modifier, Style};
 use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
+use ratatui::Frame;
 use std::collections::VecDeque;
 use std::time::Instant;
 
@@ -175,9 +175,7 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
                 data,
             } => data.to_string(),
             WorkerEvent::TaskFetcher { data } => data.to_string(),
-            WorkerEvent::ProofSubmitter { data } => {
-                format!("[Proof Submitter] {}", data)
-            }
+            WorkerEvent::ProofSubmitter { data } => data.to_string(),
         })
         .collect();
 

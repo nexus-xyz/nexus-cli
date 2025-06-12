@@ -13,17 +13,17 @@ pub mod system;
 mod task;
 mod ui;
 
-use crate::config::{Config, get_config_path};
+use crate::config::{get_config_path, Config};
 use crate::environment::Environment;
 use crate::orchestrator::{Orchestrator, OrchestratorClient};
 use clap::{Parser, Subcommand};
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
     execute,
-    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use ed25519_dalek::SigningKey;
-use ratatui::{Terminal, backend::CrosstermBackend};
+use ratatui::{backend::CrosstermBackend, Terminal};
 use std::{error::Error, io};
 
 #[derive(Parser)]
@@ -205,8 +205,6 @@ async fn start(
     let mut csprng = rand_core::OsRng;
     let signing_key: SigningKey = SigningKey::generate(&mut csprng);
     let app = ui::App::new(node_id, orchestrator_client, signing_key);
-    // let res = ui::run(&mut terminal, app);
-
     let res = ui::run(&mut terminal, app) // this call must now be `async fn run()`
         .await;
 

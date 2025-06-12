@@ -4,13 +4,13 @@ mod splash;
 
 use crate::environment::Environment;
 use crate::orchestrator::{Orchestrator, OrchestratorClient};
-use crate::prover_runtime::{WorkerEvent, start_anonymous_workers, start_authenticated_workers};
-use crate::ui::dashboard::{DashboardState, render_dashboard};
+use crate::prover_runtime::{start_anonymous_workers, start_authenticated_workers, WorkerEvent};
+use crate::ui::dashboard::{render_dashboard, DashboardState};
 use crate::ui::login::render_login;
 use crate::ui::splash::render_splash;
 use crossterm::event::{self, Event, KeyCode};
 use ed25519_dalek::SigningKey;
-use ratatui::{Frame, Terminal, backend::Backend};
+use ratatui::{backend::Backend, Frame, Terminal};
 use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 use tokio::sync::broadcast;
@@ -179,10 +179,9 @@ pub async fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::i
                         }
                     }
                     Screen::Login => {
-                        todo!()
-                        // if key.code == KeyCode::Enter {
-                        //     app.login();
-                        // }
+                        if key.code == KeyCode::Enter {
+                            app.login();
+                        }
                     }
                     Screen::Dashboard(_dashboard_state) => {}
                 }
