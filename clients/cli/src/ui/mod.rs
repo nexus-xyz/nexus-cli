@@ -4,15 +4,17 @@ mod splash;
 
 use crate::environment::Environment;
 use crate::orchestrator::{Orchestrator, OrchestratorClient};
-use crate::prover_runtime::{ProverEvent, start_anonymous_workers, start_authenticated_workers};
-use crate::ui::dashboard::{DashboardState, render_dashboard};
+use crate::prover_runtime::{start_anonymous_workers, start_authenticated_workers, ProverEvent};
+use crate::ui::dashboard::{render_dashboard, DashboardState};
 use crate::ui::login::render_login;
 use crate::ui::splash::render_splash;
 use crossterm::event::{self, Event, KeyCode};
 use ed25519_dalek::SigningKey;
-use ratatui::{Frame, Terminal, backend::Backend};
+use ratatui::{backend::Backend, Frame, Terminal};
 use std::collections::VecDeque;
 use std::time::{Duration, Instant};
+use tokio::sync::broadcast;
+use tokio::task::JoinHandle;
 
 /// The different screens in the application.
 #[derive(Debug, Clone)]
@@ -30,7 +32,7 @@ pub enum Screen {
 const MAX_EVENTS: usize = 100;
 
 /// Application state
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct App {
     /// The start time of the application, used for computing uptime.
     pub start_time: Instant,
@@ -52,6 +54,9 @@ pub struct App {
 
     /// Proof-signing key.
     signing_key: SigningKey,
+
+    shutdown_sender: broadcast::Sender<()>,
+    worker_handles: Vec<JoinHandle<()>>,
 }
 
 impl App {
@@ -61,6 +66,7 @@ impl App {
         orchestrator_client: OrchestratorClient,
         signing_key: SigningKey,
     ) -> Self {
+        let (shutdown_sender, _) = broadcast::channel(1); // Only one shutdown signal needed
         Self {
             start_time: Instant::now(),
             node_id,
@@ -69,6 +75,8 @@ impl App {
             current_screen: Screen::Splash,
             events: Default::default(),
             signing_key,
+            shutdown_sender,
+            worker_handles: Vec::new(),
         }
     }
 
@@ -89,15 +97,20 @@ pub async fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::i
     let num_workers = 3; // TODO: Keep this low for now to avoid hitting rate limits.
 
     // Receives events from prover worker threads.
-    let mut prover_event_receiver = match app.node_id {
-        Some(node_id) => start_authenticated_workers(
-            node_id,
-            app.signing_key.clone(),
-            app.orchestrator_client.clone(),
-            num_workers,
-        ),
-        None => start_anonymous_workers(num_workers),
+    let (mut prover_event_receiver, join_handles) = match app.node_id {
+        Some(node_id) => {
+            start_authenticated_workers(
+                node_id,
+                app.signing_key.clone(),
+                app.orchestrator_client.clone(),
+                num_workers,
+                app.shutdown_sender.subscribe(),
+            )
+            .await
+        }
+        None => start_anonymous_workers(num_workers, app.shutdown_sender.subscribe()).await,
     };
+    app.worker_handles = join_handles;
 
     // UI event loop
     loop {
@@ -144,7 +157,12 @@ pub async fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::i
 
                 // Handle exit events
                 if matches!(key.code, KeyCode::Esc | KeyCode::Char('q')) {
-                    // TODO: Close worker threads
+                    // Signal shutdown
+                    let _ = app.shutdown_sender.send(());
+                    // Wait for workers to exit
+                    for handle in app.worker_handles.drain(..) {
+                        let _ = handle.await;
+                    }
                     return Ok(());
                 }
 
