@@ -1,7 +1,7 @@
 use crate::task::Task;
 use log::error;
 use nexus_sdk::stwo::seq::Proof;
-use nexus_sdk::{KnownExitCodes, Local, Prover, Viewable, stwo::seq::Stwo};
+use nexus_sdk::{stwo::seq::Stwo, KnownExitCodes, Local, Prover, Viewable};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -45,8 +45,7 @@ pub fn prove_anonymously() -> Result<Proof, ProverError> {
 
 /// Proves a program with a given node ID
 pub async fn authenticated_proving(task: &Task) -> Result<Proof, ProverError> {
-    let public_input = get_public_input(&task)?;
-
+    let public_input = get_public_input(task)?;
     let stwo_prover = get_default_stwo_prover()?;
     let (view, proof) = stwo_prover
         .prove_with_input::<(), u32>(&(), &public_input)
