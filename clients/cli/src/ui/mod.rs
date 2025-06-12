@@ -4,13 +4,13 @@ mod splash;
 
 use crate::environment::Environment;
 use crate::orchestrator::{Orchestrator, OrchestratorClient};
-use crate::prover_runtime::{start_anonymous_workers, start_authenticated_workers, WorkerEvent};
-use crate::ui::dashboard::{render_dashboard, DashboardState};
+use crate::prover_runtime::{WorkerEvent, start_anonymous_workers, start_authenticated_workers};
+use crate::ui::dashboard::{DashboardState, render_dashboard};
 use crate::ui::login::render_login;
 use crate::ui::splash::render_splash;
 use crossterm::event::{self, Event, KeyCode};
 use ed25519_dalek::SigningKey;
-use ratatui::{backend::Backend, Frame, Terminal};
+use ratatui::{Frame, Terminal, backend::Backend};
 use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 use tokio::sync::broadcast;
