@@ -14,7 +14,6 @@ pub enum ProverError {
 }
 
 /// Proves a program locally with hardcoded inputs.
-#[allow(unused)]
 pub fn prove_anonymously() -> Result<Proof, ProverError> {
     // The 10th term of the Fibonacci sequence is 55
     let public_input: u32 = 9;

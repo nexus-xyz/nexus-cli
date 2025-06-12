@@ -10,7 +10,6 @@ pub mod error;
 #[cfg(test)]
 use mockall::{automock, predicate::*};
 
-#[allow(dead_code)]
 #[cfg_attr(test, automock)]
 #[async_trait::async_trait]
 pub trait Orchestrator: Send + Sync {
