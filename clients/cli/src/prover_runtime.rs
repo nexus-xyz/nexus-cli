@@ -128,7 +128,7 @@ pub async fn start_anonymous_workers(
                                 let now = Local::now();
                                 let timestamp = now.format("%Y-%m-%d %H:%M:%S").to_string();
                                 let message = format!(
-                                    "✅ [{}] Anonymous proof completed successfully [Worker {}]",
+                                    "✅ [{}] Anonymous proof completed successfully (Prover {})",
                                     timestamp, worker_id
                                 );
                                 let _ = prover_event_sender.send(WorkerEvent::Prover {
@@ -172,9 +172,11 @@ pub async fn fetch_prover_tasks(
             _ = tokio::time::sleep(Duration::from_millis(100)) => {
                 // Get existing tasks.
                 if fetch_existing_tasks {
+                    let now = Local::now();
+                    let timestamp = now.format("%Y-%m-%d %H:%M:%S").to_string();
                     match orchestrator_client.get_tasks(&node_id.to_string()).await {
                         Ok(tasks) => {
-                            let msg = format!("🔄 Fetched {} tasks", tasks.len());
+                            let msg = format!("🔄 [{}] Fetched {} tasks", timestamp, tasks.len());
                             let _ = event_sender
                                         .send(WorkerEvent::TaskFetcher { data: msg })
                                         .await;
@@ -188,7 +190,7 @@ pub async fn fetch_prover_tasks(
                             fetch_existing_tasks = false;
                         }
                         Err(e) => {
-                            let message = format!("⚠️ Failed to fetch existing tasks: {}", e);
+                            let message = format!("⚠️ [{}] Failed to fetch existing tasks: {}", timestamp, e);
                             let _ = event_sender
                                 .send(WorkerEvent::TaskFetcher { data: message })
                                 .await;
@@ -364,7 +366,7 @@ pub fn start_workers(
                         match authenticated_proving(&task).await {
                             Ok(proof) => {
                                 let message = format!(
-                                    "✅ [{}] Proof completed successfully [Prover {}]",
+                                    "✅ [{}] Proof completed successfully (Prover {})",
                                     timestamp, worker_id
                                 );
                                 let _ = prover_event_sender
