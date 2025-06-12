@@ -1,12 +1,12 @@
 //! Dashboard screen rendering.
 
 use crate::environment::Environment;
+use crate::prover_runtime::Event as WorkerEvent;
 use crate::system;
-use crate::ui::WorkerEvent;
-use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout};
 use ratatui::prelude::{Color, Modifier, Style};
 use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
+use ratatui::Frame;
 use std::collections::VecDeque;
 use std::time::Instant;
 
@@ -63,6 +63,11 @@ impl DashboardState {
         }
     }
 }
+
+// const SUCCESS_ICON: &str = "✅";
+// const ERROR_ICON: &str = "⚠️";
+// const REFRESH_ICON: &str = "🔄";
+// const SHUTDOWN_ICON: &str = "🔴";
 
 /// Render the dashboard screen.
 pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
@@ -169,14 +174,7 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
     let logs: Vec<String> = state
         .events
         .iter()
-        .map(|event| match event {
-            WorkerEvent::Prover {
-                worker_id: _worker_id,
-                data,
-            } => data.to_string(),
-            WorkerEvent::TaskFetcher { data } => data.to_string(),
-            WorkerEvent::ProofSubmitter { data } => data.to_string(),
-        })
+        .map(|event| format!("[{}] {}", event.timestamp, event.msg))
         .collect();
 
     // Logs using List

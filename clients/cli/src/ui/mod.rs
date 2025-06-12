@@ -3,18 +3,15 @@ mod login;
 mod splash;
 
 use crate::environment::Environment;
-use crate::orchestrator::{Orchestrator, OrchestratorClient};
-use crate::prover_runtime::{WorkerEvent, start_anonymous_workers, start_authenticated_workers};
-use crate::ui::dashboard::{DashboardState, render_dashboard};
+use crate::prover_runtime::Event as WorkerEvent;
+use crate::ui::dashboard::{render_dashboard, DashboardState};
 use crate::ui::login::render_login;
 use crate::ui::splash::render_splash;
 use crossterm::event::{self, Event, KeyCode};
-use ed25519_dalek::SigningKey;
-use ratatui::{Frame, Terminal, backend::Backend};
+use ratatui::{backend::Backend, Frame, Terminal};
 use std::collections::VecDeque;
 use std::time::{Duration, Instant};
-use tokio::sync::broadcast;
-use tokio::task::JoinHandle;
+use tokio::sync::{broadcast, mpsc};
 
 /// The different screens in the application.
 #[derive(Debug, Clone)]
@@ -43,40 +40,35 @@ pub struct App {
     /// The environment in which the application is running.
     pub environment: Environment,
 
-    /// The client used to interact with the Nexus Orchestrator.
-    pub orchestrator_client: OrchestratorClient,
-
     /// The current screen being displayed in the application.
     pub current_screen: Screen,
 
     /// Events received from worker threads.
     pub events: VecDeque<WorkerEvent>,
 
-    /// Proof-signing key.
-    signing_key: SigningKey,
+    /// Receives events from worker threads.
+    pub event_receiver: mpsc::Receiver<WorkerEvent>,
 
+    /// Broadcasts shutdown signal to worker threads.
     shutdown_sender: broadcast::Sender<()>,
-    worker_handles: Vec<JoinHandle<()>>,
 }
 
 impl App {
     /// Creates a new instance of the application.
     pub fn new(
         node_id: Option<u64>,
-        orchestrator_client: OrchestratorClient,
-        signing_key: SigningKey,
+        environment: Environment,
+        event_receiver: mpsc::Receiver<WorkerEvent>,
+        shutdown_sender: broadcast::Sender<()>,
     ) -> Self {
-        let (shutdown_sender, _) = broadcast::channel(1); // Only one shutdown signal needed
         Self {
             start_time: Instant::now(),
             node_id,
-            environment: *orchestrator_client.environment(),
-            orchestrator_client,
+            environment,
             current_screen: Screen::Splash,
             events: Default::default(),
-            signing_key,
+            event_receiver,
             shutdown_sender,
-            worker_handles: Vec::new(),
         }
     }
 
@@ -94,28 +86,10 @@ pub async fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::i
     let splash_start = Instant::now();
     let splash_duration = Duration::from_secs(2);
 
-    let num_workers = 3; // TODO: Keep this low for now to avoid hitting rate limits.
-
-    // Receives events from prover worker threads.
-    let (mut prover_event_receiver, join_handles) = match app.node_id {
-        Some(node_id) => {
-            start_authenticated_workers(
-                node_id,
-                app.signing_key.clone(),
-                app.orchestrator_client.clone(),
-                num_workers,
-                app.shutdown_sender.subscribe(),
-            )
-            .await
-        }
-        None => start_anonymous_workers(num_workers, app.shutdown_sender.subscribe()).await,
-    };
-    app.worker_handles = join_handles;
-
     // UI event loop
     loop {
         // Drain prover events from the async channel into app.events
-        while let Ok(event) = prover_event_receiver.try_recv() {
+        while let Ok(event) = app.event_receiver.try_recv() {
             if app.events.len() >= MAX_EVENTS {
                 app.events.pop_front();
             }

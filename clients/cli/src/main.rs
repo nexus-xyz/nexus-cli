@@ -13,18 +13,20 @@ pub mod system;
 mod task;
 mod ui;
 
-use crate::config::{Config, get_config_path};
+use crate::config::{get_config_path, Config};
 use crate::environment::Environment;
 use crate::orchestrator::{Orchestrator, OrchestratorClient};
-use clap::{Parser, Subcommand};
+use crate::prover_runtime::{start_anonymous_workers, start_authenticated_workers};
+use clap::{ArgAction, Parser, Subcommand};
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
     execute,
-    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use ed25519_dalek::SigningKey;
-use ratatui::{Terminal, backend::CrosstermBackend};
+use ratatui::{backend::CrosstermBackend, Terminal};
 use std::{error::Error, io};
+use tokio::sync::broadcast;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -43,8 +45,12 @@ enum Command {
         #[arg(long, value_name = "NODE_ID")]
         node_id: Option<u64>,
 
+        /// Run without the terminal UI
+        #[arg(long = "headless", action = ArgAction::SetTrue)]
+        headless: bool,
+
         /// Maximum number of threads to use for proving.
-        #[arg(long)]
+        #[arg(long = "max-threads", value_name = "MAX_THREADS")]
         max_threads: Option<u32>,
     },
     /// Register a new user
@@ -75,6 +81,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     match args.command {
         Command::Start {
             node_id,
+            headless,
             max_threads,
         } => {
             let mut node_id = node_id;
@@ -86,7 +93,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     }
                 }
             }
-            start(node_id, environment, max_threads).await
+            start(node_id, environment, headless, max_threads).await
         }
         Command::Logout => {
             println!("Logging out and clearing node configuration file...");
@@ -188,36 +195,75 @@ async fn main() -> Result<(), Box<dyn Error>> {
 async fn start(
     node_id: Option<u64>,
     env: Environment,
+    headless: bool,
     _max_threads: Option<u32>,
 ) -> Result<(), Box<dyn Error>> {
-    // Terminal setup
-    enable_raw_mode()?;
-    let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
-
-    // Initialize the terminal with Crossterm backend.
-    let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
-
-    // Create the application and run it.
-    let orchestrator_client = OrchestratorClient::new(env);
     // TODO: Persist the signing key in the config file.
     let mut csprng = rand_core::OsRng;
     let signing_key: SigningKey = SigningKey::generate(&mut csprng);
-    let app = ui::App::new(node_id, orchestrator_client, signing_key);
-    let res = ui::run(&mut terminal, app) // this call must now be `async fn run()`
-        .await;
 
-    // Clean up the terminal after running the application.
-    disable_raw_mode()?;
-    execute!(
-        terminal.backend_mut(),
-        LeaveAlternateScreen,
-        DisableMouseCapture
-    )?;
-    terminal.show_cursor()?;
+    let orchestrator_client = OrchestratorClient::new(env);
 
-    res?;
-    println!("Nexus CLI application exited successfully.");
+    let num_workers = 3; // TODO: Keep this low for now to avoid hitting rate limits.
+    let (shutdown_sender, _) = broadcast::channel(1); // Only one shutdown signal needed
+    let (mut event_receiver, mut join_handles) = match node_id {
+        Some(node_id) => {
+            start_authenticated_workers(
+                node_id,
+                signing_key.clone(),
+                orchestrator_client.clone(),
+                num_workers,
+                shutdown_sender.subscribe(),
+            )
+            .await
+        }
+        None => start_anonymous_workers(num_workers, shutdown_sender.subscribe()).await,
+    };
+
+    if !headless {
+        // Terminal setup
+        enable_raw_mode()?;
+        let mut stdout = io::stdout();
+        execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+
+        // Initialize the terminal with Crossterm backend.
+        let backend = CrosstermBackend::new(stdout);
+        let mut terminal = Terminal::new(backend)?;
+
+        // Create the application and run it.
+        let app = ui::App::new(
+            node_id,
+            *orchestrator_client.environment(),
+            event_receiver,
+            shutdown_sender,
+        );
+        let res = ui::run(&mut terminal, app) // this call must now be `async fn run()`
+            .await;
+
+        // Clean up the terminal after running the application.
+        disable_raw_mode()?;
+        execute!(
+            terminal.backend_mut(),
+            LeaveAlternateScreen,
+            DisableMouseCapture
+        )?;
+        terminal.show_cursor()?;
+
+        res?;
+
+        println!("Exiting...");
+        for handle in join_handles.drain(..) {
+            let _ = handle.await;
+        }
+        println!("Nexus CLI application exited successfully.");
+    } else {
+        // Print events to stdout in a loop
+        loop {
+            // Drain prover events from the async channel into app.events
+            while let Ok(event) = event_receiver.try_recv() {
+                println!("{}", event);
+            }
+        }
+    }
     Ok(())
 }

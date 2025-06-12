@@ -16,17 +16,73 @@ use chrono::Local;
 use ed25519_dalek::{SigningKey, VerifyingKey};
 use nexus_sdk::stwo::seq::Proof;
 use sha3::{Digest, Keccak256};
+use std::fmt::Display;
+use std::string::ToString;
 use std::time::Duration;
 use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;
 
-/// Events emitted by prover (worker) threads.
-#[allow(unused)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum Worker {
+    /// Worker that fetches tasks from the orchestrator and processes them.
+    TaskFetcher,
+    /// Worker that performs proving tasks.
+    Prover(usize),
+    /// Worker that submits proofs to the orchestrator.
+    ProofSubmitter,
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, strum::Display)]
+pub enum EventType {
+    Success,
+    Error,
+    Refresh,
+    Shutdown,
+}
+
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub enum WorkerEvent {
-    TaskFetcher { data: String },
-    Prover { worker_id: usize, data: String },
-    ProofSubmitter { data: String },
+pub struct Event {
+    pub worker: Worker,
+    pub msg: String,
+    pub timestamp: String,
+    pub event_type: EventType,
+}
+impl Event {
+    pub fn new(kind: Worker, msg: String, event_type: EventType) -> Self {
+        Self {
+            worker: kind,
+            msg,
+            timestamp: Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
+            event_type,
+        }
+    }
+
+    pub fn task_fetcher(msg: String, event_type: EventType) -> Self {
+        Self::new(Worker::TaskFetcher, msg, event_type)
+    }
+
+    pub fn prover(worker_id: usize, msg: String, event_type: EventType) -> Self {
+        Self::new(Worker::Prover(worker_id), msg, event_type)
+    }
+
+    pub fn proof_submitter(msg: String, event_type: EventType) -> Self {
+        Self::new(Worker::ProofSubmitter, msg, event_type)
+    }
+}
+
+impl Display for Event {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let worker_type: String = match self.worker {
+            Worker::TaskFetcher => "Task Fetcher".to_string(),
+            Worker::Prover(worker_id) => format!("Prover {}", worker_id),
+            Worker::ProofSubmitter => "Proof Submitter".to_string(),
+        };
+        write!(
+            f,
+            "{} [{}] {}: {}",
+            self.event_type, self.timestamp, worker_type, self.msg
+        )
+    }
 }
 
 // Queue sizes. Chosen to be larger than the tasks API page size (currently, 50)
@@ -41,10 +97,10 @@ pub async fn start_authenticated_workers(
     orchestrator: OrchestratorClient,
     num_workers: usize,
     shutdown: broadcast::Receiver<()>,
-) -> (mpsc::Receiver<WorkerEvent>, Vec<JoinHandle<()>>) {
+) -> (mpsc::Receiver<Event>, Vec<JoinHandle<()>>) {
     let mut join_handles = Vec::new();
     // Worker events
-    let (event_sender, event_receiver) = mpsc::channel::<WorkerEvent>(EVENT_QUEUE_SIZE);
+    let (event_sender, event_receiver) = mpsc::channel::<Event>(EVENT_QUEUE_SIZE);
 
     // Task fetching
     let (task_sender, task_receiver) = mpsc::channel::<Task>(TASK_QUEUE_SIZE);
@@ -100,11 +156,11 @@ pub async fn start_authenticated_workers(
 pub async fn start_anonymous_workers(
     num_workers: usize,
     shutdown: broadcast::Receiver<()>,
-) -> (mpsc::Receiver<WorkerEvent>, Vec<JoinHandle<()>>) {
-    let (prover_event_sender, prover_event_receiver) = mpsc::channel::<WorkerEvent>(100);
+) -> (mpsc::Receiver<Event>, Vec<JoinHandle<()>>) {
+    let (event_sender, event_receiver) = mpsc::channel::<Event>(100);
     let mut join_handles = Vec::new();
     for worker_id in 0..num_workers {
-        let prover_event_sender = prover_event_sender.clone();
+        let prover_event_sender = event_sender.clone();
         let mut shutdown_rx = shutdown.resubscribe(); // clone receiver for each worker
 
         let handle = tokio::spawn(async move {
@@ -113,10 +169,7 @@ pub async fn start_anonymous_workers(
                     _ = shutdown_rx.recv() => {
                         let message = format!("Worker {} received shutdown signal", worker_id);
                         let _ = prover_event_sender
-                            .send(WorkerEvent::Prover {
-                                worker_id,
-                                data: message,
-                            })
+                            .send(Event::prover(worker_id, message, EventType::Shutdown))
                             .await;
                         break; // Exit the loop on shutdown signal
                     }
@@ -125,23 +178,13 @@ pub async fn start_anonymous_workers(
                         // Perform work
                         match crate::prover::prove_anonymously() {
                             Ok(_proof) => {
-                                let now = Local::now();
-                                let timestamp = now.format("%Y-%m-%d %H:%M:%S").to_string();
-                                let message = format!(
-                                    "✅ [{}] Anonymous proof completed successfully (Prover {})",
-                                    timestamp, worker_id
-                                );
-                                let _ = prover_event_sender.send(WorkerEvent::Prover {
-                                    worker_id,
-                                    data: message,
-                                }).await;
+                                let message = "Anonymous proof completed successfully".to_string();
+                                let _ = prover_event_sender
+                                    .send(Event::prover(worker_id, message, EventType::Success)).await;
                             }
                             Err(e) => {
-                                let message = format!("Anonymous Worker {}: Error - {}", worker_id, e);
-                                let _ = prover_event_sender.send(WorkerEvent::Prover {
-                                    worker_id,
-                                    data: message,
-                                }).await;
+                                let message = format!("Anonymous Worker: Error - {}", e);
+                                let _ =  prover_event_sender.send(Event::prover(worker_id, message, EventType::Error)).await;
                             }
                         }
                     }
@@ -151,7 +194,7 @@ pub async fn start_anonymous_workers(
         join_handles.push(handle);
     }
 
-    (prover_event_receiver, join_handles)
+    (event_receiver, join_handles)
 }
 
 /// Fetches tasks from the orchestrator and place them in the task queue.
@@ -160,7 +203,7 @@ pub async fn fetch_prover_tasks(
     verifying_key: VerifyingKey,
     orchestrator_client: Box<dyn Orchestrator>,
     sender: mpsc::Sender<Task>,
-    event_sender: mpsc::Sender<WorkerEvent>,
+    event_sender: mpsc::Sender<Event>,
     mut shutdown: broadcast::Receiver<()>,
 ) {
     let mut fetch_existing_tasks = true;
@@ -172,27 +215,27 @@ pub async fn fetch_prover_tasks(
             _ = tokio::time::sleep(Duration::from_millis(100)) => {
                 // Get existing tasks.
                 if fetch_existing_tasks {
-                    let now = Local::now();
-                    let timestamp = now.format("%Y-%m-%d %H:%M:%S").to_string();
                     match orchestrator_client.get_tasks(&node_id.to_string()).await {
                         Ok(tasks) => {
-                            let msg = format!("🔄 [{}] Fetched {} tasks", timestamp, tasks.len());
+                            // 🔄
+                            let msg = format!("Fetched {} tasks", tasks.len());
                             let _ = event_sender
-                                        .send(WorkerEvent::TaskFetcher { data: msg })
+                                        .send(Event::task_fetcher(msg, EventType::Refresh))
                                         .await;
                             for task in tasks {
                                 if sender.send(task).await.is_err() {
                                     let _ = event_sender
-                                        .send(WorkerEvent::TaskFetcher { data: "Task queue is closed".to_string() })
+                                        .send(Event::task_fetcher("Task queue is closed".to_string(), EventType::Shutdown))
                                         .await;
                                 }
                             }
                             fetch_existing_tasks = false;
                         }
                         Err(e) => {
-                            let message = format!("⚠️ [{}] Failed to fetch existing tasks: {}", timestamp, e);
+                            // ⚠️
+                            let msg = format!("Failed to fetch existing tasks: {}", e);
                             let _ = event_sender
-                                .send(WorkerEvent::TaskFetcher { data: message })
+                                .send(Event::task_fetcher(msg, EventType::Error))
                                 .await;
                         }
                     }
@@ -204,7 +247,7 @@ pub async fn fetch_prover_tasks(
                     Ok(task) => {
                         if sender.send(task).await.is_err() {
                             let _ = event_sender
-                                .send(WorkerEvent::TaskFetcher { data: "Task queue is closed".to_string() })
+                                .send(Event::task_fetcher("Task queue is closed".to_string(), EventType::Shutdown))
                                 .await;
                         }
                     }
@@ -227,7 +270,7 @@ pub async fn submit_proofs(
     signing_key: SigningKey,
     orchestrator: Box<dyn Orchestrator>,
     mut results: mpsc::Receiver<(Task, Proof)>,
-    event_sender: mpsc::Sender<WorkerEvent>,
+    event_sender: mpsc::Sender<Event>,
     mut shutdown: broadcast::Receiver<()>,
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
@@ -239,42 +282,40 @@ pub async fn submit_proofs(
                             let proof_bytes = postcard::to_allocvec(&proof)
                                 .expect("Failed to serialize proof");
                             let proof_hash = format!("{:x}", Keccak256::digest(&proof_bytes));
-                            let now = Local::now();
-                            let timestamp = now.format("%Y-%m-%d %H:%M:%S").to_string();
+                            // let now = Local::now();
+                            // let timestamp = now.format("%Y-%m-%d %H:%M:%S").to_string();
                             match orchestrator
                                 .submit_proof(&task.task_id, &proof_hash, proof_bytes, signing_key.clone())
                                 .await
                             {
                                 Ok(_) => {
+                                    // ✅
                                     let msg = format!(
-                                        "✅ [{}] Successfully submitted proof for task {}",
-                                        timestamp,
+                                        "Successfully submitted proof for task {}",
                                         task.task_id
                                     );
                                     let _ = event_sender
-                                        .send(WorkerEvent::ProofSubmitter { data: msg })
+                                        .send(Event::proof_submitter(msg, EventType::Success))
                                         .await;
                             }
                                 Err(OrchestratorError::Http {status, message: _message}) => {
                                     let msg = format!(
-                                        "⚠️ [{}] Failed to submit proof for task {}. Status: {}",
-                                        timestamp,
+                                        "Failed to submit proof for task {}. Status: {}",
                                         task.task_id,
                                         status,
                                     );
                                     let _ = event_sender
-                                        .send(WorkerEvent::ProofSubmitter { data: msg })
+                                        .send(Event::proof_submitter(msg, EventType::Error))
                                         .await;
                                 }
                                 Err(e) => {
                                     let msg = format!(
-                                        "⚠️ [{}] Failed to submit proof for task {}: {}",
-                                        timestamp,
+                                        "Failed to submit proof for task {}: {}",
                                         task.task_id,
                                         e
                                     );
                                     let _ = event_sender
-                                        .send(WorkerEvent::ProofSubmitter { data: msg })
+                                        .send(Event::proof_submitter(msg, EventType::Error))
                                         .await;
                                 }
                             }
@@ -334,7 +375,7 @@ pub fn start_dispatcher(
 pub fn start_workers(
     num_workers: usize,
     results_sender: mpsc::Sender<(Task, Proof)>,
-    event_sender: mpsc::Sender<WorkerEvent>,
+    event_sender: mpsc::Sender<Event>,
     shutdown: broadcast::Receiver<()>,
 ) -> (Vec<mpsc::Sender<Task>>, Vec<JoinHandle<()>>) {
     let mut senders = Vec::with_capacity(num_workers);
@@ -352,39 +393,27 @@ pub fn start_workers(
                     _ = shutdown.recv() => {
                         let message = format!("Worker {} received shutdown signal", worker_id);
                         let _ = prover_event_sender
-                            .send(WorkerEvent::Prover {
-                                worker_id,
-                                data: message,
-                            })
+                            .send(Event::prover(worker_id, message, EventType::Shutdown))
                             .await;
                         break; // Exit the loop on shutdown signal
                     }
                     _ = tokio::time::sleep(Duration::from_millis(100)) => {
-                        // Continue processing the task
-                        let now = Local::now();
-                        let timestamp = now.format("%Y-%m-%d %H:%M:%S").to_string();
                         match authenticated_proving(&task).await {
                             Ok(proof) => {
                                 let message = format!(
-                                    "✅ [{}] Proof completed successfully (Prover {})",
-                                    timestamp, worker_id
+                                    "Proof completed successfully (Prover {})",
+                                    worker_id
                                 );
                                 let _ = prover_event_sender
-                                    .send(WorkerEvent::Prover {
-                                        worker_id,
-                                        data: message,
-                                    })
+                                    .send(Event::prover(worker_id, message, EventType::Success))
                                     .await;
 
                                 let _ = results_sender.send((task, proof)).await; // Send the task and proof to the results channel
                             }
                             Err(e) => {
-                                let message = format!("⚠️ [{}] Error - {}", timestamp, e);
+                                let message = format!("Error: {}", e);
                                 let _ = prover_event_sender
-                                    .send(WorkerEvent::Prover {
-                                        worker_id,
-                                        data: message,
-                                    })
+                                    .send(Event::prover(worker_id, message, EventType::Error))
                                     .await;
                             }
                         }
@@ -403,7 +432,7 @@ pub fn start_workers(
 #[cfg(test)]
 mod tests {
     use crate::orchestrator::MockOrchestrator;
-    use crate::prover_runtime::{WorkerEvent, fetch_prover_tasks};
+    use crate::prover_runtime::{fetch_prover_tasks, Event};
     use crate::task::Task;
     use std::time::Duration;
     use tokio::sync::{broadcast, mpsc};
@@ -434,7 +463,7 @@ mod tests {
 
         // Run task_master in a tokio task to stay in the same thread context
         let (shutdown_sender, _) = broadcast::channel(1); // Only one shutdown signal needed
-        let (event_sender, _event_receiver) = mpsc::channel::<WorkerEvent>(100);
+        let (event_sender, _event_receiver) = mpsc::channel::<Event>(100);
         let shutdown_receiver = shutdown_sender.subscribe();
         let task_master_handle = tokio::spawn(async move {
             fetch_prover_tasks(
