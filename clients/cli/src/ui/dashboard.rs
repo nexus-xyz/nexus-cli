@@ -1,7 +1,7 @@
 //! Dashboard screen rendering.
 
 use crate::environment::Environment;
-use crate::prover_runtime::Event as WorkerEvent;
+use crate::prover_runtime::{Event as WorkerEvent, EventType};
 use crate::system;
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout};
@@ -124,11 +124,6 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
             "NODE ID: Not connected".to_string()
         };
         items.push(ListItem::new(node_id_text));
-        //
-        // items.push(ListItem::new(format!(
-        //     "NODE ID: {}",
-        //     state.node_id.unwrap_or(0)
-        // )));
 
         // Environment
         items.push(ListItem::new(format!("ENVIRONMENT: {}", state.environment)));
@@ -174,7 +169,15 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
     let logs: Vec<String> = state
         .events
         .iter()
-        .map(|event| format!("[{}] {}", event.timestamp, event.msg))
+        .map(|event| {
+            let icon = match event.event_type {
+                EventType::Success => "✅",
+                EventType::Error => "⚠️",
+                EventType::Refresh => "🔄",
+                EventType::Shutdown => "🔴",
+            };
+            format!("{} [{}] {}", icon, event.timestamp, event.msg)
+        })
         .collect();
 
     // Logs using List
