@@ -382,13 +382,13 @@ pub fn start_workers(
     let mut handles = Vec::with_capacity(num_workers);
 
     for worker_id in 0..num_workers {
-        let (task_sender, mut task_receiver) = tokio::sync::mpsc::channel::<Task>(8);
+        let (task_sender, mut task_receiver) = mpsc::channel::<Task>(8);
+        // Clone senders and receivers for each worker.
         let prover_event_sender = event_sender.clone();
         let results_sender = results_sender.clone();
-        let mut shutdown = shutdown.resubscribe(); // Clone the receiver for each worker
+        let mut shutdown = shutdown.resubscribe();
         let handle = tokio::spawn(async move {
-            while let Some(task) = task_receiver.recv().await {
-                // Check for shutdown signal
+            loop {
                 tokio::select! {
                     _ = shutdown.recv() => {
                         let message = format!("Worker {} received shutdown signal", worker_id);
@@ -397,7 +397,8 @@ pub fn start_workers(
                             .await;
                         break; // Exit the loop on shutdown signal
                     }
-                    _ = tokio::time::sleep(Duration::from_millis(100)) => {
+                    // Check if there are tasks to process
+                    Some(task) = task_receiver.recv() => {
                         match authenticated_proving(&task).await {
                             Ok(proof) => {
                                 let message = format!(
@@ -407,8 +408,7 @@ pub fn start_workers(
                                 let _ = prover_event_sender
                                     .send(Event::prover(worker_id, message, EventType::Success))
                                     .await;
-
-                                let _ = results_sender.send((task, proof)).await; // Send the task and proof to the results channel
+                                let _ = results_sender.send((task, proof)).await;
                             }
                             Err(e) => {
                                 let message = format!("Error: {}", e);
@@ -418,6 +418,7 @@ pub fn start_workers(
                             }
                         }
                     }
+                    else => break,
                 }
             }
         });
