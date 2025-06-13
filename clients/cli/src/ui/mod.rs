@@ -32,22 +32,22 @@ const MAX_EVENTS: usize = 100;
 #[derive(Debug)]
 pub struct App {
     /// The start time of the application, used for computing uptime.
-    pub start_time: Instant,
+    start_time: Instant,
 
     /// Optional node ID for authenticated sessions
-    pub node_id: Option<u64>,
+    node_id: Option<u64>,
 
     /// The environment in which the application is running.
-    pub environment: Environment,
+    environment: Environment,
 
     /// The current screen being displayed in the application.
-    pub current_screen: Screen,
+    current_screen: Screen,
 
     /// Events received from worker threads.
-    pub events: VecDeque<WorkerEvent>,
+    events: VecDeque<WorkerEvent>,
 
     /// Receives events from worker threads.
-    pub event_receiver: mpsc::Receiver<WorkerEvent>,
+    event_receiver: mpsc::Receiver<WorkerEvent>,
 
     /// Broadcasts shutdown signal to worker threads.
     shutdown_sender: broadcast::Sender<()>,
@@ -133,10 +133,6 @@ pub async fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::i
                 if matches!(key.code, KeyCode::Esc | KeyCode::Char('q')) {
                     // Send shutdown signal to workers
                     let _ = app.shutdown_sender.send(());
-                    // Waiting for all worker threads to finish makes the UI unresponsive.
-                    // for handle in app.worker_handles.drain(..) {
-                    //     let _ = handle.await;
-                    // }
                     return Ok(());
                 }
 
