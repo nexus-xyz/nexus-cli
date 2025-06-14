@@ -100,11 +100,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             Config::clear_node_config(&config_path).map_err(Into::into)
         }
         Command::RegisterUser { wallet_address } => {
-            println!(
-                "Registering user with wallet address: {} in environment: {:?}",
-                wallet_address, environment
-            );
-            // Check if the wallet address is valid
+            println!("Registering user with wallet address: {}", wallet_address);
+            // Check if the wallet address is valid.
             if !keys::is_valid_eth_address(&wallet_address) {
                 let err_msg = format!(
                     "Invalid Ethereum wallet address: {}. It should be a 42-character hex string starting with '0x'.",
@@ -112,6 +109,23 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 );
                 return Err(Box::from(err_msg));
             }
+
+            // Check if the config file exists and contains this wallet address.
+            if config_path.exists() {
+                if let Ok(config) = Config::load_from_file(&config_path) {
+                    if config.wallet_address.to_lowercase() == wallet_address.to_lowercase()
+                        && !config.user_id.is_empty()
+                    {
+                        println!(
+                            "User already registered. User ID: {}, Wallet Address: {}",
+                            config.user_id, config.wallet_address
+                        );
+                        return Ok(());
+                    }
+                }
+            }
+
+            // Otherwise, register the user with the orchestrator.
             let orchestrator_client = OrchestratorClient::new(environment);
             let uuid = uuid::Uuid::new_v4().to_string();
             match orchestrator_client
@@ -125,7 +139,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
             }
 
-            // Save the configuration file with the user ID and wallet address
+            // Save the configuration file with the user ID and wallet address.
             let config = Config::new(
                 uuid,
                 wallet_address,
@@ -139,7 +153,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
         Command::RegisterNode { node_id } => {
             // Register a new node, or link an existing node to a user.
-            // Requires: a config file with a registered user
+            // Requires: a config file with a registered user.
             // If a node_id is provided, update the config with it and use it.
             // If no node_id is provided, generate a new one.
             let mut config = Config::load_from_file(&config_path).map_err(|e| {
