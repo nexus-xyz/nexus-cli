@@ -6,6 +6,19 @@ use std::{env, path::Path};
 
 /// Compiles the protobuf files into Rust code using prost-build.
 fn main() -> Result<(), Box<dyn Error>> {
+    // Trigger rebuild when git tags change
+    println!("cargo:rerun-if-changed=.git/refs/tags");
+    println!("cargo:rerun-if-changed=.git/HEAD");
+
+    // Get git version and set as environment variable
+    let version = Command::new("git")
+        .args(["describe", "--tags", "--always"])
+        .output()
+        .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_string())
+        .unwrap_or_else(|_| "unknown version".to_string());
+
+    println!("cargo:rustc-env=APP_VERSION={}", version);
+
     // Skip proto compilation unless build_proto feature is enabled.
     if !cfg!(feature = "build_proto") {
         println!(
