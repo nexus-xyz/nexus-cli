@@ -1,5 +1,0 @@
-{
-    "rust-analyzer.linkedProjects": [
-        "./clients/cli/Cargo.toml"
-    ]
-}
