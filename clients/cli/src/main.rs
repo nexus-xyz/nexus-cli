@@ -238,7 +238,15 @@ async fn start(
             )
             .await
         }
-        None => start_anonymous_workers(num_workers, shutdown_sender.subscribe(), env.clone(), client_id).await,
+        None => {
+            start_anonymous_workers(
+                num_workers,
+                shutdown_sender.subscribe(),
+                env.clone(),
+                client_id,
+            )
+            .await
+        }
     };
 
     if !headless {

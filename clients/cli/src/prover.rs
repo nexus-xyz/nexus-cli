@@ -1,6 +1,6 @@
-use crate::task::Task;
 use crate::analytics::track;
 use crate::environment::Environment;
+use crate::task::Task;
 use log::error;
 use nexus_sdk::stwo::seq::Proof;
 use nexus_sdk::{KnownExitCodes, Local, Prover, Viewable, stwo::seq::Stwo};
@@ -23,7 +23,10 @@ pub enum ProverError {
 }
 
 /// Proves a program locally with hardcoded inputs.
-pub fn prove_anonymously(environment: &Environment, client_id: String) -> Result<Proof, ProverError> {
+pub fn prove_anonymously(
+    environment: &Environment,
+    client_id: String,
+) -> Result<Proof, ProverError> {
     // The 10th term of the Fibonacci sequence is 55
     let public_input: u32 = 9;
 
@@ -60,7 +63,11 @@ pub fn prove_anonymously(environment: &Environment, client_id: String) -> Result
 }
 
 /// Proves a program with a given node ID
-pub async fn authenticated_proving(task: &Task, environment: &Environment, client_id: String) -> Result<Proof, ProverError> {
+pub async fn authenticated_proving(
+    task: &Task,
+    environment: &Environment,
+    client_id: String,
+) -> Result<Proof, ProverError> {
     let public_input = get_public_input(task)?;
     let stwo_prover = get_default_stwo_prover()?;
     let (view, proof) = stwo_prover
