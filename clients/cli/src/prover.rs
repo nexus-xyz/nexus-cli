@@ -1,6 +1,6 @@
-use crate::task::Task;
 use crate::analytics::track;
 use crate::environment::Environment;
+use crate::task::Task;
 use log::error;
 use nexus_sdk::stwo::seq::Proof;
 use nexus_sdk::{KnownExitCodes, Local, Prover, Viewable, stwo::seq::Stwo};
