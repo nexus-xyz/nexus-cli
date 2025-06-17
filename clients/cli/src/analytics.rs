@@ -72,7 +72,6 @@ pub fn track(
         "os": env::consts::OS,
         "os_version": env::consts::OS,  // We could get more specific version if needed
         "app_version": env!("CARGO_PKG_VERSION"),
-        "node_id": event_properties["node_id"],
         "timezone": timezone,
         "local_hour": local_now.hour(),
         "day_of_week": local_now.weekday().number_from_monday(),
