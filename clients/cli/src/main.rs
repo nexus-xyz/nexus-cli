@@ -239,13 +239,7 @@ async fn start(
             .await
         }
         None => {
-            start_anonymous_workers(
-                num_workers,
-                shutdown_sender.subscribe(),
-                env,
-                client_id,
-            )
-            .await
+            start_anonymous_workers(num_workers, shutdown_sender.subscribe(), env, client_id).await
         }
     };
 
