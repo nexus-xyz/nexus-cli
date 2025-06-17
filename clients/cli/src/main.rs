@@ -201,7 +201,7 @@ async fn start(
     // Create a signing key for the prover.
     let mut csprng = rand_core::OsRng;
     let signing_key: SigningKey = SigningKey::generate(&mut csprng);
-    let orchestrator_client = OrchestratorClient::new(env.clone());
+    let orchestrator_client = OrchestratorClient::new(env);
     let num_workers = 3; // TODO: Keep this low for now to avoid hitting rate limits.
     let (shutdown_sender, _) = broadcast::channel(1); // Only one shutdown signal needed
 
@@ -233,7 +233,7 @@ async fn start(
                 orchestrator_client.clone(),
                 num_workers,
                 shutdown_sender.subscribe(),
-                env.clone(),
+                env,
                 client_id,
             )
             .await
@@ -242,7 +242,7 @@ async fn start(
             start_anonymous_workers(
                 num_workers,
                 shutdown_sender.subscribe(),
-                env.clone(),
+                env,
                 client_id,
             )
             .await

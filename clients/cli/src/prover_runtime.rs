@@ -169,7 +169,7 @@ pub async fn start_anonymous_workers(
     for worker_id in 0..num_workers {
         let prover_event_sender = event_sender.clone();
         let mut shutdown_rx = shutdown.resubscribe(); // clone receiver for each worker
-        let environment = environment.clone();
+        let environment = environment;
         let client_id = client_id.clone();
 
         let handle = tokio::spawn(async move {
@@ -397,13 +397,13 @@ pub fn start_workers(
         // Clone senders and receivers for each worker.
         let prover_event_sender = event_sender.clone();
         let results_sender = results_sender.clone();
-        let mut shutdown = shutdown.resubscribe();
-        let environment = environment.clone();
+        let mut shutdown_rx = shutdown.resubscribe();
+        let environment = environment;
         let client_id = client_id.clone();
         let handle = tokio::spawn(async move {
             loop {
                 tokio::select! {
-                    _ = shutdown.recv() => {
+                    _ = shutdown_rx.recv() => {
                         let message = format!("Worker {} received shutdown signal", worker_id);
                         let _ = prover_event_sender
                             .send(Event::prover(worker_id, message, EventType::Shutdown))
