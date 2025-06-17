@@ -3,3 +3,6 @@
         "./clients/cli/Cargo.toml"
     ]
 }
+{   
+    "Myomin11917/nexus-cli/firebase.json"
+}
