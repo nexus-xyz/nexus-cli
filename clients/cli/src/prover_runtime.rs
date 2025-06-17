@@ -169,7 +169,6 @@ pub async fn start_anonymous_workers(
     for worker_id in 0..num_workers {
         let prover_event_sender = event_sender.clone();
         let mut shutdown_rx = shutdown.resubscribe(); // clone receiver for each worker
-        let environment = environment;
         let client_id = client_id.clone();
 
         let handle = tokio::spawn(async move {
