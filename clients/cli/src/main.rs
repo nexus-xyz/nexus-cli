@@ -209,7 +209,16 @@ async fn start(
     let config_path = get_config_path()?;
     let client_id = if config_path.exists() {
         match Config::load_from_file(&config_path) {
-            Ok(config) => config.user_id,
+            Ok(config) => {
+                // First try user_id, then node_id, then fallback to UUID
+                if !config.user_id.is_empty() {
+                    config.user_id
+                } else if !config.node_id.is_empty() {
+                    config.node_id
+                } else {
+                    uuid::Uuid::new_v4().to_string() // Fallback to random UUID
+                }
+            }
             Err(_) => uuid::Uuid::new_v4().to_string(), // Fallback to random UUID
         }
     } else {
