@@ -267,7 +267,7 @@ async fn start(
                 }
             }
         }
-        
+
         println!("Exiting...");
         for handle in join_handles.drain(..) {
             let _ = handle.await;
