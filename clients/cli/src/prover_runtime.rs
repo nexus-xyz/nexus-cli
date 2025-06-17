@@ -398,7 +398,6 @@ pub fn start_workers(
         let prover_event_sender = event_sender.clone();
         let results_sender = results_sender.clone();
         let mut shutdown_rx = shutdown.resubscribe();
-        let environment = environment;
         let client_id = client_id.clone();
         let handle = tokio::spawn(async move {
             loop {
