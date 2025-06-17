@@ -8,6 +8,7 @@
 //! - Worker management and task dispatching
 //! - Prover event reporting
 
+use crate::environment::Environment;
 use crate::orchestrator::error::OrchestratorError;
 use crate::orchestrator::{Orchestrator, OrchestratorClient};
 use crate::prover::authenticated_proving;
@@ -97,6 +98,8 @@ pub async fn start_authenticated_workers(
     orchestrator: OrchestratorClient,
     num_workers: usize,
     shutdown: broadcast::Receiver<()>,
+    environment: Environment,
+    client_id: String,
 ) -> (mpsc::Receiver<Event>, Vec<JoinHandle<()>>) {
     let mut join_handles = Vec::new();
     // Worker events
@@ -131,6 +134,8 @@ pub async fn start_authenticated_workers(
         result_sender.clone(),
         event_sender.clone(),
         shutdown.resubscribe(),
+        environment,
+        client_id,
     );
     join_handles.extend(worker_handles);
 
@@ -156,12 +161,16 @@ pub async fn start_authenticated_workers(
 pub async fn start_anonymous_workers(
     num_workers: usize,
     shutdown: broadcast::Receiver<()>,
+    environment: Environment,
+    client_id: String,
 ) -> (mpsc::Receiver<Event>, Vec<JoinHandle<()>>) {
     let (event_sender, event_receiver) = mpsc::channel::<Event>(100);
     let mut join_handles = Vec::new();
     for worker_id in 0..num_workers {
         let prover_event_sender = event_sender.clone();
         let mut shutdown_rx = shutdown.resubscribe(); // clone receiver for each worker
+        let environment = environment.clone();
+        let client_id = client_id.clone();
 
         let handle = tokio::spawn(async move {
             loop {
@@ -176,7 +185,7 @@ pub async fn start_anonymous_workers(
 
                     _ = tokio::time::sleep(Duration::from_millis(300)) => {
                         // Perform work
-                        match crate::prover::prove_anonymously() {
+                        match crate::prover::prove_anonymously(&environment, client_id.clone()) {
                             Ok(_proof) => {
                                 let message = "Anonymous proof completed successfully".to_string();
                                 let _ = prover_event_sender
@@ -377,6 +386,8 @@ pub fn start_workers(
     results_sender: mpsc::Sender<(Task, Proof)>,
     event_sender: mpsc::Sender<Event>,
     shutdown: broadcast::Receiver<()>,
+    environment: Environment,
+    client_id: String,
 ) -> (Vec<mpsc::Sender<Task>>, Vec<JoinHandle<()>>) {
     let mut senders = Vec::with_capacity(num_workers);
     let mut handles = Vec::with_capacity(num_workers);
@@ -387,6 +398,8 @@ pub fn start_workers(
         let prover_event_sender = event_sender.clone();
         let results_sender = results_sender.clone();
         let mut shutdown = shutdown.resubscribe();
+        let environment = environment.clone();
+        let client_id = client_id.clone();
         let handle = tokio::spawn(async move {
             loop {
                 tokio::select! {
@@ -399,7 +412,7 @@ pub fn start_workers(
                     }
                     // Check if there are tasks to process
                     Some(task) = task_receiver.recv() => {
-                        match authenticated_proving(&task).await {
+                        match authenticated_proving(&task, &environment, client_id.clone()).await {
                             Ok(proof) => {
                                 let message = format!(
                                     "Proof completed successfully (Prover {})",

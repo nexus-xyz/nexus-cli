@@ -201,9 +201,21 @@ async fn start(
     // Create a signing key for the prover.
     let mut csprng = rand_core::OsRng;
     let signing_key: SigningKey = SigningKey::generate(&mut csprng);
-    let orchestrator_client = OrchestratorClient::new(env);
+    let orchestrator_client = OrchestratorClient::new(env.clone());
     let num_workers = 3; // TODO: Keep this low for now to avoid hitting rate limits.
     let (shutdown_sender, _) = broadcast::channel(1); // Only one shutdown signal needed
+
+    // Load config to get client_id for analytics
+    let config_path = get_config_path()?;
+    let client_id = if config_path.exists() {
+        match Config::load_from_file(&config_path) {
+            Ok(config) => config.user_id,
+            Err(_) => uuid::Uuid::new_v4().to_string(), // Fallback to random UUID
+        }
+    } else {
+        uuid::Uuid::new_v4().to_string() // Fallback to random UUID
+    };
+
     let (mut event_receiver, mut join_handles) = match node_id {
         Some(node_id) => {
             start_authenticated_workers(
@@ -212,10 +224,12 @@ async fn start(
                 orchestrator_client.clone(),
                 num_workers,
                 shutdown_sender.subscribe(),
+                env.clone(),
+                client_id,
             )
             .await
         }
-        None => start_anonymous_workers(num_workers, shutdown_sender.subscribe()).await,
+        None => start_anonymous_workers(num_workers, shutdown_sender.subscribe(), env.clone(), client_id).await,
     };
 
     if !headless {
