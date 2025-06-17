@@ -13,7 +13,7 @@ pub mod system;
 mod task;
 mod ui;
 
-use crate::config::{Config, get_config_path};
+use crate::config::{get_config_path, Config};
 use crate::environment::Environment;
 use crate::orchestrator::{Orchestrator, OrchestratorClient};
 use crate::prover_runtime::{start_anonymous_workers, start_authenticated_workers};
@@ -21,10 +21,10 @@ use clap::{ArgAction, Parser, Subcommand};
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
     execute,
-    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use ed25519_dalek::SigningKey;
-use ratatui::{Terminal, backend::CrosstermBackend};
+use ratatui::{backend::CrosstermBackend, Terminal};
 use std::{error::Error, io};
 use tokio::sync::broadcast;
 
@@ -196,13 +196,14 @@ async fn start(
     node_id: Option<u64>,
     env: Environment,
     headless: bool,
-    _max_threads: Option<u32>,
+    max_threads: Option<u32>,
 ) -> Result<(), Box<dyn Error>> {
     // Create a signing key for the prover.
     let mut csprng = rand_core::OsRng;
     let signing_key: SigningKey = SigningKey::generate(&mut csprng);
     let orchestrator_client = OrchestratorClient::new(env);
-    let num_workers = 3; // TODO: Keep this low for now to avoid hitting rate limits.
+    // Clamp the number of workers to [1,8]. Keep this low for now to avoid rate limiting.
+    let num_workers: usize = max_threads.unwrap_or(1).clamp(1, 8) as usize;
     let (shutdown_sender, _) = broadcast::channel(1); // Only one shutdown signal needed
 
     // Load config to get client_id for analytics
