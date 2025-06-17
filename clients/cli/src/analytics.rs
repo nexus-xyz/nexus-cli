@@ -32,16 +32,10 @@ pub fn analytics_api_key(environment: &Environment) -> String {
 #[allow(unused)]
 pub fn track(
     event_name: String,
-    description: String,
     event_properties: Value,
-    print_description: bool,
     environment: &Environment,
     client_id: String,
 ) {
-    if print_description {
-        println!("{}", description);
-    }
-
     let analytics_id = analytics_id(environment);
     let analytics_api_key = analytics_api_key(environment);
 

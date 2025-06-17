@@ -49,12 +49,10 @@ pub fn prove_anonymously(
     // Send analytics event for anonymous proof
     track(
         "cli_proof_anon_v3".to_string(),
-        "Anonymous proof completed successfully".to_string(),
         json!({
             "program_name": "fib_input",
             "public_input": public_input,
         }),
-        false,
         environment,
         client_id,
     );
@@ -88,13 +86,11 @@ pub async fn authenticated_proving(
     // Send analytics event for authenticated proof
     track(
         "cli_proof_node_v3".to_string(),
-        "Authenticated proof completed successfully".to_string(),
         json!({
             "program_name": "fib_input",
             "public_input": public_input,
             "task_id": task.task_id,
         }),
-        false,
         environment,
         client_id,
     );
