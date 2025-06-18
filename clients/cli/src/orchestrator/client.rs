@@ -7,9 +7,9 @@ use crate::nexus_orchestrator::{
     GetProofTaskRequest, GetProofTaskResponse, GetTasksRequest, GetTasksResponse, NodeType,
     RegisterNodeRequest, RegisterNodeResponse, RegisterUserRequest, SubmitProofRequest,
 };
-use crate::orchestrator::Orchestrator;
 use crate::orchestrator::error::OrchestratorError;
-use crate::system::{get_memory_info, measure_gflops};
+use crate::orchestrator::Orchestrator;
+use crate::system::{estimate_peak_gflops, get_memory_info};
 use crate::task::Task;
 use ed25519_dalek::{Signer, SigningKey, VerifyingKey};
 use prost::Message;
@@ -173,7 +173,7 @@ impl Orchestrator for OrchestratorClient {
         let url = format!("{}/v3/tasks/submit", self.environment.orchestrator_url());
 
         let (program_memory, total_memory) = get_memory_info();
-        let flops = measure_gflops();
+        let flops = estimate_peak_gflops();
 
         let signature_version = 0; // Version of the signature format
         let msg = format!(

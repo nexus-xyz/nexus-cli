@@ -3,7 +3,9 @@ use crate::environment::Environment;
 use crate::task::Task;
 use log::error;
 use nexus_sdk::stwo::seq::Proof;
-use nexus_sdk::{KnownExitCodes, Local, Prover, Viewable, stwo::seq::Stwo};
+use nexus_sdk::{stwo::seq::Stwo, KnownExitCodes, Local, Prover, Viewable};
+use nexus_vm::elf::ElfFile;
+use nexus_vm::trace::{k_trace, UniformTrace};
 use serde_json::json;
 use thiserror::Error;
 
@@ -117,6 +119,23 @@ pub fn get_default_stwo_prover() -> Result<Stwo<Local>, ProverError> {
     })
 }
 
+/// Get the number of cycles used by the program.
+#[allow(unused)]
+pub fn get_cycles() -> i32 {
+    let elf_bytes = include_bytes!("../assets/fib_input");
+    let elf_file = ElfFile::from_bytes(elf_bytes).expect("could not parse elf");
+    let k: usize = 1;
+    match k_trace(elf_file, &[], &[], &[], k) {
+        Ok((_, trace)) => get_blocks_count(&trace),
+        Err(_) => 0,
+    }
+}
+
+#[allow(unused)]
+fn get_blocks_count(trace: &UniformTrace) -> i32 {
+    trace.blocks.len().try_into().expect("could not get length")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -139,5 +158,11 @@ mod tests {
         if let Err(e) = prove_anonymously(&environment, client_id) {
             panic!("Failed to prove anonymously: {}", e);
         }
+    }
+
+    #[test]
+    fn test_get_cycles() {
+        let cycles = get_cycles();
+        assert!(cycles > 0, "Cycles should be greater than 0");
     }
 }

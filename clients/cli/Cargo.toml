@@ -35,6 +35,7 @@ home = "0.5.9"
 iana-time-zone = "0.1.60"
 log = "0.4.26"
 nexus-sdk = { git = "https://github.com/nexus-xyz/nexus-zkvm", tag = "0.3.4" }
+nexus-vm = { git = "https://github.com/nexus-xyz/nexus-zkvm", tag = "0.3.4" }
 postcard = "1.0.10"
 prost = "0.13"
 ratatui = "0.29.0"

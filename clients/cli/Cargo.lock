@@ -1634,6 +1634,7 @@ dependencies = [
  "log",
  "mockall",
  "nexus-sdk",
+ "nexus-vm",
  "postcard",
  "predicates",
  "prost 0.13.5",
