@@ -147,6 +147,7 @@ pub async fn start_authenticated_workers(
     let submit_proofs_handle = submit_proofs(
         signing_key,
         Box::new(orchestrator),
+        num_workers,
         result_receiver,
         event_sender.clone(),
         shutdown.resubscribe(),
@@ -277,6 +278,7 @@ pub async fn fetch_prover_tasks(
 pub async fn submit_proofs(
     signing_key: SigningKey,
     orchestrator: Box<dyn Orchestrator>,
+    num_workers: usize,
     mut results: mpsc::Receiver<(Task, Proof)>,
     event_sender: mpsc::Sender<Event>,
     mut shutdown: broadcast::Receiver<()>,
@@ -293,7 +295,7 @@ pub async fn submit_proofs(
                             // let now = Local::now();
                             // let timestamp = now.format("%Y-%m-%d %H:%M:%S").to_string();
                             match orchestrator
-                                .submit_proof(&task.task_id, &proof_hash, proof_bytes, signing_key.clone())
+                                .submit_proof(&task.task_id, &proof_hash, proof_bytes, signing_key.clone(), num_workers)
                                 .await
                             {
                                 Ok(_) => {

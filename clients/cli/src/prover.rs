@@ -3,9 +3,9 @@ use crate::environment::Environment;
 use crate::task::Task;
 use log::error;
 use nexus_sdk::stwo::seq::Proof;
-use nexus_sdk::{stwo::seq::Stwo, KnownExitCodes, Local, Prover, Viewable};
+use nexus_sdk::{KnownExitCodes, Local, Prover, Viewable, stwo::seq::Stwo};
 use nexus_vm::elf::ElfFile;
-use nexus_vm::trace::{k_trace, UniformTrace};
+use nexus_vm::trace::{UniformTrace, k_trace};
 use serde_json::json;
 use thiserror::Error;
 
