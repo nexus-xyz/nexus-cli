@@ -87,7 +87,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             max_threads,
         } => {
             let mut node_id = node_id;
-            // If no node ID is provided, try to load it from th e config file.
+            // If no node ID is provided, try to load it from the config file.
             if node_id.is_none() && config_path.exists() {
                 if let Ok(config) = Config::load_from_file(&config_path) {
                     if let Ok(id) = config.node_id.parse::<u64>() {
