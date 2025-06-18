@@ -125,6 +125,32 @@ pub struct NodeTelemetry {
     #[prost(string, optional, tag = "4")]
     pub location: ::core::option::Option<::prost::alloc::string::String>,
 }
+/// Node information
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Node {
+    /// The node's ID
+    #[prost(string, tag = "1")]
+    pub node_id: ::prost::alloc::string::String,
+    /// The type of node
+    #[prost(enumeration = "NodeType", tag = "2")]
+    pub node_type: i32,
+}
+/// Response returning all nodes associated with a user
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct UserResponse {
+    /// The user's registered nodes
+    #[prost(message, repeated, tag = "1")]
+    pub nodes: ::prost::alloc::vec::Vec<Node>,
+    /// Cursor to fetch the next page of nodes, empty if there are no more results
+    #[prost(string, tag = "2")]
+    pub nodes_next_cursor: ::prost::alloc::string::String,
+    /// The user's ID.
+    #[prost(string, tag = "3")]
+    pub user_id: ::prost::alloc::string::String,
+    /// The user's wallet address
+    #[prost(string, tag = "4")]
+    pub wallet_address: ::prost::alloc::string::String,
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum NodeType {

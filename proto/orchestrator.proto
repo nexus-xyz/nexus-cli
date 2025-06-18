@@ -130,3 +130,24 @@ message NodeTelemetry {
   // Geo location of the node
   optional string location = 4;
 }
+
+
+// Node information
+message Node {
+  // The node's ID
+  string node_id = 1;
+  // The type of node
+  NodeType node_type = 2;
+}
+
+// Response returning all nodes associated with a user
+message UserResponse {
+  // The user's registered nodes
+  repeated Node nodes = 1;
+  // Cursor to fetch the next page of nodes, empty if there are no more results
+  string nodes_next_cursor = 2;
+  // The user's ID.
+  string user_id = 3;
+  // The user's wallet address
+  string wallet_address = 4;
+}
