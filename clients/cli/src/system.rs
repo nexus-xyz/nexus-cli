@@ -40,13 +40,13 @@ fn flops_per_cycle_per_core() -> u32 {
     cfg_if! {
         if #[cfg(all(target_arch = "x86_64", target_feature = "avx512f"))] {
             // 512-bit vectors → 16 FP64 ops per FMA instruction
-            { 16 }
+            16
         } else if #[cfg(all(target_arch = "x86_64", target_feature = "avx2"))] {
             // 256-bit vectors → 8 FP64 ops
-            { 8 }
+            8
         } else if #[cfg(all(target_arch = "x86_64", target_feature = "sse2"))] {
             // 128-bit vectors → 4 FP64 ops
-            { 4 }
+            4
         } else {
             // Conservative scalar fallback
              1
