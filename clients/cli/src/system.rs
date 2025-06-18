@@ -32,11 +32,10 @@ pub fn process_memory_gb() -> f64 {
     memory as f64 / 1000.0 / 1000.0 / 1000.0 // Convert to GB
 }
 
-/// Estimate peak FLOPS (in GFLOP/s) of this machine based on the number of cores and clock speed.
+/// Estimate peak FLOPS (in GFLOP/s) from the number of prover threads and clock speed.
 pub fn estimate_peak_gflops(num_provers: usize) -> f32 {
-    // Estimate peak FLOPS based on the number of cores and a rough estimate of operations per cycle
-    // Assuming 4 operations per cycle (e.g., add, multiply, divide, sin)
-    let peak_flops = (num_provers as f32) * 4.0 * 2.0e9; // TODO: Assuming 2 GHz clock speed
+    // Assuming 4 operations per cycle
+    let peak_flops = (num_provers as f32) * 4.0 * 2.0e9; // Assumes 2 GHz clock speed
     peak_flops / 1e9 // Convert to GFLOP/s
 }
 
