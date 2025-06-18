@@ -99,12 +99,13 @@ pub async fn authenticated_proving(
 }
 
 fn get_public_input(task: &Task) -> Result<u32, ProverError> {
-    let s = String::from_utf8(task.public_inputs.clone()).map_err(|e| {
-        ProverError::MalformedTask(format!("Failed to convert public inputs to string: {}", e))
-    })?;
-    s.trim()
-        .parse::<u32>()
-        .map_err(|e| ProverError::MalformedTask(format!("Failed to parse public input: {}", e)))
+    // fib_input expects a single public input as a u32.
+    if task.public_inputs.is_empty() {
+        return Err(ProverError::MalformedTask(
+            "Task public inputs are empty".to_string(),
+        ));
+    }
+    Ok(task.public_inputs[0] as u32)
 }
 
 /// Create a Stwo prover for the default program.

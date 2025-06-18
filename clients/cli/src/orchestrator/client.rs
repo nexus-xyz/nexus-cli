@@ -256,7 +256,14 @@ mod live_orchestrator_tests {
         let signing_key = ed25519_dalek::SigningKey::generate(&mut rand::thread_rng());
         let verifying_key = signing_key.verifying_key();
         let result = client.get_proof_task(node_id, verifying_key).await;
-        println!("{:?}", result);
+        match result {
+            Ok(task) => {
+                println!("Retrieved task: {:?}", task);
+            }
+            Err(e) => {
+                panic!("Failed to get proof task: {}", e);
+            }
+        }
     }
 
     #[tokio::test]
