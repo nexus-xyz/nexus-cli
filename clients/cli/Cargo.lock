@@ -1625,6 +1625,7 @@ version = "0.8.7"
 dependencies = [
  "assert_cmd",
  "async-trait",
+ "cfg-if",
  "chrono",
  "clap",
  "crossterm 0.29.0",
