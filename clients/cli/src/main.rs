@@ -9,6 +9,7 @@ mod nexus_orchestrator;
 mod orchestrator;
 mod prover;
 mod prover_runtime;
+mod register;
 pub mod system;
 mod task;
 mod ui;
@@ -17,6 +18,7 @@ use crate::config::{Config, get_config_path};
 use crate::environment::Environment;
 use crate::orchestrator::{Orchestrator, OrchestratorClient};
 use crate::prover_runtime::{start_anonymous_workers, start_authenticated_workers};
+use crate::register::{register_node, register_user};
 use clap::{ArgAction, Parser, Subcommand};
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
@@ -85,7 +87,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             max_threads,
         } => {
             let mut node_id = node_id;
-            // If no node ID is provided, try to load it from the config file.
+            // If no node ID is provided, try to load it from th e config file.
             if node_id.is_none() && config_path.exists() {
                 if let Ok(config) = Config::load_from_file(&config_path) {
                     if let Ok(id) = config.node_id.parse::<u64>() {
@@ -101,101 +103,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
         Command::RegisterUser { wallet_address } => {
             println!("Registering user with wallet address: {}", wallet_address);
-            // Check if the wallet address is valid.
-            if !keys::is_valid_eth_address(&wallet_address) {
-                let err_msg = format!(
-                    "Invalid Ethereum wallet address: {}. It should be a 42-character hex string starting with '0x'.",
-                    wallet_address
-                );
-                return Err(Box::from(err_msg));
-            }
-
-            // Check if the config file exists and contains this wallet address.
-            if config_path.exists() {
-                if let Ok(config) = Config::load_from_file(&config_path) {
-                    if config.wallet_address.to_lowercase() == wallet_address.to_lowercase()
-                        && !config.user_id.is_empty()
-                    {
-                        println!(
-                            "User already registered. User ID: {}, Wallet Address: {}",
-                            config.user_id, config.wallet_address
-                        );
-                        return Ok(());
-                    }
-                }
-            }
-
-            // Otherwise, register the user with the orchestrator.
-            let orchestrator_client = OrchestratorClient::new(environment);
-            let uuid = uuid::Uuid::new_v4().to_string();
-            match orchestrator_client
-                .register_user(&uuid, &wallet_address)
-                .await
-            {
-                Ok(_) => println!("User {} registered successfully.", uuid),
-                Err(e) => {
-                    eprintln!("Failed to register user: {}", e);
-                    return Err(e.into());
-                }
-            }
-
-            // Save the configuration file with the user ID and wallet address.
-            let config = Config::new(
-                uuid,
-                wallet_address,
-                String::new(), // node_id is empty for now
-                environment,
-            );
-            config
-                .save(&config_path)
-                .map_err(|e| format!("Failed to save config: {}", e))?;
-            Ok(())
+            let orchestrator = Box::new(OrchestratorClient::new(environment));
+            register_user(&wallet_address, &config_path, orchestrator).await
         }
         Command::RegisterNode { node_id } => {
-            // Register a new node, or link an existing node to a user.
-            // Requires: a config file with a registered user.
-            // If a node_id is provided, update the config with it and use it.
-            // If no node_id is provided, generate a new one.
-            let mut config = Config::load_from_file(&config_path).map_err(|e| {
-                format!("Failed to load config: {}. Please register a user first", e)
-            })?;
-            if config.user_id.is_empty() {
-                return Err(Box::from(
-                    "No user registered. Please register a user first.",
-                ));
-            }
-            if let Some(node_id) = node_id {
-                // If a node_id is provided, update the config with it.
-                println!("Registering node ID: {}", node_id);
-                config.node_id = node_id.to_string();
-                config
-                    .save(&config_path)
-                    .map_err(|e| format!("Failed to save updated config: {}", e))?;
-                println!("Successfully registered node with ID: {}", node_id);
-                Ok(())
-            } else {
-                println!(
-                    "No node ID provided. Registering a new node in environment: {:?}",
-                    environment
-                );
-                let orchestrator_client = OrchestratorClient::new(environment);
-                match orchestrator_client.register_node(&config.user_id).await {
-                    Ok(node_id) => {
-                        println!("Node registered successfully with ID: {}", node_id);
-                        // Update the config with the new node ID
-                        let mut updated_config = config;
-                        updated_config.node_id = node_id;
-                        updated_config
-                            .save(&config_path)
-                            .map_err(|e| format!("Failed to save updated config: {}", e))?;
-                        Ok(())
-                    }
-                    Err(e) => {
-                        eprintln!("Failed to register node: {}", e);
-                        Err(e.into())
-                    }
-                }
-            }
+            let orchestrator = Box::new(OrchestratorClient::new(environment));
+            register_node(node_id, &config_path, orchestrator).await
         }
     }
 }
