@@ -17,7 +17,7 @@ pub async fn register_user(
     orchestrator: Box<dyn Orchestrator>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Check if the wallet address is valid.
-    if !keys::is_valid_eth_address(&wallet_address) {
+    if !keys::is_valid_eth_address(wallet_address) {
         let err_msg = format!(
             "Invalid Ethereum wallet address: {}. It should be a 42-character hex string starting with '0x'.",
             wallet_address
@@ -27,7 +27,7 @@ pub async fn register_user(
 
     // Check if the config file exists and contains this wallet address and a user ID.
     if config_path.exists() {
-        if let Ok(config) = Config::load_from_file(&config_path) {
+        if let Ok(config) = Config::load_from_file(config_path) {
             if config.wallet_address.to_lowercase() == wallet_address.to_lowercase()
                 && !config.user_id.is_empty()
             {
@@ -50,11 +50,11 @@ pub async fn register_user(
             user_id,
             wallet_address.to_string(),
             String::new(), // node_id is empty for now
-            orchestrator.environment().clone(),
+            *orchestrator.environment(),
         );
         // Save the configuration file with the user ID and wallet address.
         config
-            .save(&config_path)
+            .save(config_path)
             .map_err(|e| format!("Failed to save config: {}", e))?;
 
         return Ok(());
@@ -62,7 +62,7 @@ pub async fn register_user(
 
     // Otherwise, register the user with the orchestrator.
     let uuid = uuid::Uuid::new_v4().to_string();
-    match orchestrator.register_user(&uuid, &wallet_address).await {
+    match orchestrator.register_user(&uuid, wallet_address).await {
         Ok(_) => println!("User {} registered successfully.", uuid),
         Err(e) => {
             eprintln!("Failed to register user: {}", e);
@@ -75,10 +75,10 @@ pub async fn register_user(
         uuid,
         wallet_address.to_string(),
         String::new(), // node_id is empty for now
-        orchestrator.environment().clone(),
+        *orchestrator.environment(),
     );
     config
-        .save(&config_path)
+        .save(config_path)
         .map_err(|e| format!("Failed to save config: {}", e))?;
     Ok(())
 }
@@ -98,7 +98,7 @@ pub async fn register_node(
     // Requires: a config file with a registered user.
     // If a node_id is provided, update the config with it and use it.
     // If no node_id is provided, generate a new one.
-    let mut config = Config::load_from_file(&config_path)
+    let mut config = Config::load_from_file(config_path)
         .map_err(|e| format!("Failed to load config: {}. Please register a user first", e))?;
     if config.user_id.is_empty() {
         return Err(Box::from(
@@ -110,7 +110,7 @@ pub async fn register_node(
         println!("Registering node ID: {}", node_id);
         config.node_id = node_id.to_string();
         config
-            .save(&config_path)
+            .save(config_path)
             .map_err(|e| format!("Failed to save updated config: {}", e))?;
         println!("Successfully registered node with ID: {}", node_id);
         Ok(())
@@ -126,7 +126,7 @@ pub async fn register_node(
                 let mut updated_config = config;
                 updated_config.node_id = node_id;
                 updated_config
-                    .save(&config_path)
+                    .save(config_path)
                     .map_err(|e| format!("Failed to save updated config: {}", e))?;
                 Ok(())
             }

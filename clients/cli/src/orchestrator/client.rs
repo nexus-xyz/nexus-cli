@@ -44,7 +44,7 @@ impl Orchestrator for OrchestratorClient {
     /// Get the user ID associated with a wallet address.
     async fn get_user(&self, wallet_address: &str) -> Result<String, OrchestratorError> {
         // Canonicalise + percent-encode the address                        ────────┐
-        let wallet_path = urlencoding::encode(&wallet_address).into_owned();
+        let wallet_path = urlencoding::encode(wallet_address).into_owned();
         let url = format!(
             "{}/v3/users/{}",
             self.environment.orchestrator_url().trim_end_matches('/'),
