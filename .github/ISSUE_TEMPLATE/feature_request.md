@@ -1,4 +1,4 @@
-name: Feature request
+name: CLI Feature Request
 description: Suggest a new idea for Nexus CLI.
 body:
   - type: markdown
