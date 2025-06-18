@@ -116,7 +116,6 @@ mod tests {
     fn test_estimate_peak_gflops() {
         let num_provers = 4; // Example number of prover threads
         let gflops = super::estimate_peak_gflops(num_provers);
-        println!("gflops = {}", gflops);
         assert!(gflops > 0.0, "Expected positive GFLOP/s estimate");
     }
 
