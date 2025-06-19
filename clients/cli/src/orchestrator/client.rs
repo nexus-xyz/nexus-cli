@@ -176,10 +176,7 @@ impl Orchestrator for OrchestratorClient {
         let flops = measure_gflops();
 
         let signature_version = 0; // Version of the signature format
-        let msg = format!(
-            "{} | {} | {}",
-            signature_version, task_id, proof_hash
-        );
+        let msg = format!("{} | {} | {}", signature_version, task_id, proof_hash);
         let signature = signing_key.sign(msg.as_bytes());
         let verifying_key: VerifyingKey = signing_key.verifying_key();
 
