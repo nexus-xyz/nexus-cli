@@ -49,7 +49,7 @@ fn flops_per_cycle_per_core() -> u32 {
             4
         } else {
             // Conservative scalar fallback
-             1
+            1
         }
     }
 }
@@ -116,6 +116,7 @@ mod tests {
     fn test_estimate_peak_gflops() {
         let num_provers = 4; // Example number of prover threads
         let gflops = super::estimate_peak_gflops(num_provers);
+        // println!("gflops = {}", gflops);
         assert!(gflops > 0.0, "Expected positive GFLOP/s estimate");
     }
 
@@ -124,5 +125,6 @@ mod tests {
         let (cores, mhz) = super::cpu_stats();
         assert!(cores > 0, "Expected at least one core");
         assert!(mhz > 0, "Expected non-zero MHz");
+        // println!("Cores: {}, Base Frequency: {} MHz", cores, mhz);
     }
 }
