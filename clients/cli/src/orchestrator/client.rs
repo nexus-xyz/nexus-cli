@@ -177,7 +177,7 @@ impl Orchestrator for OrchestratorClient {
 
         let signature_version = 0; // Version of the signature format
         let msg = format!(
-            "version: {} | task_id: {} | proof_hash: {}",
+            "{} | {} | {}",
             signature_version, task_id, proof_hash
         );
         let signature = signing_key.sign(msg.as_bytes());
