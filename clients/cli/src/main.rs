@@ -15,7 +15,7 @@ mod task;
 mod task_cache;
 mod ui;
 
-use crate::config::{get_config_path, Config};
+use crate::config::{Config, get_config_path};
 use crate::environment::Environment;
 use crate::orchestrator::{Orchestrator, OrchestratorClient};
 use crate::prover_runtime::{start_anonymous_workers, start_authenticated_workers};
@@ -24,10 +24,10 @@ use clap::{ArgAction, Parser, Subcommand};
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ed25519_dalek::SigningKey;
-use ratatui::{backend::CrosstermBackend, Terminal};
+use ratatui::{Terminal, backend::CrosstermBackend};
 use std::{error::Error, io};
 use tokio::sync::broadcast;
 
