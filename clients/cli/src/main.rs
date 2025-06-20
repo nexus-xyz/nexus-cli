@@ -80,24 +80,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .unwrap_or(Environment::default());
 
     let config_path = get_config_path()?;
+
     let args = Args::parse();
     match args.command {
         Command::Start {
             node_id,
             headless,
             max_threads,
-        } => {
-            let mut node_id = node_id;
-            // If no node ID is provided, try to load it from the config file.
-            if node_id.is_none() && config_path.exists() {
-                if let Ok(config) = Config::load_from_file(&config_path) {
-                    if let Ok(id) = config.node_id.parse::<u64>() {
-                        node_id = Some(id);
-                    }
-                }
-            }
-            start(node_id, environment, headless, max_threads).await
-        }
+        } => start(node_id, environment, config_path, headless, max_threads).await,
         Command::Logout => {
             println!("Logging out and clearing node configuration file...");
             Config::clear_node_config(&config_path).map_err(Into::into)
@@ -119,13 +109,32 @@ async fn main() -> Result<(), Box<dyn Error>> {
 /// # Arguments
 /// * `node_id` - This client's unique identifier, if available.
 /// * `env` - The environment to connect to.
+/// * `config_path` - Path to the configuration file.
+/// * `headless` - If true, runs without the terminal UI.
 /// * `max_threads` - Optional maximum number of threads to use for proving.
 async fn start(
     node_id: Option<u64>,
     env: Environment,
+    config_path: std::path::PathBuf,
     headless: bool,
     max_threads: Option<u32>,
 ) -> Result<(), Box<dyn Error>> {
+    let mut node_id = node_id;
+    // If no node ID is provided, try to load it from the config file.
+    if node_id.is_none() && config_path.exists() {
+        let config = Config::load_from_file(&config_path)?;
+        node_id = Some(config.node_id.parse::<u64>().map_err(|e| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!(
+                    "Failed to parse node_id {:?} from the config file as a u64: {}",
+                    config.node_id, e
+                ),
+            )
+        })?);
+        println!("Read Node ID: {} from config file", node_id.unwrap());
+    }
+
     // Create a signing key for the prover.
     let mut csprng = rand_core::OsRng;
     let signing_key: SigningKey = SigningKey::generate(&mut csprng);
