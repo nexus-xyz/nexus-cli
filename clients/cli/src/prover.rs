@@ -3,7 +3,7 @@ use crate::environment::Environment;
 use crate::task::Task;
 use log::error;
 use nexus_sdk::stwo::seq::Proof;
-use nexus_sdk::{KnownExitCodes, Local, Prover, Viewable, stwo::seq::Stwo};
+use nexus_sdk::{stwo::seq::Stwo, KnownExitCodes, Local, Prover, Viewable};
 use serde_json::json;
 use thiserror::Error;
 
@@ -139,5 +139,21 @@ mod tests {
         if let Err(e) = prove_anonymously(&environment, client_id) {
             panic!("Failed to prove anonymously: {}", e);
         }
+    }
+
+    #[test]
+    fn test_get_public_input() {
+        let input: u8 = 9;
+        let task = Task {
+            task_id: "test_task".to_string(),
+            program_id: "".to_string(),
+            public_inputs: vec![input],
+        };
+        let result = get_public_input(&task);
+        assert_eq!(result.unwrap(), input as u32);
+
+        // This is done on the verifier.
+        let input_postcard: u32 = postcard::from_bytes(&task.public_inputs).unwrap();
+        assert_eq!(input_postcard, input as u32);
     }
 }
