@@ -8,8 +8,8 @@ use crate::nexus_orchestrator::{
     RegisterNodeRequest, RegisterNodeResponse, RegisterUserRequest, SubmitProofRequest,
     UserResponse,
 };
-use crate::orchestrator::error::OrchestratorError;
 use crate::orchestrator::Orchestrator;
+use crate::orchestrator::error::OrchestratorError;
 use crate::system::{estimate_peak_gflops, get_memory_info};
 use crate::task::Task;
 use ed25519_dalek::{Signer, SigningKey, VerifyingKey};
