@@ -1,5 +1,6 @@
 //! Registering a new user and node with the orchestrator.
 
+use crate::ascii_cube::ASCII_CUBE;
 use crate::config::Config;
 use crate::keys;
 use crate::orchestrator::Orchestrator;
@@ -65,6 +66,7 @@ pub async fn register_user(
     match orchestrator.register_user(&uuid, wallet_address).await {
         Ok(_) => println!("User {} registered successfully.", uuid),
         Err(e) => {
+            print_friendly_error();
             eprintln!("Failed to register user: {}", e);
             return Err(e.into());
         }
@@ -131,11 +133,19 @@ pub async fn register_node(
                 Ok(())
             }
             Err(e) => {
+                print_friendly_error();
                 eprintln!("Failed to register node: {}", e);
                 Err(e.into())
             }
         }
     }
+}
+
+fn print_friendly_error() {
+    println!("{}", ASCII_CUBE);
+    // RGB: FF = 255, AA = 170, 00 = 0
+    println!("\x1b[38;2;255;170;0mWe'll be back shortly\x1b[0m");
+    println!("Our site is under unprecedented traffic. Thank you for your patience.\n");
 }
 
 #[cfg(test)]
