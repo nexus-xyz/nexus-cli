@@ -1,7 +1,6 @@
 // Copyright (c) 2024 Nexus. All rights reserved.
 
 mod analytics;
-mod ascii_cube;
 mod config;
 mod environment;
 mod keys;

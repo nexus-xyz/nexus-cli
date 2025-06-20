@@ -1,9 +1,9 @@
 //! Registering a new user and node with the orchestrator.
 
-use crate::ascii_cube::ASCII_CUBE;
 use crate::config::Config;
 use crate::keys;
 use crate::orchestrator::Orchestrator;
+use crate::ui::splash::LOGO_NAME;
 use std::path::Path;
 
 /// Registers a user with the orchestrator.
@@ -142,8 +142,8 @@ pub async fn register_node(
 }
 
 fn print_friendly_error() {
-    println!("{}", ASCII_CUBE);
     // RGB: FF = 255, AA = 170, 00 = 0
+    println!("\x1b[38;2;255;170;0m{}\x1b[0m", LOGO_NAME);
     println!("\x1b[38;2;255;170;0mWe'll be back shortly\x1b[0m");
     println!("Our site is under unprecedented traffic. Thank you for your patience.\n");
 }
