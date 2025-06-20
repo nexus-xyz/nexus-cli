@@ -29,7 +29,7 @@ pub struct Config {
     #[serde(default)]
     pub wallet_address: String,
 
-    /// The node's unique identifier, probably an integer
+    /// The node's unique identifier, probably an integer. Empty when not yet registered.
     #[serde(default)]
     pub node_id: String,
 }
