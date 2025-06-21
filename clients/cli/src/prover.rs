@@ -143,7 +143,7 @@ mod tests {
     async fn test_prove_anonymously() {
         let environment = Environment::Local;
         let client_id = "test_client_id".to_string();
-        if let Err(e) = prove_anonymously(&environment, client_id) {
+        if let Err(e) = prove_anonymously(&environment, client_id).await {
             panic!("Failed to prove anonymously: {}", e);
         }
     }
