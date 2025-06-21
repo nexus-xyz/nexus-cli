@@ -127,4 +127,6 @@ git tag -a v0.1.2 -m "Release v0.1.2"
 git push origin v0.1.2
 ```
 
-This will trigger the GitHub Actions workflow to build the release and upload it to the `releases` page.
+This will trigger the GitHub Actions release workflow that compiles binaries and pushes the Docker image, in
+addition to creating release. Creating a release through the GitHub UI creates a new release but does **NOT** trigger
+the workflow. This leads to a release without a Docker image or binaries, which breaks the installation script.
