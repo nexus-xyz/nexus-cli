@@ -201,20 +201,33 @@ async fn start(
         terminal.show_cursor()?;
 
         res?;
-
-        println!("Exiting...");
-        for handle in join_handles.drain(..) {
-            let _ = handle.await;
-        }
-        println!("Nexus CLI application exited successfully.");
     } else {
-        // Print events to stdout in a loop
+        // Headless mode: log events to console.
+
+        // Trigger shutdown on Ctrl+C
+        let shutdown_sender_clone = shutdown_sender.clone();
+        tokio::spawn(async move {
+            if tokio::signal::ctrl_c().await.is_ok() {
+                let _ = shutdown_sender_clone.send(());
+            }
+        });
+
+        let mut shutdown_receiver = shutdown_sender.subscribe();
         loop {
-            // Drain prover events from the async channel into app.events
-            while let Ok(event) = event_receiver.try_recv() {
-                println!("{}", event);
+            tokio::select! {
+                Some(event) = event_receiver.recv() => {
+                    println!("{}", event);
+                }
+                _ = shutdown_receiver.recv() => {
+                    break;
+                }
             }
         }
     }
+    println!("\nExiting...");
+    for handle in join_handles.drain(..) {
+        let _ = handle.await;
+    }
+    println!("Nexus CLI application exited successfully.");
     Ok(())
 }
