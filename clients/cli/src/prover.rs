@@ -186,12 +186,12 @@ mod tests {
     }
 
     #[test]
-    // #[ignore] // This is a long-running test, ignore it by default
+    #[ignore] // This is a long-running test, ignore it by default
     fn test_c2pa_program() {
         let c2pa_prover = get_c2pa_stwo_prover().expect("Failed to get c2pa_stwo_prover");
         let public_input = [43u8; 32];
         match c2pa_prover.prove_with_input::<(), [u8; 32]>(&(), &public_input) {
-            Ok((view, proof)) => {
+            Ok((view, _proof)) => {
                 let exit_code = view.exit_code().expect("Failed to get exit code");
                 assert_eq!(exit_code, KnownExitCodes::ExitSuccess as u32);
                 println!(
