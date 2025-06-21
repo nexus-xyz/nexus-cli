@@ -154,8 +154,8 @@ fn print_friendly_error() {
 mod tests {
     use super::*;
     use crate::environment::Environment;
-    use crate::orchestrator::error::OrchestratorError;
     use crate::orchestrator::MockOrchestrator;
+    use crate::orchestrator::error::OrchestratorError;
     use predicates::ord::eq;
     use tempfile::tempdir;
 
