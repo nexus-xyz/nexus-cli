@@ -117,3 +117,14 @@ To build the ProtoBuf files, run the following command in the `clients/cli` dire
 ```bash
 cargo build --features build_proto
 ```
+
+## Creating a Release
+
+To create a release, update the package version in `Cargo.toml`, then create and push a new (annotated) tag, e.g.:
+
+```bash
+git tag -a v0.1.2 -m "Release v0.1.2"
+git push origin v0.1.2
+```
+
+This will trigger the GitHub Actions workflow to build the release and upload it to the `releases` page.
