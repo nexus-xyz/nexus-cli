@@ -3,7 +3,7 @@ use crate::environment::Environment;
 use crate::task::Task;
 use log::error;
 use nexus_sdk::stwo::seq::Proof;
-use nexus_sdk::{stwo::seq::Stwo, KnownExitCodes, Local, Prover, Viewable};
+use nexus_sdk::{KnownExitCodes, Local, Prover, Viewable, stwo::seq::Stwo};
 use nexus_vm::elf::ElfFile;
 use serde_json::json;
 use thiserror::Error;
@@ -31,12 +31,10 @@ pub async fn prove_anonymously(
     environment: &Environment,
     client_id: String,
 ) -> Result<Proof, ProverError> {
-    // The 10th term of the Fibonacci sequence is 55
-    let public_input: u32 = 9;
-
-    let stwo_prover = get_default_stwo_prover()?;
+    let public_input = [17u8; 32]; // Arbitrary public input.
+    let stwo_prover = get_c2pa_stwo_prover()?;
     let (view, proof) = stwo_prover
-        .prove_with_input::<(), u32>(&(), &public_input)
+        .prove_with_input::<(), [u8; 32]>(&(), &public_input)
         .map_err(|e| ProverError::Stwo(format!("Failed to run prover: {}", e)))?;
 
     let exit_code = view.exit_code().map_err(|e| {
@@ -72,11 +70,26 @@ pub async fn authenticated_proving(
     environment: &Environment,
     client_id: String,
 ) -> Result<Proof, ProverError> {
-    let public_input = get_public_input(task)?;
-    let stwo_prover = get_default_stwo_prover()?;
-    let (view, proof) = stwo_prover
-        .prove_with_input::<(), u32>(&(), &public_input)
-        .map_err(|e| ProverError::Stwo(format!("Failed to run prover: {}", e)))?;
+    let (view, proof) = match task.program_id.as_str() {
+        "fib_input" => {
+            let public_input = get_public_input(task)?;
+            let stwo_prover = get_default_stwo_prover()?;
+            stwo_prover
+                .prove_with_input::<(), u32>(&(), &public_input)
+                .map_err(|e| ProverError::Stwo(format!("Failed to run prover: {}", e)))
+        }
+        "c2pa_program" => {
+            let public_input = get_c2pa_public_input(task)?;
+            let stwo_prover = get_c2pa_stwo_prover()?;
+            stwo_prover
+                .prove_with_input::<(), [u8; 32]>(&(), &public_input)
+                .map_err(|e| ProverError::Stwo(format!("Failed to run prover: {}", e)))
+        }
+        _ => Err(ProverError::MalformedTask(format!(
+            "Unknown program ID: {}",
+            task.program_id
+        ))),
+    }?;
 
     let exit_code = view.exit_code().map_err(|e| {
         ProverError::GuestProgram(format!("Failed to deserialize exit code: {}", e))
@@ -94,7 +107,7 @@ pub async fn authenticated_proving(
         "cli_proof_node_v3".to_string(),
         json!({
             "program_name": "fib_input",
-            "public_input": public_input,
+            "public_input": &task.public_inputs,
             "task_id": task.task_id,
         }),
         environment,
