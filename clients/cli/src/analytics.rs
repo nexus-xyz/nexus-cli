@@ -2,11 +2,29 @@ use crate::environment::Environment;
 use chrono::Datelike;
 use chrono::Timelike;
 use reqwest::header::ACCEPT;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use std::{
     env,
     time::{SystemTime, UNIX_EPOCH},
 };
+
+#[derive(Debug, thiserror::Error)]
+pub enum TrackError {
+    #[error("System time error: {0}")]
+    SystemTimeError(#[from] std::time::SystemTimeError),
+
+    #[error("event_properties is not a valid JSON object")]
+    InvalidEventProperties,
+
+    #[error("HTTP error: {0}")]
+    HttpError(#[from] reqwest::Error),
+
+    #[error("Non-successful response: {status} - {body}")]
+    FailedResponse {
+        status: reqwest::StatusCode,
+        body: String,
+    },
+}
 
 pub const STAGING_MEASUREMENT_ID: &str = "G-T0M0Q3V6WN";
 pub const BETA_MEASUREMENT_ID: &str = "G-GLH0GMEEFH";
@@ -29,18 +47,23 @@ pub fn analytics_api_key(environment: &Environment) -> String {
     }
 }
 
-#[allow(unused)]
+/// Track an event with the Firebase Measurement Protocol
+///
+/// # Arguments
+/// * `event_name` - The name of the event to track.
+/// * `event_properties` - A JSON object containing properties of the event.
+/// * `environment` - The environment in which the application is running.
+/// * `client_id` - A unique identifier for the client, typically a UUID or similar.
 pub fn track(
     event_name: String,
     event_properties: Value,
     environment: &Environment,
     client_id: String,
-) {
+) -> Result<(), TrackError> {
     let analytics_id = analytics_id(environment);
     let analytics_api_key = analytics_api_key(environment);
-
     if analytics_id.is_empty() {
-        return;
+        return Ok(());
     }
     let local_now = chrono::offset::Local::now();
 
@@ -52,6 +75,8 @@ pub fn track(
     // Firebase format for properties for Measurement protocol:
     // https://developers.google.com/analytics/devguides/collection/protocol/ga4/reference?client_type=firebase#payload
     // https://developers.google.com/analytics/devguides/collection/protocol/ga4/reference?client_type=firebase#payload_query_parameters
+
+    let system_time = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
 
     let system_time = SystemTime::now()
         .duration_since(UNIX_EPOCH)
