@@ -195,7 +195,7 @@ pub async fn start_anonymous_workers(
 
                     _ = tokio::time::sleep(Duration::from_millis(300)) => {
                         // Perform work
-                        match crate::prover::prove_anonymously(&environment, client_id.clone()) {
+                        match crate::prover::prove_anonymously(&environment, client_id.clone()).await {
                             Ok(_proof) => {
                                 let message = "Anonymous proof completed successfully".to_string();
                                 let _ = prover_event_sender
