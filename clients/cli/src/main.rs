@@ -9,14 +9,17 @@ mod nexus_orchestrator;
 mod orchestrator;
 mod prover;
 mod prover_runtime;
+mod register;
 pub mod system;
 mod task;
+mod task_cache;
 mod ui;
 
 use crate::config::{Config, get_config_path};
 use crate::environment::Environment;
 use crate::orchestrator::{Orchestrator, OrchestratorClient};
 use crate::prover_runtime::{start_anonymous_workers, start_authenticated_workers};
+use crate::register::{register_node, register_user};
 use clap::{ArgAction, Parser, Subcommand};
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
@@ -77,111 +80,26 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .unwrap_or(Environment::default());
 
     let config_path = get_config_path()?;
+
     let args = Args::parse();
     match args.command {
         Command::Start {
             node_id,
             headless,
             max_threads,
-        } => {
-            let mut node_id = node_id;
-            // If no node ID is provided, try to load it from the config file.
-            if node_id.is_none() && config_path.exists() {
-                if let Ok(config) = Config::load_from_file(&config_path) {
-                    if let Ok(id) = config.node_id.parse::<u64>() {
-                        node_id = Some(id);
-                    }
-                }
-            }
-            start(node_id, environment, headless, max_threads).await
-        }
+        } => start(node_id, environment, config_path, headless, max_threads).await,
         Command::Logout => {
             println!("Logging out and clearing node configuration file...");
             Config::clear_node_config(&config_path).map_err(Into::into)
         }
         Command::RegisterUser { wallet_address } => {
-            println!(
-                "Registering user with wallet address: {} in environment: {:?}",
-                wallet_address, environment
-            );
-            // Check if the wallet address is valid
-            if !keys::is_valid_eth_address(&wallet_address) {
-                let err_msg = format!(
-                    "Invalid Ethereum wallet address: {}. It should be a 42-character hex string starting with '0x'.",
-                    wallet_address
-                );
-                return Err(Box::from(err_msg));
-            }
-            let orchestrator_client = OrchestratorClient::new(environment);
-            let uuid = uuid::Uuid::new_v4().to_string();
-            match orchestrator_client
-                .register_user(&uuid, &wallet_address)
-                .await
-            {
-                Ok(_) => println!("User {} registered successfully.", uuid),
-                Err(e) => {
-                    eprintln!("Failed to register user: {}", e);
-                    return Err(e.into());
-                }
-            }
-
-            // Save the configuration file with the user ID and wallet address
-            let config = Config::new(
-                uuid,
-                wallet_address,
-                String::new(), // node_id is empty for now
-                environment,
-            );
-            config
-                .save(&config_path)
-                .map_err(|e| format!("Failed to save config: {}", e))?;
-            Ok(())
+            println!("Registering user with wallet address: {}", wallet_address);
+            let orchestrator = Box::new(OrchestratorClient::new(environment));
+            register_user(&wallet_address, &config_path, orchestrator).await
         }
         Command::RegisterNode { node_id } => {
-            // Register a new node, or link an existing node to a user.
-            // Requires: a config file with a registered user
-            // If a node_id is provided, update the config with it and use it.
-            // If no node_id is provided, generate a new one.
-            let mut config = Config::load_from_file(&config_path).map_err(|e| {
-                format!("Failed to load config: {}. Please register a user first", e)
-            })?;
-            if config.user_id.is_empty() {
-                return Err(Box::from(
-                    "No user registered. Please register a user first.",
-                ));
-            }
-            if let Some(node_id) = node_id {
-                // If a node_id is provided, update the config with it.
-                println!("Registering node ID: {}", node_id);
-                config.node_id = node_id.to_string();
-                config
-                    .save(&config_path)
-                    .map_err(|e| format!("Failed to save updated config: {}", e))?;
-                println!("Successfully registered node with ID: {}", node_id);
-                Ok(())
-            } else {
-                println!(
-                    "No node ID provided. Registering a new node in environment: {:?}",
-                    environment
-                );
-                let orchestrator_client = OrchestratorClient::new(environment);
-                match orchestrator_client.register_node(&config.user_id).await {
-                    Ok(node_id) => {
-                        println!("Node registered successfully with ID: {}", node_id);
-                        // Update the config with the new node ID
-                        let mut updated_config = config;
-                        updated_config.node_id = node_id;
-                        updated_config
-                            .save(&config_path)
-                            .map_err(|e| format!("Failed to save updated config: {}", e))?;
-                        Ok(())
-                    }
-                    Err(e) => {
-                        eprintln!("Failed to register node: {}", e);
-                        Err(e.into())
-                    }
-                }
-            }
+            let orchestrator = Box::new(OrchestratorClient::new(environment));
+            register_node(node_id, &config_path, orchestrator).await
         }
     }
 }
@@ -191,19 +109,60 @@ async fn main() -> Result<(), Box<dyn Error>> {
 /// # Arguments
 /// * `node_id` - This client's unique identifier, if available.
 /// * `env` - The environment to connect to.
+/// * `config_path` - Path to the configuration file.
+/// * `headless` - If true, runs without the terminal UI.
 /// * `max_threads` - Optional maximum number of threads to use for proving.
 async fn start(
     node_id: Option<u64>,
     env: Environment,
+    config_path: std::path::PathBuf,
     headless: bool,
-    _max_threads: Option<u32>,
+    max_threads: Option<u32>,
 ) -> Result<(), Box<dyn Error>> {
+    let mut node_id = node_id;
+    // If no node ID is provided, try to load it from the config file.
+    if node_id.is_none() && config_path.exists() {
+        let config = Config::load_from_file(&config_path)?;
+        node_id = Some(config.node_id.parse::<u64>().map_err(|e| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!(
+                    "Failed to parse node_id {:?} from the config file as a u64: {}",
+                    config.node_id, e
+                ),
+            )
+        })?);
+        println!("Read Node ID: {} from config file", node_id.unwrap());
+    }
+
     // Create a signing key for the prover.
     let mut csprng = rand_core::OsRng;
     let signing_key: SigningKey = SigningKey::generate(&mut csprng);
     let orchestrator_client = OrchestratorClient::new(env);
-    let num_workers = 3; // TODO: Keep this low for now to avoid hitting rate limits.
+    // Clamp the number of workers to [1,8]. Keep this low for now to avoid rate limiting.
+    let num_workers: usize = max_threads.unwrap_or(1).clamp(1, 8) as usize;
     let (shutdown_sender, _) = broadcast::channel(1); // Only one shutdown signal needed
+
+    // Load config to get client_id for analytics
+    let config_path = get_config_path()?;
+    let client_id = if config_path.exists() {
+        match Config::load_from_file(&config_path) {
+            Ok(config) => {
+                // First try user_id, then node_id, then fallback to UUID
+                if !config.user_id.is_empty() {
+                    config.user_id
+                } else if !config.node_id.is_empty() {
+                    config.node_id
+                } else {
+                    uuid::Uuid::new_v4().to_string() // Fallback to random UUID
+                }
+            }
+            Err(_) => uuid::Uuid::new_v4().to_string(), // Fallback to random UUID
+        }
+    } else {
+        uuid::Uuid::new_v4().to_string() // Fallback to random UUID
+    };
+
     let (mut event_receiver, mut join_handles) = match node_id {
         Some(node_id) => {
             start_authenticated_workers(
@@ -212,10 +171,14 @@ async fn start(
                 orchestrator_client.clone(),
                 num_workers,
                 shutdown_sender.subscribe(),
+                env,
+                client_id,
             )
             .await
         }
-        None => start_anonymous_workers(num_workers, shutdown_sender.subscribe()).await,
+        None => {
+            start_anonymous_workers(num_workers, shutdown_sender.subscribe(), env, client_id).await
+        }
     };
 
     if !headless {
@@ -247,14 +210,18 @@ async fn start(
         terminal.show_cursor()?;
 
         res?;
-
-        println!("Exiting...");
-        for handle in join_handles.drain(..) {
-            let _ = handle.await;
-        }
-        println!("Nexus CLI application exited successfully.");
     } else {
-        // Print events to stdout in a loop
+        // Headless mode: log events to console.
+
+        // Trigger shutdown on Ctrl+C
+        let shutdown_sender_clone = shutdown_sender.clone();
+        tokio::spawn(async move {
+            if tokio::signal::ctrl_c().await.is_ok() {
+                let _ = shutdown_sender_clone.send(());
+            }
+        });
+
+        let mut shutdown_receiver = shutdown_sender.subscribe();
         loop {
             // Drain prover events from the async channel into app.events
             match event_receiver.recv().await {
@@ -263,6 +230,11 @@ async fn start(
                 }
                 None => {
                     // Channel is closed, exit the loop
+            tokio::select! {
+                Some(event) = event_receiver.recv() => {
+                    println!("{}", event);
+                }
+                _ = shutdown_receiver.recv() => {
                     break;
                 }
             }
@@ -274,5 +246,10 @@ async fn start(
         }
         println!("Nexus CLI application exited successfully.");
     }
+    println!("\nExiting...");
+    for handle in join_handles.drain(..) {
+        let _ = handle.await;
+    }
+    println!("Nexus CLI application exited successfully.");
     Ok(())
 }

@@ -20,7 +20,7 @@ NC='\033[0m'  # No Color
 # -----------------------------------------------------------------------------
 if [ -z "$NONINTERACTIVE" ] && [ "${#NODE_ID}" -ne "28" ]; then
     echo ""
-    echo "${ORANGE}Testnet II is over. The Nexus network is currently in Devnet.${NC}"
+    echo "${ORANGE}Devnet is over. Testnet III is coming soon. Until then, proving is disabled.${NC}"
     echo ""
 fi
 

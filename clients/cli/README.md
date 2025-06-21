@@ -76,7 +76,7 @@ The Nexus CLI requires at least 4 GB of RAM. If multithreading is enabled, allot
 
 ## 📚 Resources
 
-* [Network FAQ](https://nexus.xyz/network#network-faqs)
+* [Network FAQ](https://docs.nexus.xyz/layer-1/network-devnet/faq)
 * [Discord server](https://discord.gg/nexus-xyz)
 
 ## 🛠 Developer Requirements

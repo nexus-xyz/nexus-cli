@@ -1,7 +1,10 @@
+use crate::analytics::track;
+use crate::environment::Environment;
 use crate::task::Task;
 use log::error;
 use nexus_sdk::stwo::seq::Proof;
 use nexus_sdk::{KnownExitCodes, Local, Prover, Viewable, stwo::seq::Stwo};
+use serde_json::json;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -20,7 +23,10 @@ pub enum ProverError {
 }
 
 /// Proves a program locally with hardcoded inputs.
-pub fn prove_anonymously() -> Result<Proof, ProverError> {
+pub fn prove_anonymously(
+    environment: &Environment,
+    client_id: String,
+) -> Result<Proof, ProverError> {
     // The 10th term of the Fibonacci sequence is 55
     let public_input: u32 = 9;
 
@@ -40,11 +46,26 @@ pub fn prove_anonymously() -> Result<Proof, ProverError> {
         )));
     }
 
+    // Send analytics event for anonymous proof
+    track(
+        "cli_proof_anon_v3".to_string(),
+        json!({
+            "program_name": "fib_input",
+            "public_input": public_input,
+        }),
+        environment,
+        client_id,
+    );
+
     Ok(proof)
 }
 
 /// Proves a program with a given node ID
-pub async fn authenticated_proving(task: &Task) -> Result<Proof, ProverError> {
+pub async fn authenticated_proving(
+    task: &Task,
+    environment: &Environment,
+    client_id: String,
+) -> Result<Proof, ProverError> {
     let public_input = get_public_input(task)?;
     let stwo_prover = get_default_stwo_prover()?;
     let (view, proof) = stwo_prover
@@ -62,16 +83,29 @@ pub async fn authenticated_proving(task: &Task) -> Result<Proof, ProverError> {
         )));
     }
 
+    // Send analytics event for authenticated proof
+    track(
+        "cli_proof_node_v3".to_string(),
+        json!({
+            "program_name": "fib_input",
+            "public_input": public_input,
+            "task_id": task.task_id,
+        }),
+        environment,
+        client_id,
+    );
+
     Ok(proof)
 }
 
 fn get_public_input(task: &Task) -> Result<u32, ProverError> {
-    let s = String::from_utf8(task.public_inputs.clone()).map_err(|e| {
-        ProverError::MalformedTask(format!("Failed to convert public inputs to string: {}", e))
-    })?;
-    s.trim()
-        .parse::<u32>()
-        .map_err(|e| ProverError::MalformedTask(format!("Failed to parse public input: {}", e)))
+    // fib_input expects a single public input as a u32.
+    if task.public_inputs.is_empty() {
+        return Err(ProverError::MalformedTask(
+            "Task public inputs are empty".to_string(),
+        ));
+    }
+    Ok(task.public_inputs[0] as u32)
 }
 
 /// Create a Stwo prover for the default program.
@@ -100,7 +134,9 @@ mod tests {
     #[tokio::test]
     // Proves a program with hardcoded inputs should succeed.
     async fn test_prove_anonymously() {
-        if let Err(e) = prove_anonymously() {
+        let environment = Environment::Local;
+        let client_id = "test_client_id".to_string();
+        if let Err(e) = prove_anonymously(&environment, client_id) {
             panic!("Failed to prove anonymously: {}", e);
         }
     }

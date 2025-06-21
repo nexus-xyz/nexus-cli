@@ -32,16 +32,10 @@ pub fn analytics_api_key(environment: &Environment) -> String {
 #[allow(unused)]
 pub fn track(
     event_name: String,
-    description: String,
     event_properties: Value,
-    print_description: bool,
     environment: &Environment,
     client_id: String,
 ) {
-    if print_description {
-        println!("{}", description);
-    }
-
     let analytics_id = analytics_id(environment);
     let analytics_api_key = analytics_api_key(environment);
 
@@ -78,7 +72,6 @@ pub fn track(
         "os": env::consts::OS,
         "os_version": env::consts::OS,  // We could get more specific version if needed
         "app_version": env!("CARGO_PKG_VERSION"),
-        "node_id": event_properties["node_id"],
         "timezone": timezone,
         "local_hour": local_now.hour(),
         "day_of_week": local_now.weekday().number_from_monday(),

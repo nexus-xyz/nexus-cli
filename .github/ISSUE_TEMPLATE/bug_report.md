@@ -1,6 +1,6 @@
 ---
-name: Bug Report
-about: Create a bug report for the Nexus network.
+name: CLI Bug Report
+about: Create a bug report for the Nexus CLI.
 ---
 <!--
 Thank you for filing a bug report! 🐛 Please provide a short summary of the bug,
