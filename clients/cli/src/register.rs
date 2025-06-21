@@ -145,15 +145,17 @@ fn print_friendly_error() {
     // RGB: FF = 255, AA = 170, 00 = 0
     println!("\x1b[38;2;255;170;0m{}\x1b[0m", LOGO_NAME);
     println!("\x1b[38;2;255;170;0mWe'll be back shortly\x1b[0m");
-    println!("Our site is under unprecedented traffic. Thank you for your patience.\n");
+    println!(
+        "The Prover network’s orchestrater is under unprecedented traffic. Team has been notified. Thank you for your patience while issue is resolved.\n"
+    );
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::environment::Environment;
-    use crate::orchestrator::MockOrchestrator;
     use crate::orchestrator::error::OrchestratorError;
+    use crate::orchestrator::MockOrchestrator;
     use predicates::ord::eq;
     use tempfile::tempdir;
 
