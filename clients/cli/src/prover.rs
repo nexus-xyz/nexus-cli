@@ -27,7 +27,10 @@ pub fn prove_anonymously(
     environment: &Environment,
     client_id: String,
 ) -> Result<Proof, ProverError> {
-    // The 10th term of the Fibonacci sequence is 55
+    // Compute the 10th Fibonacci number using fib_input_initial
+    // Input: (n=9, init_a=1, init_b=1) 
+    // This computes F(9) = 55 in the classic Fibonacci sequence starting with 1,1
+    // Sequence: F(0)=1, F(1)=1, F(2)=2, F(3)=3, F(4)=5, F(5)=8, F(6)=13, F(7)=21, F(8)=34, F(9)=55
     let public_input: (u32, u32, u32) = (9, 1, 1);
 
     // Use the new initial ELF file for anonymous proving
