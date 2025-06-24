@@ -235,7 +235,7 @@ pub async fn fetch_prover_tasks(
             _ = shutdown.recv() => {
                 break;
             }
-            _ = tokio::time::sleep(Duration::from_millis(100)) => {
+            _ = tokio::time::sleep(Duration::from_millis(100)), if !fetch_existing_tasks => {
                 match orchestrator_client
                     .get_proof_task(&node_id.to_string(), verifying_key)
                     .await
@@ -265,37 +265,35 @@ pub async fn fetch_prover_tasks(
                     }
                 }
             }
-            _ = tokio::time::sleep(Duration::from_millis(1000)) => {
+            _ = tokio::time::sleep(Duration::from_millis(1000)), if fetch_existing_tasks => {
                 // Get existing tasks.
-                if fetch_existing_tasks {
-                    match orchestrator_client.get_tasks(&node_id.to_string()).await {
-                        Ok(tasks) => {
-                            // 🔄
-                            let msg = format!("Fetched {} tasks", tasks.len());
-                            let _ = event_sender
-                                        .send(Event::task_fetcher(msg, EventType::Refresh))
-                                        .await;
-                            for task in tasks {
-                                //  Only enqueue if the task has not been enqueued recently.
-                                if recent_tasks.contains(&task.task_id).await {
-                                    continue;
-                                }
-                                recent_tasks.insert(task.task_id.clone()).await;
-                                if sender.send(task).await.is_err() {
-                                    let _ = event_sender
-                                        .send(Event::task_fetcher("Task queue is closed".to_string(), EventType::Shutdown))
-                                        .await;
-                                }
+                match orchestrator_client.get_tasks(&node_id.to_string()).await {
+                    Ok(tasks) => {
+                        // 🔄
+                        let msg = format!("Fetched {} tasks", tasks.len());
+                        let _ = event_sender
+                                    .send(Event::task_fetcher(msg, EventType::Refresh))
+                                    .await;
+                        for task in tasks {
+                            //  Only enqueue if the task has not been enqueued recently.
+                            if recent_tasks.contains(&task.task_id).await {
+                                continue;
                             }
-                            fetch_existing_tasks = false;
+                            recent_tasks.insert(task.task_id.clone()).await;
+                            if sender.send(task).await.is_err() {
+                                let _ = event_sender
+                                    .send(Event::task_fetcher("Task queue is closed".to_string(), EventType::Shutdown))
+                                    .await;
+                            }
                         }
-                        Err(e) => {
-                            // ⚠️
-                            let msg = format!("Failed to fetch existing tasks: {}", e);
-                            let _ = event_sender
-                                .send(Event::task_fetcher(msg, EventType::Error))
-                                .await;
-                        }
+                        fetch_existing_tasks = false;
+                    }
+                    Err(e) => {
+                        // ⚠️
+                        let msg = format!("Failed to fetch existing tasks: {}", e);
+                        let _ = event_sender
+                            .send(Event::task_fetcher(msg, EventType::Error))
+                            .await;
                     }
                 }
             }
