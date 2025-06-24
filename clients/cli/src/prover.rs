@@ -75,30 +75,22 @@ pub async fn authenticated_proving(
         )),
     };
 
-    let (stwo_prover, public_input, analytics_input) = match program_name {
+    let (view, proof, analytics_input) = match program_name {
         "fib_input" => {
             let input = get_single_public_input(task)?;
-            let prover = get_default_stwo_prover()?;
-            (prover, input, input)
+            let stwo_prover = get_default_stwo_prover()?;
+            let (view, proof) = stwo_prover
+                .prove_with_input::<(), u32>(&(), &input)
+                .map_err(|e| ProverError::Stwo(format!("Failed to run prover: {}", e)))?;
+            (view, proof, input)
         },
         "fib_input_initial" => {
             let inputs = get_triple_public_input(task)?;
-            let prover = get_initial_stwo_prover()?;
-            (prover, inputs, inputs.0)
-        },
-        _ => unreachable!(),
-    };
-
-    let (view, proof) = match program_name {
-        "fib_input" => {
-            stwo_prover
-                .prove_with_input::<(), u32>(&(), &public_input)
-                .map_err(|e| ProverError::Stwo(format!("Failed to run prover: {}", e)))?
-        },
-        "fib_input_initial" => {
-            stwo_prover
-                .prove_with_input::<(), (u32, u32, u32)>(&(), &public_input)
-                .map_err(|e| ProverError::Stwo(format!("Failed to run prover: {}", e)))?
+            let stwo_prover = get_initial_stwo_prover()?;
+            let (view, proof) = stwo_prover
+                .prove_with_input::<(), (u32, u32, u32)>(&(), &inputs)
+                .map_err(|e| ProverError::Stwo(format!("Failed to run prover: {}", e)))?;
+            (view, proof, inputs.0)
         },
         _ => unreachable!(),
     };
@@ -164,12 +156,6 @@ fn get_triple_public_input(task: &Task) -> Result<(u32, u32, u32), ProverError> 
     let init_b = u32::from_le_bytes(bytes);
     
     Ok((n, init_a, init_b))
-}
-
-// Keep the old function for backward compatibility, but mark it as deprecated
-#[deprecated(note = "Use get_single_public_input or get_triple_public_input instead")]
-fn get_public_input(task: &Task) -> Result<(u32, u32, u32), ProverError> {
-    get_triple_public_input(task)
 }
 
 /// Create a Stwo prover for the default program.
