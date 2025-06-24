@@ -30,7 +30,8 @@ pub fn prove_anonymously(
     // The 10th term of the Fibonacci sequence is 55
     let public_input: u32 = 9;
 
-    let stwo_prover = get_default_stwo_prover()?;
+    // Use the new initial ELF file for anonymous proving
+    let stwo_prover = get_initial_stwo_prover()?;
     let (view, proof) = stwo_prover
         .prove_with_input::<(), u32>(&(), &public_input)
         .map_err(|e| ProverError::Stwo(format!("Failed to run prover: {}", e)))?;
@@ -50,7 +51,7 @@ pub fn prove_anonymously(
     track(
         "cli_proof_anon_v3".to_string(),
         json!({
-            "program_name": "fib_input",
+            "program_name": "fib_input_initial",
             "public_input": public_input,
         }),
         environment,
@@ -99,18 +100,26 @@ pub async fn authenticated_proving(
 }
 
 fn get_public_input(task: &Task) -> Result<u32, ProverError> {
-    // fib_input expects a single public input as a u32.
-    if task.public_inputs.is_empty() {
-        return Err(ProverError::MalformedTask(
-            "Task public inputs are empty".to_string(),
-        ));
-    }
-    Ok(task.public_inputs[0] as u32)
+    let s = String::from_utf8(task.public_inputs.clone()).map_err(|e| {
+        ProverError::MalformedTask(format!("Failed to convert public inputs to string: {}", e))
+    })?;
+    s.trim()
+        .parse::<u32>()
+        .map_err(|e| ProverError::MalformedTask(format!("Failed to parse public input: {}", e)))
 }
 
 /// Create a Stwo prover for the default program.
 pub fn get_default_stwo_prover() -> Result<Stwo<Local>, ProverError> {
     let elf_bytes = include_bytes!("../assets/fib_input");
+    Stwo::<Local>::new_from_bytes(elf_bytes).map_err(|e| {
+        let msg = format!("Failed to load guest program: {}", e);
+        ProverError::Stwo(msg)
+    })
+}
+
+/// Create a Stwo prover for the initial program.
+pub fn get_initial_stwo_prover() -> Result<Stwo<Local>, ProverError> {
+    let elf_bytes = include_bytes!("../assets/fib_input_initial.elf");
     Stwo::<Local>::new_from_bytes(elf_bytes).map_err(|e| {
         let msg = format!("Failed to load guest program: {}", e);
         ProverError::Stwo(msg)
