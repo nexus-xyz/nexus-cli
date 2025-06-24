@@ -258,8 +258,8 @@ pub async fn fetch_prover_tasks(
                                 fetch_existing_tasks = true;
                             } else {
                                 let _ = event_sender
-                                .send(Event::task_fetcher(format!("Orchestrator Error - {}", e), EventType::Error))
-                                .await;
+                                    .send(Event::task_fetcher(format!("Orchestrator Error - {}", e), EventType::Error))
+                                    .await;
                             }
                         }
                     }
@@ -486,7 +486,7 @@ pub fn start_workers(
 #[cfg(test)]
 mod tests {
     use crate::orchestrator::MockOrchestrator;
-    use crate::prover_runtime::{fetch_prover_tasks, Event, MAX_COMPLETED_TASKS};
+    use crate::prover_runtime::{Event, MAX_COMPLETED_TASKS, fetch_prover_tasks};
     use crate::task::Task;
     use crate::task_cache::TaskCache;
     use std::time::Duration;
