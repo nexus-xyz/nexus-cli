@@ -58,8 +58,8 @@ fn main() {
     // Call the guest program with these inputs
     #[rustfmt::skip]
     proof
-        .verify_expected::<(), ()>(
-            &public_inputs,  // no public input
+        .verify_expected::<(u32, u32, u32), ()>(
+            &public_inputs,  // three u32 inputs
             nexus_sdk::KnownExitCodes::ExitSuccess as u32,
             &(),  // no public output
             &elf, // expected elf (program binary)
