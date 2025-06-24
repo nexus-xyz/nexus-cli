@@ -56,6 +56,8 @@ pub fn prove_anonymously(
         json!({
             "program_name": "fib_input_initial",
             "public_input": public_input.0,
+            "public_input_2": public_input.1,
+            "public_input_3": public_input.2,
         }),
         environment,
         client_id,
@@ -110,13 +112,28 @@ pub async fn authenticated_proving(
     }
 
     // Send analytics event for authenticated proof
-    track(
-        "cli_proof_node_v3".to_string(),
-        json!({
+    let analytics_data = match program_name {
+        "fib_input" => json!({
             "program_name": program_name,
             "public_input": analytics_input,
             "task_id": task.task_id,
         }),
+        "fib_input_initial" => {
+            let inputs = get_triple_public_input(task)?;
+            json!({
+                "program_name": program_name,
+                "public_input": inputs.0,
+                "public_input_2": inputs.1,
+                "public_input_3": inputs.2,
+                "task_id": task.task_id,
+            })
+        },
+        _ => unreachable!(),
+    };
+
+    track(
+        "cli_proof_node_v3".to_string(),
+        analytics_data,
         environment,
         client_id,
     );
