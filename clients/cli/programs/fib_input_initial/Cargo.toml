@@ -1,0 +1,14 @@
+[package]
+name = "fib_input_initial"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+nexus-sdk = { git = "https://github.com/nexus-xyz/nexus-zkvm", tag = "0.3.4", version = "0.3.4" }
+
+[workspace]
+members = [
+    "src/guest"
+]
+
+
