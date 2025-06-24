@@ -40,7 +40,7 @@ After running the script, you'll have:
 
 ```
 nexus-cli/clients/cli/
-├── programs/                 # .gitignored directory
+├── programs/                 # Guest program source code (tracked in git)
 │   └── [guest_name]/         # Generated guest program
 │       ├── src/
 │       │   └── guest/
@@ -60,6 +60,13 @@ To modify a guest program:
 1. Edit the source code: `programs/[guest_name]/src/guest/src/main.rs`
 2. Run the build script again: `./scripts/build_guest.sh [guest_name]`
 3. The updated ELF will be copied to `assets/[guest_name]`
+4. Commit your source code changes to git
+
+### Git Integration
+
+- **Source code is tracked**: The guest program source code in `programs/` is committed to git
+- **Build artifacts are ignored**: `target/` directories and `Cargo.lock` files are excluded
+- **Reproducible builds**: Anyone can clone the repo and rebuild the ELF files
 
 ### Requirements
 
