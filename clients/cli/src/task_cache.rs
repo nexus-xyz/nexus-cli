@@ -37,3 +37,6 @@ impl TaskCache {
         queue.push_back(task_id);
     }
 }
+
+#[cfg(test)]
+mod tests {}
