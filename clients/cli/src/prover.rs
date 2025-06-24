@@ -28,15 +28,15 @@ pub fn prove_anonymously(
     client_id: String,
 ) -> Result<Proof, ProverError> {
     // Compute the 10th Fibonacci number using fib_input_initial
-    // Input: n=9 (same as original fib_input)
+    // Input: (n=9, init_a=1, init_b=1)
     // This computes F(9) = 55 in the classic Fibonacci sequence starting with 1,1
     // Sequence: F(0)=1, F(1)=1, F(2)=2, F(3)=3, F(4)=5, F(5)=8, F(6)=13, F(7)=21, F(8)=34, F(9)=55
-    let public_input: u32 = 9;
+    let public_input: (u32, u32, u32) = (9, 1, 1);
 
     // Use the new initial ELF file for anonymous proving
     let stwo_prover = get_initial_stwo_prover()?;
     let (view, proof) = stwo_prover
-        .prove_with_input::<(), u32>(&(), &public_input)
+        .prove_with_input::<(), (u32, u32, u32)>(&(), &public_input)
         .map_err(|e| {
             ProverError::Stwo(format!(
                 "Failed to run fib_input_initial prover (anonymous): {}",
@@ -60,7 +60,9 @@ pub fn prove_anonymously(
         "cli_proof_anon_v3".to_string(),
         json!({
             "program_name": "fib_input_initial",
-            "public_input": public_input,
+            "public_input": public_input.0,
+            "public_input_2": public_input.1,
+            "public_input_3": public_input.2,
         }),
         environment,
         client_id,
@@ -97,11 +99,9 @@ pub async fn authenticated_proving(
         }
         "fib_input_initial" => {
             let inputs = get_triple_public_input(task)?;
-            // Pack the three u32 values into a single u128
-            let packed_input: u128 = (inputs.0 as u128) | ((inputs.1 as u128) << 32) | ((inputs.2 as u128) << 64);
             let stwo_prover = get_initial_stwo_prover()?;
             let (view, proof) = stwo_prover
-                .prove_with_input::<(), u128>(&(), &packed_input)
+                .prove_with_input::<(), (u32, u32, u32)>(&(), &inputs)
                 .map_err(|e| {
                     ProverError::Stwo(format!("Failed to run fib_input_initial prover: {}", e))
                 })?;
