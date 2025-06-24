@@ -24,7 +24,7 @@ To build the ELF file:
 
 ## Usage
 
-The built ELF file is included in `../assets/fib_input_initial.elf` and is used by the Nexus CLI for anonymous proving operations.
+The built ELF file is included in `../clients/cli/assets/fib_input_initial.elf` and is used by the Nexus CLI for anonymous proving operations.
 
 ## Program Details
 
