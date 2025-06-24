@@ -34,7 +34,7 @@ pub fn prove_anonymously(
     let stwo_prover = get_initial_stwo_prover()?;
     let (view, proof) = stwo_prover
         .prove_with_input::<(), (u32, u32, u32)>(&(), &public_input)
-        .map_err(|e| ProverError::Stwo(format!("Failed to run prover: {}", e)))?;
+        .map_err(|e| ProverError::Stwo(format!("Failed to run fib_input_initial prover (anonymous): {}", e)))?;
 
     let exit_code = view.exit_code().map_err(|e| {
         ProverError::GuestProgram(format!("Failed to deserialize exit code: {}", e))
@@ -81,7 +81,7 @@ pub async fn authenticated_proving(
             let stwo_prover = get_default_stwo_prover()?;
             let (view, proof) = stwo_prover
                 .prove_with_input::<(), u32>(&(), &input)
-                .map_err(|e| ProverError::Stwo(format!("Failed to run prover: {}", e)))?;
+                .map_err(|e| ProverError::Stwo(format!("Failed to run fib_input prover: {}", e)))?;
             (view, proof, input)
         },
         "fib_input_initial" => {
@@ -89,7 +89,7 @@ pub async fn authenticated_proving(
             let stwo_prover = get_initial_stwo_prover()?;
             let (view, proof) = stwo_prover
                 .prove_with_input::<(), (u32, u32, u32)>(&(), &inputs)
-                .map_err(|e| ProverError::Stwo(format!("Failed to run prover: {}", e)))?;
+                .map_err(|e| ProverError::Stwo(format!("Failed to run fib_input_initial prover: {}", e)))?;
             (view, proof, inputs.0)
         },
         _ => unreachable!(),
@@ -162,7 +162,7 @@ fn get_triple_public_input(task: &Task) -> Result<(u32, u32, u32), ProverError> 
 pub fn get_default_stwo_prover() -> Result<Stwo<Local>, ProverError> {
     let elf_bytes = include_bytes!("../assets/fib_input");
     Stwo::<Local>::new_from_bytes(elf_bytes).map_err(|e| {
-        let msg = format!("Failed to load guest program: {}", e);
+        let msg = format!("Failed to load fib_input guest program: {}", e);
         ProverError::Stwo(msg)
     })
 }
@@ -171,7 +171,7 @@ pub fn get_default_stwo_prover() -> Result<Stwo<Local>, ProverError> {
 pub fn get_initial_stwo_prover() -> Result<Stwo<Local>, ProverError> {
     let elf_bytes = include_bytes!("../assets/fib_input_initial.elf");
     Stwo::<Local>::new_from_bytes(elf_bytes).map_err(|e| {
-        let msg = format!("Failed to load guest program: {}", e);
+        let msg = format!("Failed to load fib_input_initial guest program: {}", e);
         ProverError::Stwo(msg)
     })
 }
