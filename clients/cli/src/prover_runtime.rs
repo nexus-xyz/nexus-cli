@@ -109,7 +109,7 @@ pub async fn start_authenticated_workers(
     // Worker events
     let (event_sender, event_receiver) = mpsc::channel::<Event>(EVENT_QUEUE_SIZE);
 
-    // A bounded list of recently completed task IDs
+    // A bounded list of recently received task IDs
     let enqueued_tasks = TaskCache::new(MAX_COMPLETED_TASKS);
 
     // Task fetching
@@ -119,7 +119,6 @@ pub async fn start_authenticated_workers(
         let orchestrator = orchestrator.clone();
         let event_sender = event_sender.clone();
         let shutdown = shutdown.resubscribe(); // Clone the receiver for task fetching
-        let successful_tasks = enqueued_tasks.clone();
         tokio::spawn(async move {
             fetch_prover_tasks(
                 node_id,
@@ -128,7 +127,7 @@ pub async fn start_authenticated_workers(
                 task_sender,
                 event_sender,
                 shutdown,
-                successful_tasks,
+                enqueued_tasks,
             )
             .await;
         })
