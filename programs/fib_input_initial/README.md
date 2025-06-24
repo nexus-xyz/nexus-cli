@@ -4,7 +4,7 @@ This directory contains the source code for the `fib_input_initial` guest progra
 
 ## Overview
 
-The `fib_input_initial` program computes the nth Fibonacci number where n is provided as a public input. This program is used as the default program for anonymous proving in the Nexus CLI.
+The `fib_input_initial` program computes the nth Fibonacci number in a generalized Fibonacci sequence with custom initial values. This program is used as the default program for anonymous proving in the Nexus CLI.
 
 ## Building
 
@@ -28,9 +28,18 @@ The built ELF file is included in `../clients/cli/assets/fib_input_initial.elf` 
 
 ## Program Details
 
-- **Input**: Public input n (u32) representing which Fibonacci number to compute
-- **Output**: The nth Fibonacci number
+- **Input**: Three u32 values in little-endian format:
+  - **n** (required): Number of iterations for the Fibonacci sequence
+  - **init_a** (optional, defaults to 1): First initial value for the sequence
+  - **init_b** (optional, defaults to 1): Second initial value for the sequence
+- **Output**: The nth Fibonacci number in the sequence starting with init_a, init_b
 - **Exit Code**: 0 on success, non-zero on error
+
+## Examples
+
+- Input `[5, 1, 1]` → Classic Fibonacci: 1, 1, 2, 3, 5, 8 (returns 8)
+- Input `[5, 2, 3]` → Custom sequence: 2, 3, 5, 8, 13, 21 (returns 21)
+- Input `[3, 0, 1]` → Sequence: 0, 1, 1, 2 (returns 2)
 
 ## Testing
 

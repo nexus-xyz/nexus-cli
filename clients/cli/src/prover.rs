@@ -28,12 +28,12 @@ pub fn prove_anonymously(
     client_id: String,
 ) -> Result<Proof, ProverError> {
     // The 10th term of the Fibonacci sequence is 55
-    let public_input: u32 = 9;
+    let public_input: (u32, u32, u32) = (9, 1, 1);
 
     // Use the new initial ELF file for anonymous proving
     let stwo_prover = get_initial_stwo_prover()?;
     let (view, proof) = stwo_prover
-        .prove_with_input::<(), u32>(&(), &public_input)
+        .prove_with_input::<(), (u32, u32, u32)>(&(), &public_input)
         .map_err(|e| ProverError::Stwo(format!("Failed to run prover: {}", e)))?;
 
     let exit_code = view.exit_code().map_err(|e| {
@@ -52,7 +52,7 @@ pub fn prove_anonymously(
         "cli_proof_anon_v3".to_string(),
         json!({
             "program_name": "fib_input_initial",
-            "public_input": public_input,
+            "public_input": public_input.0,
         }),
         environment,
         client_id,
@@ -67,10 +67,11 @@ pub async fn authenticated_proving(
     environment: &Environment,
     client_id: String,
 ) -> Result<Proof, ProverError> {
-    let public_input = get_public_input(task)?;
+    let public_inputs = get_public_input(task)?;
     let stwo_prover = get_default_stwo_prover()?;
+    // The old fib_input program only takes the first value
     let (view, proof) = stwo_prover
-        .prove_with_input::<(), u32>(&(), &public_input)
+        .prove_with_input::<(), u32>(&(), &public_inputs.0)
         .map_err(|e| ProverError::Stwo(format!("Failed to run prover: {}", e)))?;
 
     let exit_code = view.exit_code().map_err(|e| {
@@ -89,7 +90,7 @@ pub async fn authenticated_proving(
         "cli_proof_node_v3".to_string(),
         json!({
             "program_name": "fib_input",
-            "public_input": public_input,
+            "public_input": public_inputs.0,
             "task_id": task.task_id,
         }),
         environment,
@@ -99,19 +100,26 @@ pub async fn authenticated_proving(
     Ok(proof)
 }
 
-fn get_public_input(task: &Task) -> Result<u32, ProverError> {
+fn get_public_input(task: &Task) -> Result<(u32, u32, u32), ProverError> {
     if task.public_inputs.len() < 12 {
         return Err(ProverError::MalformedTask(
             "Public inputs buffer too small, expected at least 12 bytes for three u32 values".to_string(),
         ));
     }
     
-    // Read the first u32 (little-endian) from the buffer
+    // Read all three u32 values (little-endian) from the buffer
     let mut bytes = [0u8; 4];
-    bytes.copy_from_slice(&task.public_inputs[0..4]);
-    let first_value = u32::from_le_bytes(bytes);
     
-    Ok(first_value)
+    bytes.copy_from_slice(&task.public_inputs[0..4]);
+    let n = u32::from_le_bytes(bytes);
+    
+    bytes.copy_from_slice(&task.public_inputs[4..8]);
+    let init_a = u32::from_le_bytes(bytes);
+    
+    bytes.copy_from_slice(&task.public_inputs[8..12]);
+    let init_b = u32::from_le_bytes(bytes);
+    
+    Ok((n, init_a, init_b))
 }
 
 /// Create a Stwo prover for the default program.
