@@ -15,6 +15,9 @@ use mockall::{automock, predicate::*};
 pub trait Orchestrator: Send + Sync {
     fn environment(&self) -> &Environment;
 
+    /// Get the user ID associated with a wallet address.
+    async fn get_user(&self, wallet_address: &str) -> Result<String, OrchestratorError>;
+
     /// Registers a new user with the orchestrator.
     async fn register_user(
         &self,
@@ -42,5 +45,6 @@ pub trait Orchestrator: Send + Sync {
         proof_hash: &str,
         proof: Vec<u8>,
         signing_key: SigningKey,
+        num_provers: usize,
     ) -> Result<(), OrchestratorError>;
 }

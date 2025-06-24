@@ -8,6 +8,24 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+#[derive(Debug, thiserror::Error)]
+pub enum TrackError {
+    #[error("System time error: {0}")]
+    SystemTimeError(#[from] std::time::SystemTimeError),
+
+    #[error("event_properties is not a valid JSON object")]
+    InvalidEventProperties,
+
+    #[error("HTTP error: {0}")]
+    HttpError(#[from] reqwest::Error),
+
+    #[error("Non-successful response: {status} - {body}")]
+    FailedResponse {
+        status: reqwest::StatusCode,
+        body: String,
+    },
+}
+
 pub const STAGING_MEASUREMENT_ID: &str = "G-T0M0Q3V6WN";
 pub const BETA_MEASUREMENT_ID: &str = "G-GLH0GMEEFH";
 pub const STAGING_API_SECRET: &str = "OI7H53soRMSDWfJf1ittHQ";
@@ -29,18 +47,23 @@ pub fn analytics_api_key(environment: &Environment) -> String {
     }
 }
 
-#[allow(unused)]
-pub fn track(
+/// Track an event with the Firebase Measurement Protocol
+///
+/// # Arguments
+/// * `event_name` - The name of the event to track.
+/// * `event_properties` - A JSON object containing properties of the event.
+/// * `environment` - The environment in which the application is running.
+/// * `client_id` - A unique identifier for the client, typically a UUID or similar.
+pub async fn track(
     event_name: String,
     event_properties: Value,
     environment: &Environment,
     client_id: String,
-) {
+) -> Result<(), TrackError> {
     let analytics_id = analytics_id(environment);
     let analytics_api_key = analytics_api_key(environment);
-
     if analytics_id.is_empty() {
-        return;
+        return Ok(());
     }
     let local_now = chrono::offset::Local::now();
 
@@ -53,14 +76,7 @@ pub fn track(
     // https://developers.google.com/analytics/devguides/collection/protocol/ga4/reference?client_type=firebase#payload
     // https://developers.google.com/analytics/devguides/collection/protocol/ga4/reference?client_type=firebase#payload_query_parameters
 
-    let system_time = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_else(|e| {
-            eprintln!("Error calculating system time: {}", e);
-            std::time::Duration::from_secs(0) // fallback to epoch start
-        })
-        .as_millis();
-
+    let system_time = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
     let timezone = iana_time_zone::get_timezone().ok().map_or_else(
         || String::from("UTC"), // fallback to UTC
         |tz| tz,
@@ -81,13 +97,12 @@ pub fn track(
     // Add event properties to the properties JSON
     // This is done by iterating over the key-value pairs in the event_properties JSON object
     // but checking that it is a valid JSON object first
-    match event_properties.as_object() {
-        Some(obj) => {
-            for (k, v) in obj {
-                properties[k] = v.clone();
-            }
+    if let Some(obj) = event_properties.as_object() {
+        for (k, v) in obj {
+            properties[k] = v.clone();
         }
-        None => eprintln!("Warning: event_properties is not a valid JSON object"),
+    } else {
+        return Err(TrackError::InvalidEventProperties);
     }
 
     // Format for events
@@ -99,46 +114,27 @@ pub fn track(
         }],
     });
 
-    tokio::spawn(async move {
-        let client = reqwest::Client::new();
+    let client = reqwest::Client::new();
+    let url = format!(
+        "https://www.google-analytics.com/mp/collect?measurement_id={}&api_secret={}",
+        analytics_id, analytics_api_key
+    );
 
-        let url = format!(
-            "https://www.google-analytics.com/mp/collect?measurement_id={}&api_secret={}",
-            analytics_id, analytics_api_key
-        );
+    let response = client
+        .post(&url)
+        .json(&body)
+        .header(ACCEPT, "application/json")
+        .send()
+        .await?;
 
-        match client
-            .post(&url)
-            .json(&body)
-            .header(ACCEPT, "application/json")
-            .send()
-            .await
-        {
-            Ok(response) => {
-                let status = response.status();
-                if !status.is_success() {
-                    match response.text().await {
-                        Ok(error_text) => {
-                            eprintln!(
-                                "Analytics request failed for event '{}' with status {}: {}",
-                                event_name, status, error_text
-                            );
-                        }
-                        Err(e) => {
-                            eprintln!(
-                                "Analytics request failed for event '{}' with status {}. Failed to read error response: {}",
-                                event_name, status, e
-                            );
-                        }
-                    }
-                }
-            }
-            Err(e) => {
-                eprintln!(
-                    "Failed to send analytics request for event '{}' to {}: {}",
-                    event_name, url, e
-                );
-            }
-        }
-    });
+    let status = response.status();
+    if !status.is_success() {
+        let body_text = response.text().await?;
+        return Err(TrackError::FailedResponse {
+            status,
+            body: body_text,
+        });
+    }
+
+    Ok(())
 }

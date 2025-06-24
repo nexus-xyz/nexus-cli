@@ -13,6 +13,7 @@ use crate::orchestrator::error::OrchestratorError;
 use crate::orchestrator::{Orchestrator, OrchestratorClient};
 use crate::prover::authenticated_proving;
 use crate::task::Task;
+use crate::task_cache::TaskCache;
 use chrono::Local;
 use ed25519_dalek::{SigningKey, VerifyingKey};
 use nexus_sdk::stwo::seq::Proof;
@@ -91,6 +92,9 @@ const TASK_QUEUE_SIZE: usize = 100;
 const EVENT_QUEUE_SIZE: usize = 100;
 const RESULT_QUEUE_SIZE: usize = 100;
 
+/// Maximum number of completed tasks to keep in memory. Chosen to be larger than the task queue size.
+const MAX_COMPLETED_TASKS: usize = 500;
+
 /// Starts authenticated workers that fetch tasks from the orchestrator and process them.
 pub async fn start_authenticated_workers(
     node_id: u64,
@@ -104,6 +108,9 @@ pub async fn start_authenticated_workers(
     let mut join_handles = Vec::new();
     // Worker events
     let (event_sender, event_receiver) = mpsc::channel::<Event>(EVENT_QUEUE_SIZE);
+
+    // A bounded list of recently received task IDs
+    let enqueued_tasks = TaskCache::new(MAX_COMPLETED_TASKS);
 
     // Task fetching
     let (task_sender, task_receiver) = mpsc::channel::<Task>(TASK_QUEUE_SIZE);
@@ -120,6 +127,7 @@ pub async fn start_authenticated_workers(
                 task_sender,
                 event_sender,
                 shutdown,
+                enqueued_tasks,
             )
             .await;
         })
@@ -131,7 +139,7 @@ pub async fn start_authenticated_workers(
 
     let (worker_senders, worker_handles) = start_workers(
         num_workers,
-        result_sender.clone(),
+        result_sender,
         event_sender.clone(),
         shutdown.resubscribe(),
         environment,
@@ -143,13 +151,18 @@ pub async fn start_authenticated_workers(
     let dispatcher_handle = start_dispatcher(task_receiver, worker_senders, shutdown.resubscribe());
     join_handles.push(dispatcher_handle);
 
+    // A bounded list of recently completed task IDs
+    let successful_tasks = TaskCache::new(MAX_COMPLETED_TASKS);
+
     // Send proofs to the orchestrator
     let submit_proofs_handle = submit_proofs(
         signing_key,
         Box::new(orchestrator),
+        num_workers,
         result_receiver,
         event_sender.clone(),
         shutdown.resubscribe(),
+        successful_tasks.clone(),
     )
     .await;
     join_handles.push(submit_proofs_handle);
@@ -184,7 +197,7 @@ pub async fn start_anonymous_workers(
 
                     _ = tokio::time::sleep(Duration::from_millis(300)) => {
                         // Perform work
-                        match crate::prover::prove_anonymously(&environment, client_id.clone()) {
+                        match crate::prover::prove_anonymously(&environment, client_id.clone()).await {
                             Ok(_proof) => {
                                 let message = "Anonymous proof completed successfully".to_string();
                                 let _ = prover_event_sender
@@ -213,6 +226,7 @@ pub async fn fetch_prover_tasks(
     sender: mpsc::Sender<Task>,
     event_sender: mpsc::Sender<Event>,
     mut shutdown: broadcast::Receiver<()>,
+    recent_tasks: TaskCache,
 ) {
     let mut fetch_existing_tasks = true;
     loop {
@@ -220,39 +234,17 @@ pub async fn fetch_prover_tasks(
             _ = shutdown.recv() => {
                 break;
             }
-            _ = tokio::time::sleep(Duration::from_millis(100)) => {
-                // Get existing tasks.
-                if fetch_existing_tasks {
-                    match orchestrator_client.get_tasks(&node_id.to_string()).await {
-                        Ok(tasks) => {
-                            // 🔄
-                            let msg = format!("Fetched {} tasks", tasks.len());
-                            let _ = event_sender
-                                        .send(Event::task_fetcher(msg, EventType::Refresh))
-                                        .await;
-                            for task in tasks {
-                                if sender.send(task).await.is_err() {
-                                    let _ = event_sender
-                                        .send(Event::task_fetcher("Task queue is closed".to_string(), EventType::Shutdown))
-                                        .await;
-                                }
-                            }
-                            fetch_existing_tasks = false;
-                        }
-                        Err(e) => {
-                            // ⚠️
-                            let msg = format!("Failed to fetch existing tasks: {}", e);
-                            let _ = event_sender
-                                .send(Event::task_fetcher(msg, EventType::Error))
-                                .await;
-                        }
-                    }
-                }
+            _ = tokio::time::sleep(Duration::from_millis(100)), if !fetch_existing_tasks => {
                 match orchestrator_client
                     .get_proof_task(&node_id.to_string(), verifying_key)
                     .await
                 {
                     Ok(task) => {
+                        //  Only enqueue if the task has not already been completed.
+                        if recent_tasks.contains(&task.task_id).await {
+                            continue;
+                        }
+                        recent_tasks.insert(task.task_id.clone()).await;
                         if sender.send(task).await.is_err() {
                             let _ = event_sender
                                 .send(Event::task_fetcher("Task queue is closed".to_string(), EventType::Shutdown))
@@ -263,11 +255,46 @@ pub async fn fetch_prover_tasks(
                         if let OrchestratorError::Http { status, message: _ } = e {
                             if status == 429 {
                                 fetch_existing_tasks = true;
+                            } else {
+                                let _ = event_sender
+                                    .send(Event::task_fetcher(format!("Orchestrator Error - {}", e), EventType::Error))
+                                    .await;
                             }
                         }
                     }
                 }
-
+            }
+            _ = tokio::time::sleep(Duration::from_millis(1000)), if fetch_existing_tasks => {
+                // Get existing tasks.
+                match orchestrator_client.get_tasks(&node_id.to_string()).await {
+                    Ok(tasks) => {
+                        // 🔄
+                        let msg = format!("Fetched {} tasks", tasks.len());
+                        let _ = event_sender
+                                    .send(Event::task_fetcher(msg, EventType::Refresh))
+                                    .await;
+                        for task in tasks {
+                            //  Only enqueue if the task has not been enqueued recently.
+                            if recent_tasks.contains(&task.task_id).await {
+                                continue;
+                            }
+                            recent_tasks.insert(task.task_id.clone()).await;
+                            if sender.send(task).await.is_err() {
+                                let _ = event_sender
+                                    .send(Event::task_fetcher("Task queue is closed".to_string(), EventType::Shutdown))
+                                    .await;
+                            }
+                        }
+                        fetch_existing_tasks = false;
+                    }
+                    Err(e) => {
+                        // ⚠️
+                        let msg = format!("Failed to fetch existing tasks: {}", e);
+                        let _ = event_sender
+                            .send(Event::task_fetcher(msg, EventType::Error))
+                            .await;
+                    }
+                }
             }
         }
     }
@@ -277,9 +304,11 @@ pub async fn fetch_prover_tasks(
 pub async fn submit_proofs(
     signing_key: SigningKey,
     orchestrator: Box<dyn Orchestrator>,
+    num_workers: usize,
     mut results: mpsc::Receiver<(Task, Proof)>,
     event_sender: mpsc::Sender<Event>,
     mut shutdown: broadcast::Receiver<()>,
+    successful_tasks: TaskCache,
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
         loop {
@@ -287,17 +316,29 @@ pub async fn submit_proofs(
                 maybe_item = results.recv() => {
                     match maybe_item {
                         Some((task, proof)) => {
+                            if successful_tasks.contains(&task.task_id).await {
+                                let msg = format!(
+                                        "Ignoring proof for previously submitted task {}",
+                                        task.task_id
+                                    );
+                                    let _ = event_sender
+                                        .send(Event::proof_submitter(msg, EventType::Error))
+                                        .await;
+                                // Skip already completed tasks
+                                continue;
+                            }
                             let proof_bytes = postcard::to_allocvec(&proof)
                                 .expect("Failed to serialize proof");
                             let proof_hash = format!("{:x}", Keccak256::digest(&proof_bytes));
                             // let now = Local::now();
                             // let timestamp = now.format("%Y-%m-%d %H:%M:%S").to_string();
                             match orchestrator
-                                .submit_proof(&task.task_id, &proof_hash, proof_bytes, signing_key.clone())
+                                .submit_proof(&task.task_id, &proof_hash, proof_bytes, signing_key.clone(), num_workers)
                                 .await
                             {
                                 Ok(_) => {
-                                    // ✅
+                                    // Mark task as completed
+                                    successful_tasks.insert(task.task_id.clone()).await;
                                     let msg = format!(
                                         "Successfully submitted proof for task {}",
                                         task.task_id
@@ -444,8 +485,9 @@ pub fn start_workers(
 #[cfg(test)]
 mod tests {
     use crate::orchestrator::MockOrchestrator;
-    use crate::prover_runtime::{Event, fetch_prover_tasks};
+    use crate::prover_runtime::{Event, MAX_COMPLETED_TASKS, fetch_prover_tasks};
     use crate::task::Task;
+    use crate::task_cache::TaskCache;
     use std::time::Duration;
     use tokio::sync::{broadcast, mpsc};
 
@@ -477,6 +519,8 @@ mod tests {
         let (shutdown_sender, _) = broadcast::channel(1); // Only one shutdown signal needed
         let (event_sender, _event_receiver) = mpsc::channel::<Event>(100);
         let shutdown_receiver = shutdown_sender.subscribe();
+        let successful_tasks = TaskCache::new(MAX_COMPLETED_TASKS);
+
         let task_master_handle = tokio::spawn(async move {
             fetch_prover_tasks(
                 node_id,
@@ -485,6 +529,7 @@ mod tests {
                 task_sender,
                 event_sender,
                 shutdown_receiver,
+                successful_tasks,
             )
             .await;
         });
