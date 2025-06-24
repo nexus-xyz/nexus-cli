@@ -13,12 +13,10 @@ fn fib_iter(n: u32, init_a: u32, init_b: u32) -> u32 {
     let mut a = init_a;
     let mut b = init_b;
 
-    for i in 0..n + 1 {
-        if i > 1 {
-            let c = a + b;
-            a = b;
-            b = c;
-        }
+    for _i in 0..n + 1 {
+        let c = a + b;
+        a = b;
+        b = c;
     }
     b
 }

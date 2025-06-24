@@ -50,10 +50,16 @@ fn main() {
 
     print!("Verifying execution...");
 
+    // Example: pass three inputs to the guest program
+    let n = 9u32;
+    let init_a = 1u32;
+    let init_b = 1u32;
+    let public_inputs = (n, init_a, init_b);
+    // Call the guest program with these inputs
     #[rustfmt::skip]
     proof
         .verify_expected::<(), ()>(
-            &(),  // no public input
+            &public_inputs,  // no public input
             nexus_sdk::KnownExitCodes::ExitSuccess as u32,
             &(),  // no public output
             &elf, // expected elf (program binary)
