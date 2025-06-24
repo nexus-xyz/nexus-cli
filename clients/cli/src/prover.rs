@@ -100,12 +100,18 @@ pub async fn authenticated_proving(
 }
 
 fn get_public_input(task: &Task) -> Result<u32, ProverError> {
-    let s = String::from_utf8(task.public_inputs.clone()).map_err(|e| {
-        ProverError::MalformedTask(format!("Failed to convert public inputs to string: {}", e))
-    })?;
-    s.trim()
-        .parse::<u32>()
-        .map_err(|e| ProverError::MalformedTask(format!("Failed to parse public input: {}", e)))
+    if task.public_inputs.len() < 12 {
+        return Err(ProverError::MalformedTask(
+            "Public inputs buffer too small, expected at least 12 bytes for three u32 values".to_string(),
+        ));
+    }
+    
+    // Read the first u32 (little-endian) from the buffer
+    let mut bytes = [0u8; 4];
+    bytes.copy_from_slice(&task.public_inputs[0..4]);
+    let first_value = u32::from_le_bytes(bytes);
+    
+    Ok(first_value)
 }
 
 /// Create a Stwo prover for the default program.
