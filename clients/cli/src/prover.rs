@@ -67,12 +67,41 @@ pub async fn authenticated_proving(
     environment: &Environment,
     client_id: String,
 ) -> Result<Proof, ProverError> {
-    let public_inputs = get_public_input(task)?;
-    let stwo_prover = get_default_stwo_prover()?;
-    // The old fib_input program only takes the first value
-    let (view, proof) = stwo_prover
-        .prove_with_input::<(), u32>(&(), &public_inputs.0)
-        .map_err(|e| ProverError::Stwo(format!("Failed to run prover: {}", e)))?;
+    let program_name = match task.program_id.as_str() {
+        "fib_input" => "fib_input",
+        "fib_input_initial" => "fib_input_initial",
+        _ => return Err(ProverError::MalformedTask(
+            format!("Unsupported program ID: {}", task.program_id)
+        )),
+    };
+
+    let (stwo_prover, public_input, analytics_input) = match program_name {
+        "fib_input" => {
+            let input = get_single_public_input(task)?;
+            let prover = get_default_stwo_prover()?;
+            (prover, input, input)
+        },
+        "fib_input_initial" => {
+            let inputs = get_triple_public_input(task)?;
+            let prover = get_initial_stwo_prover()?;
+            (prover, inputs, inputs.0)
+        },
+        _ => unreachable!(),
+    };
+
+    let (view, proof) = match program_name {
+        "fib_input" => {
+            stwo_prover
+                .prove_with_input::<(), u32>(&(), &public_input)
+                .map_err(|e| ProverError::Stwo(format!("Failed to run prover: {}", e)))?
+        },
+        "fib_input_initial" => {
+            stwo_prover
+                .prove_with_input::<(), (u32, u32, u32)>(&(), &public_input)
+                .map_err(|e| ProverError::Stwo(format!("Failed to run prover: {}", e)))?
+        },
+        _ => unreachable!(),
+    };
 
     let exit_code = view.exit_code().map_err(|e| {
         ProverError::GuestProgram(format!("Failed to deserialize exit code: {}", e))
@@ -89,8 +118,8 @@ pub async fn authenticated_proving(
     track(
         "cli_proof_node_v3".to_string(),
         json!({
-            "program_name": "fib_input",
-            "public_input": public_inputs.0,
+            "program_name": program_name,
+            "public_input": analytics_input,
             "task_id": task.task_id,
         }),
         environment,
@@ -100,7 +129,22 @@ pub async fn authenticated_proving(
     Ok(proof)
 }
 
-fn get_public_input(task: &Task) -> Result<(u32, u32, u32), ProverError> {
+fn get_single_public_input(task: &Task) -> Result<u32, ProverError> {
+    if task.public_inputs.len() < 4 {
+        return Err(ProverError::MalformedTask(
+            "Public inputs buffer too small, expected at least 4 bytes for a u32 value".to_string(),
+        ));
+    }
+    
+    // Read the first u32 (little-endian) from the buffer
+    let mut bytes = [0u8; 4];
+    bytes.copy_from_slice(&task.public_inputs[0..4]);
+    let value = u32::from_le_bytes(bytes);
+    
+    Ok(value)
+}
+
+fn get_triple_public_input(task: &Task) -> Result<(u32, u32, u32), ProverError> {
     if task.public_inputs.len() < 12 {
         return Err(ProverError::MalformedTask(
             "Public inputs buffer too small, expected at least 12 bytes for three u32 values".to_string(),
@@ -120,6 +164,12 @@ fn get_public_input(task: &Task) -> Result<(u32, u32, u32), ProverError> {
     let init_b = u32::from_le_bytes(bytes);
     
     Ok((n, init_a, init_b))
+}
+
+// Keep the old function for backward compatibility, but mark it as deprecated
+#[deprecated(note = "Use get_single_public_input or get_triple_public_input instead")]
+fn get_public_input(task: &Task) -> Result<(u32, u32, u32), ProverError> {
+    get_triple_public_input(task)
 }
 
 /// Create a Stwo prover for the default program.
