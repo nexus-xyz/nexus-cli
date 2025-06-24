@@ -77,24 +77,14 @@ pub async fn authenticated_proving(
     environment: &Environment,
     client_id: String,
 ) -> Result<Proof, ProverError> {
-    let program_name = match task.program_id.as_str() {
-        "fib_input" => "fib_input",
-        "fib_input_initial" => "fib_input_initial",
-        _ => {
-            return Err(ProverError::MalformedTask(format!(
-                "Unsupported program ID: {}",
-                task.program_id
-            )));
-        }
-    };
-
-    let (view, proof, analytics_input) = match program_name {
-        "fib_input" => {
-            let input = get_single_public_input(task)?;
+    let (view, proof, analytics_input) = match task.program_id.as_str() {
+        "fast-fib" => {
+            // fast-fib uses string inputs
+            let input = get_string_public_input(task)?;
             let stwo_prover = get_default_stwo_prover()?;
             let (view, proof) = stwo_prover
                 .prove_with_input::<(), u32>(&(), &input)
-                .map_err(|e| ProverError::Stwo(format!("Failed to run fib_input prover: {}", e)))?;
+                .map_err(|e| ProverError::Stwo(format!("Failed to run fast-fib prover: {}", e)))?;
             (view, proof, input)
         }
         "fib_input_initial" => {
@@ -107,7 +97,12 @@ pub async fn authenticated_proving(
                 })?;
             (view, proof, inputs.0)
         }
-        _ => unreachable!(),
+        _ => {
+            return Err(ProverError::MalformedTask(format!(
+                "Unsupported program ID: {}",
+                task.program_id
+            )));
+        }
     };
 
     let exit_code = view.exit_code().map_err(|e| {
@@ -122,16 +117,16 @@ pub async fn authenticated_proving(
     }
 
     // Send analytics event for authenticated proof
-    let analytics_data = match program_name {
-        "fib_input" => json!({
-            "program_name": program_name,
+    let analytics_data = match task.program_id.as_str() {
+        "fast-fib" => json!({
+            "program_name": "fast-fib",
             "public_input": analytics_input,
             "task_id": task.task_id,
         }),
         "fib_input_initial" => {
             let inputs = get_triple_public_input(task)?;
             json!({
-                "program_name": program_name,
+                "program_name": "fib_input_initial",
                 "public_input": inputs.0,
                 "public_input_2": inputs.1,
                 "public_input_3": inputs.2,
@@ -151,19 +146,14 @@ pub async fn authenticated_proving(
     Ok(proof)
 }
 
-fn get_single_public_input(task: &Task) -> Result<u32, ProverError> {
-    if task.public_inputs.len() < 4 {
+fn get_string_public_input(task: &Task) -> Result<u32, ProverError> {
+    // For fast-fib, just take the first byte as a u32 (how it worked before)
+    if task.public_inputs.is_empty() {
         return Err(ProverError::MalformedTask(
-            "Public inputs buffer too small, expected at least 4 bytes for a u32 value".to_string(),
+            "Task public inputs are empty".to_string(),
         ));
     }
-
-    // Read the first u32 (little-endian) from the buffer
-    let mut bytes = [0u8; 4];
-    bytes.copy_from_slice(&task.public_inputs[0..4]);
-    let value = u32::from_le_bytes(bytes);
-
-    Ok(value)
+    Ok(task.public_inputs[0] as u32)
 }
 
 fn get_triple_public_input(task: &Task) -> Result<(u32, u32, u32), ProverError> {

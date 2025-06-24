@@ -14,8 +14,16 @@ fn main() {
 
     let elf = prover.elf.clone(); // save elf for use with verification
 
+    // Example: pass three inputs to the guest program
+    let n = 9u32;
+    let init_a = 1u32;
+    let init_b = 1u32;
+    let public_inputs = (n, init_a, init_b);
+
     println!("Proving execution of vm...");
-    let (view, proof) = prover.prove().expect("failed to prove program");
+    let (view, proof) = prover
+        .prove_with_input::<(), (u32, u32, u32)>(&(), &public_inputs)
+        .expect("failed to prove program");
 
     println!(
         ">>>>> Logging\n{}<<<<<",
@@ -49,13 +57,6 @@ fn main() {
     // ).expect("failed to verify proof");
 
     print!("Verifying execution...");
-
-    // Example: pass three inputs to the guest program
-    let n = 9u32;
-    let init_a = 1u32;
-    let init_b = 1u32;
-    let public_inputs = (n, init_a, init_b);
-    // Call the guest program with these inputs
     #[rustfmt::skip]
     proof
         .verify_expected::<(u32, u32, u32), ()>(
