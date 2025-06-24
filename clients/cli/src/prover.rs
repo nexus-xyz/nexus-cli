@@ -28,16 +28,21 @@ pub fn prove_anonymously(
     client_id: String,
 ) -> Result<Proof, ProverError> {
     // Compute the 10th Fibonacci number using fib_input_initial
-    // Input: (n=9, init_a=1, init_b=1) 
+    // Input: n=9 (same as original fib_input)
     // This computes F(9) = 55 in the classic Fibonacci sequence starting with 1,1
     // Sequence: F(0)=1, F(1)=1, F(2)=2, F(3)=3, F(4)=5, F(5)=8, F(6)=13, F(7)=21, F(8)=34, F(9)=55
-    let public_input: (u32, u32, u32) = (9, 1, 1);
+    let public_input: u32 = 9;
 
     // Use the new initial ELF file for anonymous proving
     let stwo_prover = get_initial_stwo_prover()?;
     let (view, proof) = stwo_prover
-        .prove_with_input::<(), (u32, u32, u32)>(&(), &public_input)
-        .map_err(|e| ProverError::Stwo(format!("Failed to run fib_input_initial prover (anonymous): {}", e)))?;
+        .prove_with_input::<(), u32>(&(), &public_input)
+        .map_err(|e| {
+            ProverError::Stwo(format!(
+                "Failed to run fib_input_initial prover (anonymous): {}",
+                e
+            ))
+        })?;
 
     let exit_code = view.exit_code().map_err(|e| {
         ProverError::GuestProgram(format!("Failed to deserialize exit code: {}", e))
@@ -55,9 +60,7 @@ pub fn prove_anonymously(
         "cli_proof_anon_v3".to_string(),
         json!({
             "program_name": "fib_input_initial",
-            "public_input": public_input.0,
-            "public_input_2": public_input.1,
-            "public_input_3": public_input.2,
+            "public_input": public_input,
         }),
         environment,
         client_id,
@@ -75,9 +78,12 @@ pub async fn authenticated_proving(
     let program_name = match task.program_id.as_str() {
         "fib_input" => "fib_input",
         "fib_input_initial" => "fib_input_initial",
-        _ => return Err(ProverError::MalformedTask(
-            format!("Unsupported program ID: {}", task.program_id)
-        )),
+        _ => {
+            return Err(ProverError::MalformedTask(format!(
+                "Unsupported program ID: {}",
+                task.program_id
+            )));
+        }
     };
 
     let (view, proof, analytics_input) = match program_name {
@@ -88,15 +94,19 @@ pub async fn authenticated_proving(
                 .prove_with_input::<(), u32>(&(), &input)
                 .map_err(|e| ProverError::Stwo(format!("Failed to run fib_input prover: {}", e)))?;
             (view, proof, input)
-        },
+        }
         "fib_input_initial" => {
             let inputs = get_triple_public_input(task)?;
+            // Pack the three u32 values into a single u128
+            let packed_input: u128 = (inputs.0 as u128) | ((inputs.1 as u128) << 32) | ((inputs.2 as u128) << 64);
             let stwo_prover = get_initial_stwo_prover()?;
             let (view, proof) = stwo_prover
-                .prove_with_input::<(), (u32, u32, u32)>(&(), &inputs)
-                .map_err(|e| ProverError::Stwo(format!("Failed to run fib_input_initial prover: {}", e)))?;
+                .prove_with_input::<(), u128>(&(), &packed_input)
+                .map_err(|e| {
+                    ProverError::Stwo(format!("Failed to run fib_input_initial prover: {}", e))
+                })?;
             (view, proof, inputs.0)
-        },
+        }
         _ => unreachable!(),
     };
 
@@ -127,7 +137,7 @@ pub async fn authenticated_proving(
                 "public_input_3": inputs.2,
                 "task_id": task.task_id,
             })
-        },
+        }
         _ => unreachable!(),
     };
 
@@ -147,34 +157,35 @@ fn get_single_public_input(task: &Task) -> Result<u32, ProverError> {
             "Public inputs buffer too small, expected at least 4 bytes for a u32 value".to_string(),
         ));
     }
-    
+
     // Read the first u32 (little-endian) from the buffer
     let mut bytes = [0u8; 4];
     bytes.copy_from_slice(&task.public_inputs[0..4]);
     let value = u32::from_le_bytes(bytes);
-    
+
     Ok(value)
 }
 
 fn get_triple_public_input(task: &Task) -> Result<(u32, u32, u32), ProverError> {
     if task.public_inputs.len() < 12 {
         return Err(ProverError::MalformedTask(
-            "Public inputs buffer too small, expected at least 12 bytes for three u32 values".to_string(),
+            "Public inputs buffer too small, expected at least 12 bytes for three u32 values"
+                .to_string(),
         ));
     }
-    
+
     // Read all three u32 values (little-endian) from the buffer
     let mut bytes = [0u8; 4];
-    
+
     bytes.copy_from_slice(&task.public_inputs[0..4]);
     let n = u32::from_le_bytes(bytes);
-    
+
     bytes.copy_from_slice(&task.public_inputs[4..8]);
     let init_a = u32::from_le_bytes(bytes);
-    
+
     bytes.copy_from_slice(&task.public_inputs[8..12]);
     let init_b = u32::from_le_bytes(bytes);
-    
+
     Ok((n, init_a, init_b))
 }
 
@@ -189,7 +200,7 @@ pub fn get_default_stwo_prover() -> Result<Stwo<Local>, ProverError> {
 
 /// Create a Stwo prover for the initial program.
 pub fn get_initial_stwo_prover() -> Result<Stwo<Local>, ProverError> {
-    let elf_bytes = include_bytes!("../assets/fib_input_initial.elf");
+    let elf_bytes = include_bytes!("../assets/fib_input_initial");
     Stwo::<Local>::new_from_bytes(elf_bytes).map_err(|e| {
         let msg = format!("Failed to load fib_input_initial guest program: {}", e);
         ProverError::Stwo(msg)
