@@ -20,10 +20,13 @@ pub enum ProverError {
 
     #[error("Guest Program error: {0}")]
     GuestProgram(String),
+
+    #[error("Analytics tracking error: {0}")]
+    Analytics(String),
 }
 
 /// Proves a program locally with hardcoded inputs.
-pub fn prove_anonymously(
+pub async fn prove_anonymously(
     environment: &Environment,
     client_id: String,
 ) -> Result<Proof, ProverError> {
@@ -66,7 +69,9 @@ pub fn prove_anonymously(
         }),
         environment,
         client_id,
-    );
+    )
+    .await
+    .map_err(|e| ProverError::Analytics(e.to_string()))?;
 
     Ok(proof)
 }
@@ -146,7 +151,9 @@ pub async fn authenticated_proving(
         analytics_data,
         environment,
         client_id,
-    );
+    )
+    .await
+    .map_err(|e| ProverError::Analytics(e.to_string()))?;
 
     Ok(proof)
 }
@@ -226,7 +233,7 @@ mod tests {
     async fn test_prove_anonymously() {
         let environment = Environment::Local;
         let client_id = "test_client_id".to_string();
-        if let Err(e) = prove_anonymously(&environment, client_id) {
+        if let Err(e) = prove_anonymously(&environment, client_id).await {
             panic!("Failed to prove anonymously: {}", e);
         }
     }

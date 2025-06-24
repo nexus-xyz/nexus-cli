@@ -117,3 +117,18 @@ To build the ProtoBuf files, run the following command in the `clients/cli` dire
 ```bash
 cargo build --features build_proto
 ```
+
+## Creating a Release
+
+To create a release, update the package version in `Cargo.toml`, then create and push a new (annotated) tag, e.g.:
+
+```bash
+git tag -a v0.1.2 -m "Release v0.1.2"
+git push origin v0.1.2
+```
+
+This will trigger the GitHub Actions release workflow that compiles binaries and pushes the Docker image, in
+addition to creating release.
+
+**WARNING**: Creating a release through the GitHub UI creates a new release but does **NOT** trigger
+the workflow. This leads to a release without a Docker image or binaries, which breaks the installation script.

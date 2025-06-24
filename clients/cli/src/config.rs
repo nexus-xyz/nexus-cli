@@ -18,15 +18,19 @@ pub fn get_config_path() -> Result<PathBuf, std::io::Error> {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct Config {
     /// Environment
+    #[serde(default)]
     pub environment: String,
 
-    /// The unique identifier for the node, UUIDv4 format.
+    /// The unique identifier for the node, UUIDv4 format. Empty when not yet registered.
+    #[serde(default)]
     pub user_id: String,
 
-    /// The wallet address associated with the user, typically an Ethereum address.
+    /// The wallet address associated with the user, typically an Ethereum address. Empty when not yet registered.
+    #[serde(default)]
     pub wallet_address: String,
 
-    /// The node's unique identifier, probably an integer
+    /// The node's unique identifier, probably an integer. Empty when not yet registered.
+    #[serde(default)]
     pub node_id: String,
 }
 
@@ -188,5 +192,109 @@ mod tests {
 
         Config::clear_node_config(&path).unwrap();
         assert!(!path.exists(), "Config file was not removed");
+    }
+
+    #[test]
+    // Should load JSON containing a user_id and empty strings for other fields.
+    fn test_load_config_with_user_id_and_empty_fields() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("config.json");
+
+        // Write a JSON with user_id and empty strings for other fields
+        let mut file = File::create(&path).unwrap();
+        writeln!(file, r#"{{ "user_id": "test_user", "wallet_address": "", "environment": "", "node_id": "" }}"#).unwrap();
+
+        match Config::load_from_file(&path) {
+            Ok(config) => {
+                // The user_id must be set correctly.
+                assert_eq!(config.user_id, "test_user");
+                // Other fields should be empty or default
+                assert!(config.wallet_address.is_empty());
+                assert!(config.environment.is_empty());
+                assert!(config.node_id.is_empty());
+            }
+            Err(e) => {
+                panic!("Failed to load config with user_id and empty fields: {}", e);
+            }
+        }
+    }
+
+    #[test]
+    // (Backwards compatibility) Should load JSON containing only node_id.
+    fn test_load_config_with_only_node_id() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("config.json");
+
+        // Write a minimal JSON with only node_id
+        let mut file = File::create(&path).unwrap();
+        writeln!(file, r#"{{ "node_id": "12345" }}"#).unwrap();
+
+        match Config::load_from_file(&path) {
+            Ok(config) => {
+                // The node_id must be set correctly.
+                assert_eq!(config.node_id, "12345");
+                // Other fields should be empty or default
+                assert!(config.user_id.is_empty());
+                assert!(config.wallet_address.is_empty());
+                assert!(config.environment.is_empty());
+            }
+            Err(e) => {
+                panic!("Failed to load config with only node_id: {}", e);
+            }
+        }
+    }
+
+    #[test]
+    // (Backwards compatibility) Should load JSON with node_id and empty strings for other fields.
+    fn test_load_config_with_node_id_and_empty_strings() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("config.json");
+
+        let config = Config {
+            environment: "".to_string(),
+            user_id: "".to_string(),
+            wallet_address: "".to_string(),
+            node_id: "12345".to_string(),
+        };
+        config.save(&path).unwrap();
+
+        match Config::load_from_file(&path) {
+            Ok(config) => {
+                // The node_id must be set correctly.
+                assert_eq!(config.node_id, "12345");
+                // Other fields should be empty or default
+                assert!(config.user_id.is_empty());
+                assert!(config.wallet_address.is_empty());
+                assert!(config.environment.is_empty());
+            }
+            Err(e) => {
+                panic!("Failed to load config with only node_id: {}", e);
+            }
+        }
+    }
+
+    #[test]
+    // Should ignore unexpected fields in the JSON.
+    fn test_load_config_with_additional_fields() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("config.json");
+
+        // Write a JSON with additional fields
+        let mut file = File::create(&path).unwrap();
+        writeln!(file, r#"{{ "node_id": "12345", "extra_field": "value" }}"#).unwrap();
+
+        match Config::load_from_file(&path) {
+            Ok(config) => {
+                // The node_id must be set correctly.
+                assert_eq!(config.node_id, "12345");
+                // Other fields should be empty or default
+                assert!(config.user_id.is_empty());
+                assert!(config.wallet_address.is_empty());
+                assert!(config.environment.is_empty());
+            }
+            Err(e) => {
+                panic!("Failed to load config with additional fields: {}", e);
+            }
+        }
     }
 }

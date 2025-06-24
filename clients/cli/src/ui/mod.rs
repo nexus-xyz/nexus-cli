@@ -1,6 +1,6 @@
 mod dashboard;
 mod login;
-mod splash;
+pub mod splash;
 
 use crate::environment::Environment;
 use crate::prover_runtime::Event as WorkerEvent;
