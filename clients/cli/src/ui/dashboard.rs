@@ -181,11 +181,15 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
         .collect();
 
     // Logs using List
-    let log_items: Vec<ListItem> = logs
+    let mut log_items: Vec<ListItem> = logs
         .iter()
         .rev() // newest first
         .map(|line| ListItem::new(line.clone()))
         .collect();
+
+    if log_items.is_empty() {
+        log_items.push(ListItem::new("Starting...".to_string()));
+    }
 
     let log_widget = List::new(log_items)
         .block(Block::default().title("LOGS").borders(Borders::NONE))
