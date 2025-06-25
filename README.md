@@ -28,6 +28,7 @@ There have been several testnets so far:
 - Testnet I: [December 9 – 13, 2024](https://blog.nexus.xyz/the-new-nexus-testnet-is-live/)
 - Testnet II: [February 18 – 22, 2025](https://blog.nexus.xyz/testnet-ii-is-open/)
 - Devnet: February 22 - June 20 2025
+- Testnet III: [Ongoing](https://blog.nexus.xyz/live-everywhere/)
 
 ---
 
@@ -44,11 +45,13 @@ curl https://cli.nexus.xyz/ | sh
 ```
 
 This will:
-1. Download and install the latest precompiled binary for your platform
-2. Prompt you to accept the Terms of Use
-3. Start the CLI in interactive mode
+1. Download and install the latest precompiled binary for your platform.
+2. Prompt you to accept the Terms of Use.
+3. Start the CLI in interactive mode.
 
-### Non-Interactive Installation
+The exact installation script is viewable [here](./public/install.sh).
+
+#### Non-Interactive Installation
 
 For automated installations (e.g., in CI):
 
@@ -85,7 +88,7 @@ nexus-cli logout
 For troubleshooting or to see available command line options, run:
 
 ```bash
-nexus-cli --help start
+nexus-cli --help
 ```
 
 ---
@@ -142,7 +145,7 @@ itself.
 
 ### 🛠  Developer Guide
 
-The following steps may be required into order to setup a development environment for contributing to the project:
+The following steps may be required in order to setup a development environment for contributing to the project:
 
 #### Linux
 
