@@ -46,6 +46,13 @@ pub fn analytics_api_key(environment: &Environment) -> String {
         Environment::Local => String::new(),
     }
 }
+fn handle_analytics_error(e: TrackError) -> Result<(), TrackError> {
+    if std::env::var("NEXUS_ENABLE_ANALYTICS_LOGGING").is_ok() {
+        Err(e)
+    } else {
+        Ok(())
+    }
+}
 
 /// Track an event with the Firebase Measurement Protocol
 ///
@@ -102,7 +109,7 @@ pub async fn track(
             properties[k] = v.clone();
         }
     } else {
-        return Err(TrackError::InvalidEventProperties);
+        return handle_analytics_error(TrackError::InvalidEventProperties);
     }
 
     // Format for events
@@ -120,17 +127,23 @@ pub async fn track(
         analytics_id, analytics_api_key
     );
 
-    let response = client
+    let response = match client
         .post(&url)
         .json(&body)
         .header(ACCEPT, "application/json")
         .send()
-        .await?;
+        .await
+    {
+        Ok(response) => response,
+        Err(e) => {
+            return handle_analytics_error(TrackError::HttpError(e));
+        }
+    };
 
     let status = response.status();
     if !status.is_success() {
         let body_text = response.text().await?;
-        return Err(TrackError::FailedResponse {
+        return handle_analytics_error(TrackError::FailedResponse {
             status,
             body: body_text,
         });
