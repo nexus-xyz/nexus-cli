@@ -235,6 +235,7 @@ pub async fn fetch_prover_tasks(
                 break;
             }
             _ = tokio::time::sleep(Duration::from_millis(100)), if !fetch_existing_tasks => {
+                // Get a single new task.
                 match orchestrator_client
                     .get_proof_task(&node_id.to_string(), verifying_key)
                     .await
@@ -254,6 +255,7 @@ pub async fn fetch_prover_tasks(
                     Err(e) => {
                         if let OrchestratorError::Http { status, message: _ } = e {
                             if status == 429 {
+                                // The maximum number of tasks have already been assigned to this node.
                                 fetch_existing_tasks = true;
                             } else {
                                 let _ = event_sender
@@ -264,8 +266,8 @@ pub async fn fetch_prover_tasks(
                     }
                 }
             }
-            _ = tokio::time::sleep(Duration::from_millis(1000)), if fetch_existing_tasks => {
-                // Get existing tasks.
+            _ = tokio::time::sleep(Duration::from_millis(3000)), if fetch_existing_tasks => {
+                // Check for existing tasks.
                 match orchestrator_client.get_tasks(&node_id.to_string()).await {
                     Ok(tasks) => {
                         // 🔄
@@ -485,7 +487,7 @@ pub fn start_workers(
 #[cfg(test)]
 mod tests {
     use crate::orchestrator::MockOrchestrator;
-    use crate::prover_runtime::{Event, MAX_COMPLETED_TASKS, fetch_prover_tasks};
+    use crate::prover_runtime::{fetch_prover_tasks, Event, MAX_COMPLETED_TASKS};
     use crate::task::Task;
     use crate::task_cache::TaskCache;
     use std::time::Duration;
