@@ -1,3 +1,5 @@
+use std::env;
+
 use crate::analytics::track;
 use crate::environment::Environment;
 use crate::task::Task;
@@ -23,6 +25,11 @@ pub enum ProverError {
 
     #[error("Analytics tracking error: {0}")]
     Analytics(String),
+}
+
+/// Check if analytics errors should be returned or silently ignored
+fn allow_analytics_error() -> bool {
+    env::var("NEXUS_ENABLE_ANALYTICS_LOGGING").is_ok()
 }
 
 /// Proves a program locally with hardcoded inputs.
@@ -59,7 +66,7 @@ pub async fn prove_anonymously(
     }
 
     // Send analytics event for anonymous proof
-    track(
+    let track_error = track(
         "cli_proof_anon_v3".to_string(),
         json!({
             "program_name": "fib_input_initial",
@@ -71,7 +78,13 @@ pub async fn prove_anonymously(
         client_id,
     )
     .await
-    .map_err(|e| ProverError::Analytics(e.to_string()))?;
+    .err();
+
+    if let Some(er) = track_error {
+        if allow_analytics_error() {
+            return Err(ProverError::Analytics(er.to_string()));
+        }
+    }
 
     Ok(proof)
 }
@@ -141,14 +154,20 @@ pub async fn authenticated_proving(
         _ => unreachable!(),
     };
 
-    track(
+    let track_error = track(
         "cli_proof_node_v3".to_string(),
         analytics_data,
         environment,
         client_id,
     )
     .await
-    .map_err(|e| ProverError::Analytics(e.to_string()))?;
+    .err();
+
+    if let Some(er) = track_error {
+        if allow_analytics_error() {
+            return Err(ProverError::Analytics(er.to_string()));
+        }
+    }
 
     Ok(proof)
 }
