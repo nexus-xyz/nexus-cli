@@ -69,8 +69,8 @@ The Nexus CLI requires at least 4 GB of RAM. If multithreading is enabled, allot
 ## ⚠️ Known issues
 
 * Only the latest version of the CLI is currently supported.
-* Linking email to prover id is currently available on the web version only.
-* Counting cycles proved is not yet available in the CLI.
+* Linking email to prover ID is currently available on the web version only.
+* Tracking of proved cycles is not yet available in the CLI.
 * Only proving is supported. Submitting programs to the network is in private beta.
   To request an API key, contact us at growth@nexus.xyz.
 
