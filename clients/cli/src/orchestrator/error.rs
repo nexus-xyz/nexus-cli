@@ -1,7 +1,7 @@
 //! Error handling for the orchestrator module
 
 use prost::DecodeError;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 #[derive(Serialize, Deserialize)]
@@ -39,7 +39,10 @@ impl OrchestratorError {
 
     pub fn to_pretty(&self) -> Option<String> {
         match self {
-            Self::Http { status: _, message: msg } => {
+            Self::Http {
+                status: _,
+                message: msg,
+            } => {
                 if let Ok(parsed) = serde_json::from_str::<RawError>(&msg) {
                     if let Ok(stringified) = serde_json::to_string_pretty(&parsed) {
                         return Some(stringified);
@@ -47,7 +50,7 @@ impl OrchestratorError {
                 }
 
                 None
-            },
+            }
             _ => None,
         }
     }

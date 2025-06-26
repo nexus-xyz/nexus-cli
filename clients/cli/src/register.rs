@@ -2,8 +2,10 @@
 
 use crate::config::Config;
 use crate::keys;
-use crate::pretty::{print_cmd_error, print_cmd_info, handle_cmd_error, print_friendly_error_header};
 use crate::orchestrator::Orchestrator;
+use crate::pretty::{
+    handle_cmd_error, print_cmd_error, print_cmd_info, print_friendly_error_header,
+};
 use std::path::Path;
 
 /// Registers a user with the orchestrator.
@@ -36,7 +38,8 @@ pub async fn register_user(
                 print_cmd_info!(
                     "User already registered.",
                     "User ID: {}, Wallet Address: {}",
-                    config.user_id, config.wallet_address
+                    config.user_id,
+                    config.wallet_address
                 );
                 return Ok(());
             }
@@ -48,7 +51,8 @@ pub async fn register_user(
         print_cmd_info!(
             "Wallet address is already registered with user ID.",
             "User ID: {}, Wallet Address: {}",
-            wallet_address, user_id
+            wallet_address,
+            user_id
         );
         let config = Config::new(
             user_id,

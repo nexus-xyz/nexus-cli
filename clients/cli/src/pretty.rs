@@ -15,12 +15,10 @@ macro_rules! print_cmd_error {
 }
 
 macro_rules! handle_cmd_error {
-    ($err:tt, $tt:tt) => {
-        {
-            print_cmd_error!($tt);
-            $err
-        }
-    }
+    ($err:tt, $tt:tt) => {{
+        print_cmd_error!($tt);
+        $err
+    }};
 }
 
 macro_rules! print_cmd_info {
@@ -41,6 +39,6 @@ pub(crate) fn print_friendly_error_header() {
     );
 }
 
-pub(crate) use print_cmd_error;
 pub(crate) use handle_cmd_error;
+pub(crate) use print_cmd_error;
 pub(crate) use print_cmd_info;
