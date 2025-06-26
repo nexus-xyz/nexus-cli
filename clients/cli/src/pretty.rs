@@ -17,7 +17,7 @@ macro_rules! print_cmd_error {
 macro_rules! handle_cmd_error {
     ($err:tt, $tt:tt) => {{
         print_cmd_error!($tt);
-        $err
+        format!("{}", $err)
     }};
 }
 

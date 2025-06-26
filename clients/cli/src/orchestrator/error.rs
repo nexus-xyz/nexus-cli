@@ -4,11 +4,11 @@ use prost::DecodeError;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+#[allow(non_snake_case)] // used for json parsing
 #[derive(Serialize, Deserialize)]
 struct RawError {
     name: String,
     message: String,
-    #[allow(non_snake_case)] // used for json parsing
     httpCode: u16,
 }
 
