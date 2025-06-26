@@ -1,7 +1,7 @@
 use crate::analytics::track;
 use crate::environment::Environment;
 use crate::task::Task;
-use log::error;
+use log::{debug, error};
 use nexus_sdk::stwo::seq::Proof;
 use nexus_sdk::{KnownExitCodes, Local, Prover, Viewable, stwo::seq::Stwo};
 use serde_json::json;
@@ -58,8 +58,8 @@ pub async fn prove_anonymously(
         )));
     }
 
-    // Send analytics event for anonymous proof
-    track(
+    // Send analytics event for anonymous proof - return analytics error but don't fail the proof
+    if let Err(e) = track(
         "cli_proof_anon_v3".to_string(),
         json!({
             "program_name": "fib_input_initial",
@@ -71,7 +71,11 @@ pub async fn prove_anonymously(
         client_id,
     )
     .await
-    .map_err(|e| ProverError::Analytics(e.to_string()))?;
+    {
+        // Log locally but also return the analytics error so it can be classified and displayed
+        debug!("Analytics tracking failed (non-critical): {}", e);
+        return Err(ProverError::Analytics(e.to_string()));
+    }
 
     Ok(proof)
 }
@@ -141,14 +145,19 @@ pub async fn authenticated_proving(
         _ => unreachable!(),
     };
 
-    track(
+    // Send analytics event for authenticated proof - return analytics error but don't fail the proof
+    if let Err(e) = track(
         "cli_proof_node_v3".to_string(),
         analytics_data,
         environment,
         client_id,
     )
     .await
-    .map_err(|e| ProverError::Analytics(e.to_string()))?;
+    {
+        // Log locally but also return the analytics error so it can be classified and displayed
+        debug!("Analytics tracking failed (non-critical): {}", e);
+        return Err(ProverError::Analytics(e.to_string()));
+    }
 
     Ok(proof)
 }

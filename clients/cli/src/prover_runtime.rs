@@ -9,6 +9,8 @@
 //! - Prover event reporting
 
 use crate::environment::Environment;
+use crate::error_classifier::{ErrorClassifier, LogLevel};
+use crate::logging::should_log_with_env;
 use crate::orchestrator::error::OrchestratorError;
 use crate::orchestrator::{Orchestrator, OrchestratorClient};
 use crate::prover::authenticated_proving;
@@ -48,7 +50,9 @@ pub struct Event {
     pub msg: String,
     pub timestamp: String,
     pub event_type: EventType,
+    pub log_level: LogLevel,
 }
+
 impl Event {
     pub fn new(kind: Worker, msg: String, event_type: EventType) -> Self {
         Self {
@@ -56,6 +60,22 @@ impl Event {
             msg,
             timestamp: Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
             event_type,
+            log_level: LogLevel::Info,
+        }
+    }
+
+    pub fn new_with_level(
+        kind: Worker,
+        msg: String,
+        event_type: EventType,
+        log_level: LogLevel,
+    ) -> Self {
+        Self {
+            worker: kind,
+            msg,
+            timestamp: Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
+            event_type,
+            log_level,
         }
     }
 
@@ -63,12 +83,45 @@ impl Event {
         Self::new(Worker::TaskFetcher, msg, event_type)
     }
 
+    pub fn task_fetcher_with_level(
+        msg: String,
+        event_type: EventType,
+        log_level: LogLevel,
+    ) -> Self {
+        Self::new_with_level(Worker::TaskFetcher, msg, event_type, log_level)
+    }
+
     pub fn prover(worker_id: usize, msg: String, event_type: EventType) -> Self {
         Self::new(Worker::Prover(worker_id), msg, event_type)
     }
 
+    pub fn prover_with_level(
+        worker_id: usize,
+        msg: String,
+        event_type: EventType,
+        log_level: LogLevel,
+    ) -> Self {
+        Self::new_with_level(Worker::Prover(worker_id), msg, event_type, log_level)
+    }
+
     pub fn proof_submitter(msg: String, event_type: EventType) -> Self {
         Self::new(Worker::ProofSubmitter, msg, event_type)
+    }
+
+    pub fn proof_submitter_with_level(
+        msg: String,
+        event_type: EventType,
+        log_level: LogLevel,
+    ) -> Self {
+        Self::new_with_level(Worker::ProofSubmitter, msg, event_type, log_level)
+    }
+
+    pub fn should_display(&self) -> bool {
+        // Always show success events and info level events
+        if self.event_type == EventType::Success || self.log_level >= LogLevel::Info {
+            return true;
+        }
+        should_log_with_env(self.log_level)
     }
 }
 
@@ -183,6 +236,7 @@ pub async fn start_anonymous_workers(
         let prover_event_sender = event_sender.clone();
         let mut shutdown_rx = shutdown.resubscribe(); // clone receiver for each worker
         let client_id = client_id.clone();
+        let error_classifier = ErrorClassifier::new();
 
         let handle = tokio::spawn(async move {
             loop {
@@ -204,8 +258,15 @@ pub async fn start_anonymous_workers(
                                     .send(Event::prover(worker_id, message, EventType::Success)).await;
                             }
                             Err(e) => {
+                                let log_level = error_classifier.classify_worker_error(&e);
                                 let message = format!("Anonymous Worker: Error - {}", e);
-                                let _ =  prover_event_sender.send(Event::prover(worker_id, message, EventType::Error)).await;
+                                let event = Event::prover_with_level(worker_id, message, EventType::Error, log_level);
+                                if event.should_display() {
+                                    let _ = prover_event_sender.send(event).await;
+                                }
+
+                                // For analytics errors, this is non-critical, continue the loop
+                                // For other errors, also continue (anonymous mode keeps retrying)
                             }
                         }
                     }
@@ -228,6 +289,7 @@ pub async fn fetch_prover_tasks(
     mut shutdown: broadcast::Receiver<()>,
     recent_tasks: TaskCache,
 ) {
+    let error_classifier = ErrorClassifier::new();
     let mut fetch_existing_tasks = true;
     loop {
         tokio::select! {
@@ -253,14 +315,30 @@ pub async fn fetch_prover_tasks(
                         }
                     }
                     Err(e) => {
-                        if let OrchestratorError::Http { status, message: _ } = e {
-                            if status == 429 {
+                        if let OrchestratorError::Http { status, message: _ } = &e {
+                            if *status == 429 {
                                 // The maximum number of tasks have already been assigned to this node.
                                 fetch_existing_tasks = true;
                             } else {
-                                let _ = event_sender
-                                    .send(Event::task_fetcher(format!("Orchestrator Error - {}", e), EventType::Error))
-                                    .await;
+                                let log_level = error_classifier.classify_fetch_error(&e);
+                                let event = Event::task_fetcher_with_level(
+                                    format!("Orchestrator Error - {}", e),
+                                    EventType::Error,
+                                    log_level
+                                );
+                                if event.should_display() {
+                                    let _ = event_sender.send(event).await;
+                                }
+                            }
+                        } else {
+                            let log_level = error_classifier.classify_fetch_error(&e);
+                            let event = Event::task_fetcher_with_level(
+                                format!("Orchestrator Error - {}", e),
+                                EventType::Error,
+                                log_level
+                            );
+                            if event.should_display() {
+                                let _ = event_sender.send(event).await;
                             }
                         }
                     }
@@ -290,11 +368,15 @@ pub async fn fetch_prover_tasks(
                         fetch_existing_tasks = false;
                     }
                     Err(e) => {
-                        // ⚠️
-                        let msg = format!("Failed to fetch existing tasks: {}", e);
-                        let _ = event_sender
-                            .send(Event::task_fetcher(msg, EventType::Error))
-                            .await;
+                        let log_level = error_classifier.classify_fetch_error(&e);
+                        let event = Event::task_fetcher_with_level(
+                            format!("Failed to fetch existing tasks: {}", e),
+                            EventType::Error,
+                            log_level
+                        );
+                        if event.should_display() {
+                            let _ = event_sender.send(event).await;
+                        }
                     }
                 }
             }
@@ -346,7 +428,7 @@ pub async fn submit_proofs(
                                         task.task_id
                                     );
                                     let _ = event_sender
-                                        .send(Event::proof_submitter(msg, EventType::Success))
+                                        .send(Event::proof_submitter_with_level(msg, EventType::Success, LogLevel::Info))
                                         .await;
                             }
                                 Err(OrchestratorError::Http {status, message: _message}) => {
@@ -441,6 +523,7 @@ pub fn start_workers(
         let results_sender = results_sender.clone();
         let mut shutdown_rx = shutdown.resubscribe();
         let client_id = client_id.clone();
+        let error_classifier = ErrorClassifier::new();
         let handle = tokio::spawn(async move {
             loop {
                 tokio::select! {
@@ -465,10 +548,15 @@ pub fn start_workers(
                                 let _ = results_sender.send((task, proof)).await;
                             }
                             Err(e) => {
+                                let log_level = error_classifier.classify_worker_error(&e);
                                 let message = format!("Error: {}", e);
-                                let _ = prover_event_sender
-                                    .send(Event::prover(worker_id, message, EventType::Error))
-                                    .await;
+                                let event = Event::prover_with_level(worker_id, message, EventType::Error, log_level);
+                                if event.should_display() {
+                                    let _ = prover_event_sender.send(event).await;
+                                }
+
+                                // For analytics errors, continue processing but don't send result
+                                // For other errors, also don't send result (task failed)
                             }
                         }
                     }
