@@ -2,13 +2,15 @@ use crate::ui::splash::LOGO_NAME;
 
 macro_rules! print_cmd_error {
     ($tt:tt) => {
-        println!("\x1b[1;31m[ERRROR!!!] {}\x1b[0m", $tt);
-        println!("\t\tCheck stderr for raw error content.");
+        println!("\x1b[1;31m[ERROR!!!] {}\x1b[0m", $tt);
+        println!("\x1b[1;31m[ERROR!!!]\x1b[0m Raw error being sent to stderr...\n");
     };
     ($tt:tt, $($tts:tt)+) => {
-        println!("\x1b[1;31m[ERRROR!!!] {}\x1b[0m", $tt);
-        println!("\t\t{}", core::format_args!($($tts)*));
-        println!("\t\tCheck stderr for raw error content.");
+        println!("\x1b[1;31m[ERROR!!!] {}\x1b[0m", $tt);
+        println!("\x1b[1;31m[ERROR!!!]\x1b[0m Raw error being sent to stderr...");
+        println!("\x1b[1;31m[ERROR!!!]\x1b[0m Start details...");
+        println!("{}", core::format_args!($($tts)*));
+        println!("\x1b[1;31m[ERROR!!!]\x1b[0m End details.\n");
     }
 }
 
@@ -24,16 +26,18 @@ macro_rules! handle_cmd_error {
 macro_rules! print_cmd_info {
     ($tt:tt, $($tts:tt)*) => {
         println!("\x1b[1;33m[INFO!!!] {}\x1b[0m", $tt);
-        println!("\t\t{}", core::format_args!($($tts)*));
+        println!("\x1b[1;33m[INFO!!!]\x1b[0m Start details...");
+        println!("{}", core::format_args!($($tts)*));
+        println!("\x1b[1;31m[INFO!!!]\x1b[0m End details.\n");
     }
 }
 
 pub(crate) fn print_friendly_error_header() {
     // RGB: FF = 255, AA = 170, 00 = 0
     println!("\x1b[38;2;255;170;0m{}\x1b[0m", LOGO_NAME);
-    println!("\x1b[38;2;255;170;0mWe'll be back shortly\x1b[0m");
+    println!("\x1b[38;2;255;170;0mWe'll be back shortly!\x1b[0m");
     println!(
-        "The Prover network’s orchestrater is under unprecedented traffic. Team has been notified. Thank you for your patience while issue is resolved.\n"
+        "The  orchestrator of the prover network is under unprecedented traffic. The team has been notified. Thank you for your patience while the issue is resolved.\n"
     );
 }
 

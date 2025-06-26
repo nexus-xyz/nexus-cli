@@ -70,7 +70,12 @@ pub async fn register_user(
         Ok(_) => println!("User {} registered successfully.", uuid),
         Err(e) => {
             print_friendly_error_header();
-            print_cmd_error!("Failed to register user.");
+            if let Some(pretty_error) = e.to_pretty() {
+                print_cmd_error!("Failed to register user.", "{}", pretty_error);
+            } else {
+                print_cmd_error!("Failed to register user. Unable to pretty print error.");
+            }
+
             return Err(e.into());
         }
     }
