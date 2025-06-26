@@ -8,6 +8,7 @@ use thiserror::Error;
 struct RawError {
     name: String,
     message: String,
+    #[allow(non_snake_case)] // used for json parsing
     httpCode: u16,
 }
 
@@ -43,7 +44,7 @@ impl OrchestratorError {
                 status: _,
                 message: msg,
             } => {
-                if let Ok(parsed) = serde_json::from_str::<RawError>(&msg) {
+                if let Ok(parsed) = serde_json::from_str::<RawError>(msg) {
                     if let Ok(stringified) = serde_json::to_string_pretty(&parsed) {
                         return Some(stringified);
                     }
