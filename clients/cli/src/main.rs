@@ -3,7 +3,9 @@
 mod analytics;
 mod config;
 mod environment;
+mod error_classifier;
 mod keys;
+mod logging;
 #[path = "proto/nexus.orchestrator.rs"]
 mod nexus_orchestrator;
 mod orchestrator;

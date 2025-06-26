@@ -169,6 +169,7 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
     let logs: Vec<String> = state
         .events
         .iter()
+        .filter(|event| event.should_display())
         .map(|event| {
             let icon = match event.event_type {
                 EventType::Success => "✅",
