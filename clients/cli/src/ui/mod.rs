@@ -3,7 +3,7 @@ mod login;
 pub mod splash;
 
 use crate::environment::Environment;
-use crate::prover_runtime::Event as WorkerEvent;
+use crate::events::Event as WorkerEvent;
 use crate::ui::dashboard::{DashboardState, render_dashboard};
 use crate::ui::login::render_login;
 use crate::ui::splash::render_splash;
