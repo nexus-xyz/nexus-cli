@@ -1,144 +1,18 @@
 //! Prover Runtime
 //!
-//! Handles background execution of proof tasks in both authenticated and anonymous modes.
-//! Spawns async workers, dispatches tasks, and reports progress back to the UI.
-//!
-//! Includes:
-//! - Task fetching from the orchestrator (authenticated mode)
-//! - Worker management and task dispatching
-//! - Prover event reporting
+//! Main orchestrator for authenticated and anonymous proving modes.
+//! Coordinates online workers (network I/O) and offline workers (computation).
 
 use crate::environment::Environment;
-use crate::error_classifier::{ErrorClassifier, LogLevel};
-use crate::logging::should_log_with_env;
-use crate::orchestrator::error::OrchestratorError;
-use crate::orchestrator::{Orchestrator, OrchestratorClient};
-use crate::prover::authenticated_proving;
+use crate::events::Event;
+use crate::orchestrator::OrchestratorClient;
 use crate::task::Task;
 use crate::task_cache::TaskCache;
-use chrono::Local;
-use ed25519_dalek::{SigningKey, VerifyingKey};
+use crate::workers::{offline, online};
+use ed25519_dalek::SigningKey;
 use nexus_sdk::stwo::seq::Proof;
-use sha3::{Digest, Keccak256};
-use std::fmt::Display;
-use std::string::ToString;
-use std::time::Duration;
 use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum Worker {
-    /// Worker that fetches tasks from the orchestrator and processes them.
-    TaskFetcher,
-    /// Worker that performs proving tasks.
-    Prover(usize),
-    /// Worker that submits proofs to the orchestrator.
-    ProofSubmitter,
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq, strum::Display)]
-pub enum EventType {
-    Success,
-    Error,
-    Refresh,
-    Shutdown,
-}
-
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct Event {
-    pub worker: Worker,
-    pub msg: String,
-    pub timestamp: String,
-    pub event_type: EventType,
-    pub log_level: LogLevel,
-}
-
-impl Event {
-    pub fn new(kind: Worker, msg: String, event_type: EventType) -> Self {
-        Self {
-            worker: kind,
-            msg,
-            timestamp: Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
-            event_type,
-            log_level: LogLevel::Info,
-        }
-    }
-
-    pub fn new_with_level(
-        kind: Worker,
-        msg: String,
-        event_type: EventType,
-        log_level: LogLevel,
-    ) -> Self {
-        Self {
-            worker: kind,
-            msg,
-            timestamp: Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
-            event_type,
-            log_level,
-        }
-    }
-
-    pub fn task_fetcher(msg: String, event_type: EventType) -> Self {
-        Self::new(Worker::TaskFetcher, msg, event_type)
-    }
-
-    pub fn task_fetcher_with_level(
-        msg: String,
-        event_type: EventType,
-        log_level: LogLevel,
-    ) -> Self {
-        Self::new_with_level(Worker::TaskFetcher, msg, event_type, log_level)
-    }
-
-    pub fn prover(worker_id: usize, msg: String, event_type: EventType) -> Self {
-        Self::new(Worker::Prover(worker_id), msg, event_type)
-    }
-
-    pub fn prover_with_level(
-        worker_id: usize,
-        msg: String,
-        event_type: EventType,
-        log_level: LogLevel,
-    ) -> Self {
-        Self::new_with_level(Worker::Prover(worker_id), msg, event_type, log_level)
-    }
-
-    pub fn proof_submitter(msg: String, event_type: EventType) -> Self {
-        Self::new(Worker::ProofSubmitter, msg, event_type)
-    }
-
-    pub fn proof_submitter_with_level(
-        msg: String,
-        event_type: EventType,
-        log_level: LogLevel,
-    ) -> Self {
-        Self::new_with_level(Worker::ProofSubmitter, msg, event_type, log_level)
-    }
-
-    pub fn should_display(&self) -> bool {
-        // Always show success events and info level events
-        if self.event_type == EventType::Success || self.log_level >= LogLevel::Info {
-            return true;
-        }
-        should_log_with_env(self.log_level)
-    }
-}
-
-impl Display for Event {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let worker_type: String = match self.worker {
-            Worker::TaskFetcher => "Task Fetcher".to_string(),
-            Worker::Prover(worker_id) => format!("Prover {}", worker_id),
-            Worker::ProofSubmitter => "Proof Submitter".to_string(),
-        };
-        write!(
-            f,
-            "{} [{}] {}: {}",
-            self.event_type, self.timestamp, worker_type, self.msg
-        )
-    }
-}
 
 // Queue sizes. Chosen to be larger than the tasks API page size (currently, 50)
 const TASK_QUEUE_SIZE: usize = 100;
@@ -147,10 +21,6 @@ const RESULT_QUEUE_SIZE: usize = 100;
 
 /// Maximum number of completed tasks to keep in memory. Chosen to be larger than the task queue size.
 const MAX_COMPLETED_TASKS: usize = 500;
-
-// Task fetching thresholds
-const LOW_WATER_MARK: usize = 5; // Fetch new tasks when queue drops below this
-const BATCH_SIZE: usize = 20; // Fetch this many tasks at once
 
 /// Starts authenticated workers that fetch tasks from the orchestrator and process them.
 pub async fn start_authenticated_workers(
@@ -177,7 +47,7 @@ pub async fn start_authenticated_workers(
         let event_sender = event_sender.clone();
         let shutdown = shutdown.resubscribe(); // Clone the receiver for task fetching
         tokio::spawn(async move {
-            fetch_prover_tasks(
+            online::fetch_prover_tasks(
                 node_id,
                 verifying_key,
                 Box::new(orchestrator),
@@ -194,7 +64,7 @@ pub async fn start_authenticated_workers(
     // Workers
     let (result_sender, result_receiver) = mpsc::channel::<(Task, Proof)>(RESULT_QUEUE_SIZE);
 
-    let (worker_senders, worker_handles) = start_workers(
+    let (worker_senders, worker_handles) = offline::start_workers(
         num_workers,
         result_sender,
         event_sender.clone(),
@@ -205,14 +75,15 @@ pub async fn start_authenticated_workers(
     join_handles.extend(worker_handles);
 
     // Dispatch tasks to workers
-    let dispatcher_handle = start_dispatcher(task_receiver, worker_senders, shutdown.resubscribe());
+    let dispatcher_handle =
+        offline::start_dispatcher(task_receiver, worker_senders, shutdown.resubscribe());
     join_handles.push(dispatcher_handle);
 
     // A bounded list of recently completed task IDs
     let successful_tasks = TaskCache::new(MAX_COMPLETED_TASKS);
 
     // Send proofs to the orchestrator
-    let submit_proofs_handle = submit_proofs(
+    let submit_proofs_handle = online::submit_proofs(
         signing_key,
         Box::new(orchestrator),
         num_workers,
@@ -749,7 +620,7 @@ pub fn start_workers(
 #[cfg(test)]
 mod tests {
     use crate::orchestrator::MockOrchestrator;
-    use crate::prover_runtime::{Event, MAX_COMPLETED_TASKS, fetch_prover_tasks};
+    use crate::prover_runtime::{Event, MAX_COMPLETED_TASKS, online::fetch_prover_tasks};
     use crate::task::Task;
     use crate::task_cache::TaskCache;
     use std::time::Duration;

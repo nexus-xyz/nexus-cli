@@ -1,7 +1,7 @@
 //! Dashboard screen rendering.
 
 use crate::environment::Environment;
-use crate::prover_runtime::{Event as WorkerEvent, EventType};
+use crate::events::{Event as WorkerEvent, EventType};
 use crate::system;
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout};
