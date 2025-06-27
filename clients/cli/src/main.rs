@@ -4,6 +4,7 @@ mod analytics;
 mod config;
 mod environment;
 mod error_classifier;
+mod events;
 mod keys;
 mod logging;
 #[path = "proto/nexus.orchestrator.rs"]
@@ -17,6 +18,7 @@ pub mod system;
 mod task;
 mod task_cache;
 mod ui;
+mod workers;
 
 use crate::config::{Config, get_config_path};
 use crate::environment::Environment;
