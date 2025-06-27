@@ -71,7 +71,7 @@ To start with an existing node ID, run:
 nexus-cli start --node-id <your-node-id>
 ```
 
-Alternatively, you can register your wallet address and create a node ID with the CLI, or at at [app.nexus.xyz](https://app.nexus.xyz).
+Alternatively, you can register your wallet address and create a node ID with the CLI, or at [app.nexus.xyz](https://app.nexus.xyz).
 
 ```bash
 nexus-cli register-user --wallet-address <your-wallet-address>
