@@ -148,6 +148,10 @@ const RESULT_QUEUE_SIZE: usize = 100;
 /// Maximum number of completed tasks to keep in memory. Chosen to be larger than the task queue size.
 const MAX_COMPLETED_TASKS: usize = 500;
 
+// Task fetching thresholds
+const LOW_WATER_MARK: usize = 5; // Fetch new tasks when queue drops below this
+const BATCH_SIZE: usize = 20; // Fetch this many tasks at once
+
 /// Starts authenticated workers that fetch tasks from the orchestrator and process them.
 pub async fn start_authenticated_workers(
     node_id: u64,
@@ -279,7 +283,60 @@ pub async fn start_anonymous_workers(
     (event_receiver, join_handles)
 }
 
+/// State for managing task fetching behavior
+struct TaskFetchState {
+    last_fetch_time: std::time::Instant,
+    backoff_duration: Duration,
+    last_queue_log_time: std::time::Instant,
+    queue_log_interval: Duration,
+    error_classifier: ErrorClassifier,
+}
+
+impl TaskFetchState {
+    fn new() -> Self {
+        Self {
+            last_fetch_time: std::time::Instant::now() - Duration::from_millis(31000), // Allow immediate first fetch
+            backoff_duration: Duration::from_millis(30000), // Start with 30 second backoff
+            last_queue_log_time: std::time::Instant::now(),
+            queue_log_interval: Duration::from_millis(60000), // Log queue status every 1 minute max
+            error_classifier: ErrorClassifier::new(),
+        }
+    }
+
+    fn should_log_queue_status(&mut self, tasks_in_queue: usize) -> bool {
+        tasks_in_queue < LOW_WATER_MARK
+            && self.last_queue_log_time.elapsed() >= self.queue_log_interval
+    }
+
+    fn should_fetch(&self, tasks_in_queue: usize) -> bool {
+        tasks_in_queue < LOW_WATER_MARK && self.last_fetch_time.elapsed() >= self.backoff_duration
+    }
+
+    fn record_fetch_attempt(&mut self) {
+        self.last_fetch_time = std::time::Instant::now();
+    }
+
+    fn record_queue_log(&mut self) {
+        self.last_queue_log_time = std::time::Instant::now();
+    }
+
+    fn reset_backoff(&mut self) {
+        self.backoff_duration = Duration::from_millis(30000);
+    }
+
+    fn increase_backoff_for_rate_limit(&mut self) {
+        self.backoff_duration =
+            std::cmp::min(self.backoff_duration * 2, Duration::from_millis(60000));
+    }
+
+    fn increase_backoff_for_error(&mut self) {
+        self.backoff_duration =
+            std::cmp::min(self.backoff_duration * 2, Duration::from_millis(30000));
+    }
+}
+
 /// Fetches tasks from the orchestrator and place them in the task queue.
+/// Uses demand-driven fetching: only fetches when queue drops below LOW_WATER_MARK.
 pub async fn fetch_prover_tasks(
     node_id: u64,
     verifying_key: VerifyingKey,
@@ -289,99 +346,216 @@ pub async fn fetch_prover_tasks(
     mut shutdown: broadcast::Receiver<()>,
     recent_tasks: TaskCache,
 ) {
-    let error_classifier = ErrorClassifier::new();
-    let mut fetch_existing_tasks = true;
+    let mut state = TaskFetchState::new();
+
     loop {
         tokio::select! {
-            _ = shutdown.recv() => {
-                break;
-            }
-            _ = tokio::time::sleep(Duration::from_millis(100)), if !fetch_existing_tasks => {
-                // Get a single new task.
-                match orchestrator_client
-                    .get_proof_task(&node_id.to_string(), verifying_key)
-                    .await
-                {
-                    Ok(task) => {
-                        //  Only enqueue if the task has not already been completed.
-                        if recent_tasks.contains(&task.task_id).await {
-                            continue;
-                        }
-                        recent_tasks.insert(task.task_id.clone()).await;
-                        if sender.send(task).await.is_err() {
-                            let _ = event_sender
-                                .send(Event::task_fetcher("Task queue is closed".to_string(), EventType::Shutdown))
-                                .await;
-                        }
-                    }
-                    Err(e) => {
-                        if let OrchestratorError::Http { status, message: _ } = &e {
-                            if *status == 429 {
-                                // The maximum number of tasks have already been assigned to this node.
-                                fetch_existing_tasks = true;
-                            } else {
-                                let log_level = error_classifier.classify_fetch_error(&e);
-                                let event = Event::task_fetcher_with_level(
-                                    format!("Orchestrator Error - {}", e),
-                                    EventType::Error,
-                                    log_level
-                                );
-                                if event.should_display() {
-                                    let _ = event_sender.send(event).await;
+            _ = shutdown.recv() => break,
+            _ = tokio::time::sleep(Duration::from_millis(500)) => {
+                let tasks_in_queue = TASK_QUEUE_SIZE - sender.capacity();
+
+                // Log queue status occasionally
+                if state.should_log_queue_status(tasks_in_queue) {
+                    state.record_queue_log();
+                    log_queue_status(&event_sender, tasks_in_queue, &state).await;
+                }
+
+                // Attempt fetch if conditions are met
+                if state.should_fetch(tasks_in_queue) {
+                    state.record_fetch_attempt();
+
+                    match fetch_task_batch(&*orchestrator_client, &node_id, verifying_key, BATCH_SIZE).await {
+                        Ok(tasks) => {
+                            if let Err(should_return) = handle_fetch_success(
+                                tasks,
+                                &sender,
+                                &event_sender,
+                                &recent_tasks,
+                                &mut state
+                            ).await {
+                                if should_return {
+                                    return;
                                 }
                             }
-                        } else {
-                            let log_level = error_classifier.classify_fetch_error(&e);
-                            let event = Event::task_fetcher_with_level(
-                                format!("Orchestrator Error - {}", e),
-                                EventType::Error,
-                                log_level
-                            );
-                            if event.should_display() {
-                                let _ = event_sender.send(event).await;
-                            }
                         }
-                    }
-                }
-            }
-            _ = tokio::time::sleep(Duration::from_millis(3000)), if fetch_existing_tasks => {
-                // Check for existing tasks.
-                match orchestrator_client.get_tasks(&node_id.to_string()).await {
-                    Ok(tasks) => {
-                        // 🔄
-                        let msg = format!("Fetched {} tasks", tasks.len());
-                        let _ = event_sender
-                                    .send(Event::task_fetcher(msg, EventType::Refresh))
-                                    .await;
-                        for task in tasks {
-                            //  Only enqueue if the task has not been enqueued recently.
-                            if recent_tasks.contains(&task.task_id).await {
-                                continue;
-                            }
-                            recent_tasks.insert(task.task_id.clone()).await;
-                            if sender.send(task).await.is_err() {
-                                let _ = event_sender
-                                    .send(Event::task_fetcher("Task queue is closed".to_string(), EventType::Shutdown))
-                                    .await;
-                            }
-                        }
-                        fetch_existing_tasks = false;
-                    }
-                    Err(e) => {
-                        let log_level = error_classifier.classify_fetch_error(&e);
-                        let event = Event::task_fetcher_with_level(
-                            format!("Failed to fetch existing tasks: {}", e),
-                            EventType::Error,
-                            log_level
-                        );
-                        if event.should_display() {
-                            let _ = event_sender.send(event).await;
+                        Err(e) => {
+                            handle_fetch_error(e, &event_sender, &mut state).await;
                         }
                     }
                 }
             }
         }
     }
+}
+
+/// Log the current queue status
+async fn log_queue_status(
+    event_sender: &mpsc::Sender<Event>,
+    tasks_in_queue: usize,
+    state: &TaskFetchState,
+) {
+    let time_since_last = state.last_fetch_time.elapsed();
+    let backoff_secs = state.backoff_duration.as_secs();
+
+    let message = if time_since_last >= state.backoff_duration {
+        format!("Queue low: {} tasks, fetching now...", tasks_in_queue)
+    } else {
+        let time_since_secs = time_since_last.as_secs();
+        format!(
+            "Queue low: {} tasks, last fetch {}s ago (retry every {}s)",
+            tasks_in_queue, time_since_secs, backoff_secs
+        )
+    };
+
+    let _ = event_sender
+        .send(Event::task_fetcher_with_level(
+            message,
+            EventType::Refresh,
+            LogLevel::Debug,
+        ))
+        .await;
+}
+
+/// Handle successful task fetch
+async fn handle_fetch_success(
+    tasks: Vec<Task>,
+    sender: &mpsc::Sender<Task>,
+    event_sender: &mpsc::Sender<Event>,
+    recent_tasks: &TaskCache,
+    state: &mut TaskFetchState,
+) -> Result<(), bool> {
+    // bool indicates if caller should return
+    if tasks.is_empty() {
+        let _ = event_sender
+            .send(Event::task_fetcher_with_level(
+                "No tasks available from server".to_string(),
+                EventType::Refresh,
+                LogLevel::Info,
+            ))
+            .await;
+        return Ok(());
+    }
+
+    let mut added_count = 0;
+    for task in tasks {
+        if recent_tasks.contains(&task.task_id).await {
+            continue;
+        }
+        recent_tasks.insert(task.task_id.clone()).await;
+
+        if sender.send(task).await.is_err() {
+            let _ = event_sender
+                .send(Event::task_fetcher(
+                    "Task queue is closed".to_string(),
+                    EventType::Shutdown,
+                ))
+                .await;
+            return Err(true); // Signal caller to return
+        }
+        added_count += 1;
+    }
+
+    if added_count > 0 {
+        // Only log significant additions
+        if added_count >= 5 {
+            let msg = format!(
+                "Added {} tasks to queue (queue level: {})",
+                added_count,
+                TASK_QUEUE_SIZE - sender.capacity()
+            );
+            let _ = event_sender
+                .send(Event::task_fetcher_with_level(
+                    msg,
+                    EventType::Refresh,
+                    LogLevel::Info,
+                ))
+                .await;
+        }
+        state.reset_backoff();
+    }
+
+    Ok(())
+}
+
+/// Handle fetch errors with appropriate backoff
+async fn handle_fetch_error(
+    error: OrchestratorError,
+    event_sender: &mpsc::Sender<Event>,
+    state: &mut TaskFetchState,
+) {
+    if matches!(error, OrchestratorError::Http { status: 429, .. }) {
+        state.increase_backoff_for_rate_limit();
+        let _ = event_sender
+            .send(Event::task_fetcher_with_level(
+                format!(
+                    "Rate limited (429), backing off for {} seconds",
+                    state.backoff_duration.as_secs()
+                ),
+                EventType::Error,
+                LogLevel::Warn,
+            ))
+            .await;
+    } else {
+        state.increase_backoff_for_error();
+        let log_level = state.error_classifier.classify_fetch_error(&error);
+        let event = Event::task_fetcher_with_level(
+            format!(
+                "Failed to fetch tasks: {}, retrying in {} seconds",
+                error,
+                state.backoff_duration.as_secs()
+            ),
+            EventType::Error,
+            log_level,
+        );
+        if event.should_display() {
+            let _ = event_sender.send(event).await;
+        }
+    }
+}
+
+/// Fetch a batch of tasks from the orchestrator
+async fn fetch_task_batch(
+    orchestrator_client: &dyn Orchestrator,
+    node_id: &u64,
+    verifying_key: VerifyingKey,
+    batch_size: usize,
+) -> Result<Vec<Task>, OrchestratorError> {
+    // First try to get existing assigned tasks
+    match orchestrator_client.get_tasks(&node_id.to_string()).await {
+        Ok(tasks) => {
+            if !tasks.is_empty() {
+                return Ok(tasks);
+            }
+        }
+        Err(e) => {
+            // If getting existing tasks fails, try to get new ones
+            if !matches!(e, OrchestratorError::Http { status: 404, .. }) {
+                return Err(e);
+            }
+        }
+    }
+
+    // If no existing tasks, try to get new ones
+    let mut new_tasks = Vec::new();
+    for _ in 0..batch_size {
+        match orchestrator_client
+            .get_proof_task(&node_id.to_string(), verifying_key)
+            .await
+        {
+            Ok(task) => new_tasks.push(task),
+            Err(OrchestratorError::Http { status: 429, .. }) => {
+                // Rate limited, return what we have
+                break;
+            }
+            Err(OrchestratorError::Http { status: 404, .. }) => {
+                // No more tasks available
+                break;
+            }
+            Err(e) => return Err(e),
+        }
+    }
+
+    Ok(new_tasks)
 }
 
 /// Submits proofs to the orchestrator
