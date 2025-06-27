@@ -1,7 +1,16 @@
 //! Error handling for the orchestrator module
 
 use prost::DecodeError;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
+
+#[allow(non_snake_case)] // used for json parsing
+#[derive(Serialize, Deserialize)]
+struct RawError {
+    name: String,
+    message: String,
+    httpCode: u16,
+}
 
 #[derive(Debug, Error)]
 pub enum OrchestratorError {
@@ -35,5 +44,23 @@ impl OrchestratorError {
             .unwrap_or_else(|_| "Failed to read response text".to_string());
 
         OrchestratorError::Http { status, message }
+    }
+
+    pub fn to_pretty(&self) -> Option<String> {
+        match self {
+            Self::Http {
+                status: _,
+                message: msg,
+            } => {
+                if let Ok(parsed) = serde_json::from_str::<RawError>(msg) {
+                    if let Ok(stringified) = serde_json::to_string_pretty(&parsed) {
+                        return Some(stringified);
+                    }
+                }
+
+                None
+            }
+            _ => None,
+        }
     }
 }

@@ -10,6 +10,7 @@ mod logging;
 #[path = "proto/nexus.orchestrator.rs"]
 mod nexus_orchestrator;
 mod orchestrator;
+mod pretty;
 mod prover;
 mod prover_runtime;
 mod register;

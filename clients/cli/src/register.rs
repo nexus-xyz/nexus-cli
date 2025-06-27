@@ -3,7 +3,9 @@
 use crate::config::Config;
 use crate::keys;
 use crate::orchestrator::Orchestrator;
-use crate::ui::splash::LOGO_NAME;
+use crate::pretty::{
+    handle_cmd_error, print_cmd_error, print_cmd_info, print_friendly_error_header,
+};
 use std::path::Path;
 
 /// Registers a user with the orchestrator.
@@ -19,6 +21,7 @@ pub async fn register_user(
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Check if the wallet address is valid.
     if !keys::is_valid_eth_address(wallet_address) {
+        print_cmd_error!("Invalid Ethereum wallet address.");
         let err_msg = format!(
             "Invalid Ethereum wallet address: {}. It should be a 42-character hex string starting with '0x'.",
             wallet_address
@@ -32,9 +35,11 @@ pub async fn register_user(
             if config.wallet_address.to_lowercase() == wallet_address.to_lowercase()
                 && !config.user_id.is_empty()
             {
-                println!(
-                    "User already registered. User ID: {}, Wallet Address: {}",
-                    config.user_id, config.wallet_address
+                print_cmd_info!(
+                    "User already registered.",
+                    "User ID: {}, Wallet Address: {}",
+                    config.user_id,
+                    config.wallet_address
                 );
                 return Ok(());
             }
@@ -43,9 +48,11 @@ pub async fn register_user(
 
     // Check if the wallet address is already registered with the orchestrator.
     if let Ok(user_id) = orchestrator.get_user(wallet_address).await {
-        println!(
-            "Wallet address {} is already registered with user ID {}.",
-            wallet_address, user_id
+        print_cmd_info!(
+            "Wallet address is already registered with user ID.",
+            "User ID: {}, Wallet Address: {}",
+            wallet_address,
+            user_id
         );
         let config = Config::new(
             user_id,
@@ -56,7 +63,7 @@ pub async fn register_user(
         // Save the configuration file with the user ID and wallet address.
         config
             .save(config_path)
-            .map_err(|e| format!("Failed to save config: {}", e))?;
+            .map_err(|e| handle_cmd_error!(e, "Failed to save config."))?;
 
         return Ok(());
     }
@@ -66,8 +73,13 @@ pub async fn register_user(
     match orchestrator.register_user(&uuid, wallet_address).await {
         Ok(_) => println!("User {} registered successfully.", uuid),
         Err(e) => {
-            print_friendly_error();
-            eprintln!("Failed to register user: {}", e);
+            print_friendly_error_header();
+            if let Some(pretty_error) = e.to_pretty() {
+                print_cmd_error!("Failed to register user.", "{}", pretty_error);
+            } else {
+                print_cmd_error!("Failed to register user. Unable to pretty print error.");
+            }
+
             return Err(e.into());
         }
     }
@@ -81,7 +93,7 @@ pub async fn register_user(
     );
     config
         .save(config_path)
-        .map_err(|e| format!("Failed to save config: {}", e))?;
+        .map_err(|e| handle_cmd_error!(e, "Failed to save config."))?;
     Ok(())
 }
 
@@ -101,8 +113,9 @@ pub async fn register_node(
     // If a node_id is provided, update the config with it and use it.
     // If no node_id is provided, generate a new one.
     let mut config = Config::load_from_file(config_path)
-        .map_err(|e| format!("Failed to load config: {}. Please register a user first", e))?;
+        .map_err(|e| handle_cmd_error!(e, "Failed to load config, please register a user first"))?;
     if config.user_id.is_empty() {
+        print_cmd_error!("No user registered. Please register a user first.");
         return Err(Box::from(
             "No user registered. Please register a user first.",
         ));
@@ -113,7 +126,7 @@ pub async fn register_node(
         config.node_id = node_id.to_string();
         config
             .save(config_path)
-            .map_err(|e| format!("Failed to save updated config: {}", e))?;
+            .map_err(|e| handle_cmd_error!(e, "Failed to save updated config."))?;
         println!("Successfully registered node with ID: {}", node_id);
         Ok(())
     } else {
@@ -129,25 +142,16 @@ pub async fn register_node(
                 updated_config.node_id = node_id;
                 updated_config
                     .save(config_path)
-                    .map_err(|e| format!("Failed to save updated config: {}", e))?;
+                    .map_err(|e| handle_cmd_error!(e, "Failed to save updated config."))?;
                 Ok(())
             }
             Err(e) => {
-                print_friendly_error();
-                eprintln!("Failed to register node: {}", e);
+                print_friendly_error_header();
+                print_cmd_error!("Failed to register node.");
                 Err(e.into())
             }
         }
     }
-}
-
-fn print_friendly_error() {
-    // RGB: FF = 255, AA = 170, 00 = 0
-    println!("\x1b[38;2;255;170;0m{}\x1b[0m", LOGO_NAME);
-    println!("\x1b[38;2;255;170;0mWe'll be back shortly\x1b[0m");
-    println!(
-        "The Prover network’s orchestrater is under unprecedented traffic. Team has been notified. Thank you for your patience while issue is resolved.\n"
-    );
 }
 
 #[cfg(test)]
