@@ -25,6 +25,14 @@ pub enum OrchestratorError {
     /// An error occurred while processing the request.
     #[error("HTTP error with status {status}: {message}")]
     Http { status: u16, message: String },
+
+    /// Unsupported HTTP method
+    #[error("Unsupported HTTP method: {method}")]
+    UnsupportedMethod { method: String },
+
+    /// Empty response when data was expected
+    #[error("Empty response received when data was expected")]
+    EmptyResponse,
 }
 
 impl OrchestratorError {
