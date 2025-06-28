@@ -228,6 +228,13 @@ async fn start(
 
         let mut shutdown_receiver = shutdown_sender.subscribe();
         loop {
+            // Drain prover events from the async channel into app.events
+            match event_receiver.recv().await {
+                Some(event) => {
+                    println!("{}", event);
+                }
+                None => {
+                    // Channel is closed, exit the loop
             tokio::select! {
                 Some(event) = event_receiver.recv() => {
                     println!("{}", event);
@@ -237,6 +244,12 @@ async fn start(
                 }
             }
         }
+
+        println!("Exiting...");
+        for handle in join_handles.drain(..) {
+            let _ = handle.await;
+        }
+        println!("Nexus CLI application exited successfully.");
     }
     println!("\nExiting...");
     for handle in join_handles.drain(..) {
