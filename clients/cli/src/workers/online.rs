@@ -19,7 +19,7 @@ use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;
 
 // Task fetching thresholds
-const TASK_QUEUE_SIZE: usize = 50; // Queue sizes from runtime
+const TASK_QUEUE_SIZE: usize = 100; // Queue sizes from runtime
 const BATCH_SIZE: usize = TASK_QUEUE_SIZE / 5; // Fetch this many tasks at once
 const LOW_WATER_MARK: usize = TASK_QUEUE_SIZE / 4; // Fetch new tasks when queue drops below this
 const MAX_404S_BEFORE_GIVING_UP: usize = 5; // Allow several 404s before stopping batch fetch
