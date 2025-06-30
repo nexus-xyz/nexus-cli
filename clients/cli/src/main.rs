@@ -168,16 +168,6 @@ async fn start(
         uuid::Uuid::new_v4().to_string() // Fallback to random UUID
     };
 
-    // Set user properties (including flops) once at startup
-    // This will automatically include these properties with all subsequent events
-    if let Err(e) = analytics::set_user_properties(&env, client_id.clone(), num_workers).await {
-        eprintln!(
-            "Warning: Failed to set user properties for analytics: {}",
-            e
-        );
-        // Continue execution even if analytics setup fails
-    }
-
     let (mut event_receiver, mut join_handles) = match node_id {
         Some(node_id) => {
             start_authenticated_workers(
