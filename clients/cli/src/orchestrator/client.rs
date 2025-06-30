@@ -14,7 +14,7 @@ use crate::system::{estimate_peak_gflops, get_memory_info};
 use crate::task::Task;
 use ed25519_dalek::{Signer, SigningKey, VerifyingKey};
 use prost::Message;
-use reqwest::{Client, ClientBuilder};
+use reqwest::{Client, ClientBuilder, Response};
 use std::time::Duration;
 
 #[derive(Debug, Clone)]
@@ -33,6 +33,102 @@ impl OrchestratorClient {
             environment,
         }
     }
+
+    fn build_url(&self, endpoint: &str) -> String {
+        format!(
+            "{}/{}",
+            self.environment.orchestrator_url().trim_end_matches('/'),
+            endpoint.trim_start_matches('/')
+        )
+    }
+
+    fn encode_request<T: Message>(request: &T) -> Vec<u8> {
+        request.encode_to_vec()
+    }
+
+    fn decode_response<T: Message + Default>(bytes: &[u8]) -> Result<T, OrchestratorError> {
+        T::decode(bytes).map_err(OrchestratorError::Decode)
+    }
+
+    async fn handle_response_status(response: Response) -> Result<Response, OrchestratorError> {
+        if !response.status().is_success() {
+            return Err(OrchestratorError::from_response(response).await);
+        }
+        Ok(response)
+    }
+
+    async fn get_request<T: Message + Default>(
+        &self,
+        endpoint: &str,
+        body: Vec<u8>,
+    ) -> Result<T, OrchestratorError> {
+        let url = self.build_url(endpoint);
+        let response = self
+            .client
+            .get(&url)
+            .header("Content-Type", "application/octet-stream")
+            .body(body)
+            .send()
+            .await?;
+
+        let response = Self::handle_response_status(response).await?;
+        let response_bytes = response.bytes().await?;
+        Self::decode_response(&response_bytes)
+    }
+
+    async fn post_request<T: Message + Default>(
+        &self,
+        endpoint: &str,
+        body: Vec<u8>,
+    ) -> Result<T, OrchestratorError> {
+        let url = self.build_url(endpoint);
+        let response = self
+            .client
+            .post(&url)
+            .header("Content-Type", "application/octet-stream")
+            .body(body)
+            .send()
+            .await?;
+
+        let response = Self::handle_response_status(response).await?;
+        let response_bytes = response.bytes().await?;
+        Self::decode_response(&response_bytes)
+    }
+
+    async fn post_request_no_response(
+        &self,
+        endpoint: &str,
+        body: Vec<u8>,
+    ) -> Result<(), OrchestratorError> {
+        let url = self.build_url(endpoint);
+        let response = self
+            .client
+            .post(&url)
+            .header("Content-Type", "application/octet-stream")
+            .body(body)
+            .send()
+            .await?;
+
+        Self::handle_response_status(response).await?;
+        Ok(())
+    }
+
+    fn create_signature(
+        &self,
+        signing_key: &SigningKey,
+        task_id: &str,
+        proof_hash: &str,
+    ) -> (Vec<u8>, Vec<u8>) {
+        let signature_version = 0;
+        let msg = format!("{} | {} | {}", signature_version, task_id, proof_hash);
+        let signature = signing_key.sign(msg.as_bytes());
+        let verifying_key: VerifyingKey = signing_key.verifying_key();
+
+        (
+            signature.to_bytes().to_vec(),
+            verifying_key.to_bytes().to_vec(),
+        )
+    }
 }
 
 #[async_trait::async_trait]
@@ -43,117 +139,50 @@ impl Orchestrator for OrchestratorClient {
 
     /// Get the user ID associated with a wallet address.
     async fn get_user(&self, wallet_address: &str) -> Result<String, OrchestratorError> {
-        // Canonicalise + percent-encode the address                        ────────┐
         let wallet_path = urlencoding::encode(wallet_address).into_owned();
-        let url = format!(
-            "{}/v3/users/{}",
-            self.environment.orchestrator_url().trim_end_matches('/'),
-            wallet_path
-        );
-        let response = self
-            .client
-            .get(&url)
-            .header("Content-Type", "application/octet-stream")
-            .send()
-            .await?;
+        let endpoint = format!("v3/users/{}", wallet_path);
 
-        if !response.status().is_success() {
-            return Err(OrchestratorError::from_response(response).await);
-        }
-
-        let response_bytes = response.bytes().await?;
-        let user_response: UserResponse = match UserResponse::decode(response_bytes) {
-            Ok(msg) => msg,
-            Err(e) => return Err(OrchestratorError::Decode(e)),
-        };
+        let user_response: UserResponse = self.get_request(&endpoint, vec![]).await?;
         Ok(user_response.user_id)
     }
 
-    /// Registers a new node with the orchestrator.
+    /// Registers a new user with the orchestrator.
     async fn register_user(
         &self,
         user_id: &str,
         wallet_address: &str,
     ) -> Result<(), OrchestratorError> {
-        let url = format!("{}/v3/users", self.environment.orchestrator_url());
         let request = RegisterUserRequest {
             uuid: user_id.to_string(),
             wallet_address: wallet_address.to_string(),
         };
-        let request_bytes = request.encode_to_vec();
-        let response = self
-            .client
-            .post(&url)
-            .header("Content-Type", "application/octet-stream")
-            .body(request_bytes)
-            .send()
-            .await?;
+        let request_bytes = Self::encode_request(&request);
 
-        if !response.status().is_success() {
-            return Err(OrchestratorError::from_response(response).await);
-        }
-
-        // users endpoint does not return a body, so we don't decode anything.
-        Ok(())
+        self.post_request_no_response("v3/users", request_bytes)
+            .await
     }
 
     /// Registers a new node with the orchestrator.
     async fn register_node(&self, user_id: &str) -> Result<String, OrchestratorError> {
-        let url = format!("{}/v3/nodes", self.environment.orchestrator_url());
         let request = RegisterNodeRequest {
             node_type: NodeType::CliProver as i32,
             user_id: user_id.to_string(),
         };
-        let request_bytes = request.encode_to_vec();
-        let response = self
-            .client
-            .post(&url)
-            .header("Content-Type", "application/octet-stream")
-            .body(request_bytes)
-            .send()
-            .await?;
+        let request_bytes = Self::encode_request(&request);
 
-        if !response.status().is_success() {
-            return Err(OrchestratorError::from_response(response).await);
-        }
-
-        let response_bytes = response.bytes().await?;
-        let register_node_response: RegisterNodeResponse =
-            match RegisterNodeResponse::decode(response_bytes) {
-                Ok(msg) => msg,
-                Err(e) => return Err(OrchestratorError::Decode(e)),
-            };
-        Ok(register_node_response.node_id)
+        let response: RegisterNodeResponse = self.post_request("v3/nodes", request_bytes).await?;
+        Ok(response.node_id)
     }
 
     async fn get_tasks(&self, node_id: &str) -> Result<Vec<Task>, OrchestratorError> {
-        let url = format!("{}/v3/tasks", self.environment.orchestrator_url());
         let request = GetTasksRequest {
             node_id: node_id.to_string(),
             next_cursor: "".to_string(),
         };
-        let request_bytes = request.encode_to_vec();
+        let request_bytes = Self::encode_request(&request);
 
-        let response = self
-            .client
-            .get(&url)
-            .header("Content-Type", "application/octet-stream")
-            .body(request_bytes)
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            return Err(OrchestratorError::from_response(response).await);
-        }
-
-        let response_bytes = response.bytes().await?;
-        let get_tasks_response: GetTasksResponse = match GetTasksResponse::decode(response_bytes) {
-            Ok(msg) => msg,
-            Err(e) => return Err(OrchestratorError::Decode(e)),
-        };
-
-        // Convert the tasks into the Task struct
-        let tasks = get_tasks_response.tasks.iter().map(Task::from).collect();
+        let response: GetTasksResponse = self.get_request("v3/tasks", request_bytes).await?;
+        let tasks = response.tasks.iter().map(Task::from).collect();
         Ok(tasks)
     }
 
@@ -162,34 +191,15 @@ impl Orchestrator for OrchestratorClient {
         node_id: &str,
         verifying_key: VerifyingKey,
     ) -> Result<Task, OrchestratorError> {
-        let url = format!("{}/v3/tasks", self.environment.orchestrator_url());
         let request = GetProofTaskRequest {
             node_id: node_id.to_string(),
             node_type: NodeType::CliProver as i32,
             ed25519_public_key: verifying_key.to_bytes().to_vec(),
         };
-        let request_bytes = request.encode_to_vec();
+        let request_bytes = Self::encode_request(&request);
 
-        let response = self
-            .client
-            .post(&url)
-            .header("Content-Type", "application/octet-stream")
-            .body(request_bytes)
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            return Err(OrchestratorError::from_response(response).await);
-        }
-
-        // Decode the response bytes
-        let response_bytes = response.bytes().await?;
-        let get_proof_task_response: GetProofTaskResponse =
-            match GetProofTaskResponse::decode(response_bytes) {
-                Ok(msg) => msg,
-                Err(e) => return Err(OrchestratorError::Decode(e)),
-            };
-        Ok(Task::from(&get_proof_task_response))
+        let response: GetProofTaskResponse = self.post_request("v3/tasks", request_bytes).await?;
+        Ok(Task::from(&response))
     }
 
     async fn submit_proof(
@@ -200,15 +210,9 @@ impl Orchestrator for OrchestratorClient {
         signing_key: SigningKey,
         num_provers: usize,
     ) -> Result<(), OrchestratorError> {
-        let url = format!("{}/v3/tasks/submit", self.environment.orchestrator_url());
-
         let (program_memory, total_memory) = get_memory_info();
         let flops = estimate_peak_gflops(num_provers);
-
-        let signature_version = 0; // Version of the signature format
-        let msg = format!("{} | {} | {}", signature_version, task_id, proof_hash);
-        let signature = signing_key.sign(msg.as_bytes());
-        let verifying_key: VerifyingKey = signing_key.verifying_key();
+        let (signature, public_key) = self.create_signature(&signing_key, task_id, proof_hash);
 
         let request = SubmitProofRequest {
             task_id: task_id.to_string(),
@@ -221,24 +225,13 @@ impl Orchestrator for OrchestratorClient {
                 memory_capacity: Some(total_memory),
                 location: Some("US".to_string()),
             }),
-            ed25519_public_key: verifying_key.to_bytes().to_vec(),
-            signature: signature.to_bytes().to_vec(),
+            ed25519_public_key: public_key,
+            signature,
         };
-        let request_bytes = request.encode_to_vec();
+        let request_bytes = Self::encode_request(&request);
 
-        let response = self
-            .client
-            .post(&url)
-            .header("Content-Type", "application/octet-stream")
-            .body(request_bytes)
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            return Err(OrchestratorError::from_response(response).await);
-        }
-
-        Ok(())
+        self.post_request_no_response("v3/tasks/submit", request_bytes)
+            .await
     }
 }
 
@@ -299,7 +292,7 @@ mod live_orchestrator_tests {
     async fn test_get_tasks() {
         let client = super::OrchestratorClient::new(Environment::Beta);
         let node_id = "5880437"; // Example node ID
-        match client.get_tasks(&node_id.to_string()).await {
+        match client.get_tasks(node_id).await {
             Ok(tasks) => {
                 println!("Retrieved {} tasks for node {}", tasks.len(), node_id);
                 for task in &tasks {
@@ -318,7 +311,7 @@ mod live_orchestrator_tests {
     async fn test_get_user() {
         let client = super::OrchestratorClient::new(Environment::Beta);
         let wallet_address = "0x52908400098527886E0F7030069857D2E4169EE8";
-        match client.get_user(&wallet_address).await {
+        match client.get_user(wallet_address).await {
             Ok(user_id) => {
                 println!("User ID for wallet {}: {}", wallet_address, user_id);
                 assert_eq!(user_id, "e3c62f51-e566-4f9e-bccb-be9f8cb474be");
