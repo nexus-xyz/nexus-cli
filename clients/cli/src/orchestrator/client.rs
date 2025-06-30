@@ -15,7 +15,14 @@ use crate::task::Task;
 use ed25519_dalek::{Signer, SigningKey, VerifyingKey};
 use prost::Message;
 use reqwest::{Client, ClientBuilder, Response};
+use std::sync::OnceLock;
 use std::time::Duration;
+
+// Privacy-preserving country detection for network optimization.
+// Only stores 2-letter country codes (e.g., "US", "CA", "GB") to help route
+// requests to the nearest Nexus network servers for better performance.
+// No precise location, IP addresses, or personal data is collected or stored.
+static COUNTRY_CODE: OnceLock<String> = OnceLock::new();
 
 #[derive(Debug, Clone)]
 pub struct OrchestratorClient {
@@ -129,6 +136,79 @@ impl OrchestratorClient {
             verifying_key.to_bytes().to_vec(),
         )
     }
+
+    /// Detects the user's country for network optimization purposes.
+    ///
+    /// Privacy Note: This only detects the country (2-letter code like "US", "CA", "GB")
+    /// and does NOT track precise location, IP address, or any personally identifiable
+    /// information. The country information helps the Nexus network route requests to
+    /// the nearest servers for better performance and reduced latency.
+    ///
+    /// The detection is cached for the duration of the program run.
+    async fn get_country(&self) -> String {
+        if let Some(country) = COUNTRY_CODE.get() {
+            return country.clone();
+        }
+
+        let country = self.detect_country().await;
+        let _ = COUNTRY_CODE.set(country.clone());
+        country
+    }
+
+    async fn detect_country(&self) -> String {
+        // Try Cloudflare first (most reliable)
+        if let Ok(country) = self.get_country_from_cloudflare().await {
+            return country;
+        }
+
+        // Fallback to ipinfo.io
+        if let Ok(country) = self.get_country_from_ipinfo().await {
+            return country;
+        }
+
+        // If we can't detect the country, use the US as a fallback
+        "US".to_string()
+    }
+
+    async fn get_country_from_cloudflare(&self) -> Result<String, Box<dyn std::error::Error>> {
+        let response = self
+            .client
+            .get("https://cloudflare.com/cdn-cgi/trace")
+            .timeout(Duration::from_secs(5))
+            .send()
+            .await?;
+
+        let text = response.text().await?;
+
+        for line in text.lines() {
+            if let Some(country) = line.strip_prefix("loc=") {
+                let country = country.trim().to_uppercase();
+                if country.len() == 2 && country.chars().all(|c| c.is_ascii_alphabetic()) {
+                    return Ok(country);
+                }
+            }
+        }
+
+        Err("Country not found in Cloudflare response".into())
+    }
+
+    async fn get_country_from_ipinfo(&self) -> Result<String, Box<dyn std::error::Error>> {
+        let response = self
+            .client
+            .get("https://ipinfo.io/country")
+            .timeout(Duration::from_secs(5))
+            .send()
+            .await?;
+
+        let country = response.text().await?;
+        let country = country.trim().to_uppercase();
+
+        if country.len() == 2 && country.chars().all(|c| c.is_ascii_alphabetic()) {
+            Ok(country)
+        } else {
+            Err("Invalid country code from ipinfo.io".into())
+        }
+    }
 }
 
 #[async_trait::async_trait]
@@ -214,6 +294,8 @@ impl Orchestrator for OrchestratorClient {
         let flops = estimate_peak_gflops(num_provers);
         let (signature, public_key) = self.create_signature(&signing_key, task_id, proof_hash);
 
+        // Detect country for network optimization (privacy-preserving: only country code, no precise location)
+        let location = self.get_country().await;
         let request = SubmitProofRequest {
             task_id: task_id.to_string(),
             node_type: NodeType::CliProver as i32,
@@ -223,7 +305,8 @@ impl Orchestrator for OrchestratorClient {
                 flops_per_sec: Some(flops as i32),
                 memory_used: Some(program_memory),
                 memory_capacity: Some(total_memory),
-                location: Some("US".to_string()),
+                // Country code for network routing optimization (privacy-preserving)
+                location: Some(location),
             }),
             ed25519_public_key: public_key,
             signature,
@@ -318,5 +401,18 @@ mod live_orchestrator_tests {
             }
             Err(e) => panic!("Failed to get user ID: {}", e),
         }
+    }
+
+    #[tokio::test]
+    /// Should detect country using Cloudflare/fallback services.
+    async fn test_country_detection() {
+        let client = super::OrchestratorClient::new(Environment::Beta);
+        let country = client.get_country().await;
+
+        println!("Detected country: {}", country);
+
+        // Should be a valid 2-letter country code
+        assert_eq!(country.len(), 2);
+        assert!(country.chars().all(|c| c.is_ascii_uppercase()));
     }
 }
