@@ -36,7 +36,7 @@ pub async fn start_authenticated_workers(
     // Worker events
     let (event_sender, event_receiver) = mpsc::channel::<Event>(EVENT_QUEUE_SIZE);
 
-    // A bounded list of recently received task IDs
+    // A bounded list of recently fetched task IDs (prevents refetching currently processing tasks)
     let enqueued_tasks = TaskCache::new(MAX_COMPLETED_TASKS);
 
     // Task fetching
@@ -79,7 +79,7 @@ pub async fn start_authenticated_workers(
         offline::start_dispatcher(task_receiver, worker_senders, shutdown.resubscribe());
     join_handles.push(dispatcher_handle);
 
-    // A bounded list of recently completed task IDs
+    // A bounded list of recently completed task IDs (prevents duplicate proof submissions)
     let successful_tasks = TaskCache::new(MAX_COMPLETED_TASKS);
 
     // Send proofs to the orchestrator
