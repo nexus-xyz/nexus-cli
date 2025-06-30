@@ -689,12 +689,12 @@ async fn handle_submission_success(
     successful_tasks: &TaskCache,
 ) {
     successful_tasks.insert(task.task_id.clone()).await;
-    
+
     let mut msg = format!("Successfully submitted proof for task {}", task.task_id);
     if let Some(points) = points {
         msg.push_str(&format!(" (Points: {})", points));
     }
-    
+
     let _ = event_sender
         .send(Event::proof_submitter_with_level(
             msg,

@@ -313,9 +313,9 @@ impl Orchestrator for OrchestratorClient {
         };
         let request_bytes = Self::encode_request(&request);
 
-        let response: crate::nexus_orchestrator::SubmitProofResponse = 
+        let response: crate::nexus_orchestrator::SubmitProofResponse =
             self.post_request("v3/tasks/submit", request_bytes).await?;
-        
+
         Ok(Some(response.points))
     }
 }
