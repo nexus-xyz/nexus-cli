@@ -1,4 +1,5 @@
 use crate::environment::Environment;
+use crate::system::{estimate_peak_gflops, measure_gflops, num_cores};
 use chrono::Datelike;
 use chrono::Timelike;
 use reqwest::header::ACCEPT;
@@ -92,6 +93,9 @@ pub async fn track(
         "local_hour": local_now.hour(),
         "day_of_week": local_now.weekday().number_from_monday(),
         "event_id": system_time,
+        "measured_flops": measure_gflops(),
+        "num_cores": num_cores()
+        "peak_flops": estimate_peak_gflops(num_cores),
     });
 
     // Add event properties to the properties JSON
