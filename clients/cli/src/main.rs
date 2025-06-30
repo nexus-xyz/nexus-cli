@@ -170,9 +170,7 @@ async fn start(
 
     // Set user properties (including flops) once at startup
     // This will automatically include these properties with all subsequent events
-    if let Err(e) =
-        analytics::measure_flops_and_set_user_properties(&env, client_id.clone(), num_workers).await
-    {
+    if let Err(e) = analytics::set_user_properties(&env, client_id.clone(), num_workers).await {
         eprintln!(
             "Warning: Failed to set user properties for analytics: {}",
             e

@@ -63,7 +63,7 @@ pub async fn set_user_properties(
 ) -> Result<(), TrackError> {
     let analytics_id = analytics_id(environment);
     let analytics_api_key = analytics_api_key(environment);
-
+    
     if analytics_id.is_empty() {
         return Ok(());
     }
@@ -74,7 +74,7 @@ pub async fn set_user_properties(
         |tz| tz,
     );
 
-    // Get both measured and theoretical peak flops
+    // Get both measured and theoretical peak flops (measured flops are cached internally)
     let measured_flops = measure_gflops();
     let peak_flops = estimate_peak_gflops(num_provers);
 
@@ -132,25 +132,6 @@ pub async fn set_user_properties(
     }
 
     Ok(())
-}
-
-/// Measure flops and immediately set user properties for analytics.
-/// This ensures flops are measured once and immediately available for all subsequent events.
-///
-/// # Arguments
-/// * `environment` - The environment in which the application is running.
-/// * `client_id` - A unique identifier for the client, typically a UUID or similar.
-/// * `num_provers` - Number of prover threads to use for peak flops calculation.
-pub async fn measure_flops_and_set_user_properties(
-    environment: &Environment,
-    client_id: String,
-    num_provers: usize,
-) -> Result<(), TrackError> {
-    // This will trigger the flops measurement and cache it
-    let _flops = measure_gflops();
-
-    // Immediately set user properties with the measured flops
-    set_user_properties(environment, client_id, num_provers).await
 }
 
 /// Track an event with the Firebase Measurement Protocol
