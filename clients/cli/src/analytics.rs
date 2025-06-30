@@ -94,8 +94,8 @@ pub async fn track(
         "day_of_week": local_now.weekday().number_from_monday(),
         "event_id": system_time,
         "measured_flops": measure_gflops(),
-        "num_cores": num_cores()
-        "peak_flops": estimate_peak_gflops(num_cores),
+        "num_cores": num_cores(),
+        "peak_flops": estimate_peak_gflops(num_cores()),
     });
 
     // Add event properties to the properties JSON
