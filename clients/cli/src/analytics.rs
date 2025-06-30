@@ -1,5 +1,5 @@
+use crate::config::{Environment, analytics_api_key, analytics_id};
 use crate::environment::Environment;
-use crate::config::{analytics_api_key, analytics_id, Environment};
 use crate::flops::measure_gflops;
 use crate::system::estimate_peak_gflops;
 use chrono::Datelike;
@@ -63,7 +63,7 @@ pub async fn set_user_properties(
 ) -> Result<(), TrackError> {
     let analytics_id = analytics_id(environment);
     let analytics_api_key = analytics_api_key(environment);
-    
+
     if analytics_id.is_empty() {
         return Ok(());
     }
@@ -148,7 +148,7 @@ pub async fn measure_flops_and_set_user_properties(
 ) -> Result<(), TrackError> {
     // This will trigger the flops measurement and cache it
     let _flops = measure_gflops();
-    
+
     // Immediately set user properties with the measured flops
     set_user_properties(environment, client_id, num_provers).await
 }
