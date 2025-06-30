@@ -66,7 +66,6 @@ pub async fn set_user_properties(
         return Ok(());
     }
 
-    let system_time = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
     let timezone = iana_time_zone::get_timezone().ok().map_or_else(
         || String::from("UTC"), // fallback to UTC
         |tz| tz,
