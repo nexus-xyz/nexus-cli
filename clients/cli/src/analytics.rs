@@ -1,4 +1,3 @@
-use crate::config::{Environment, analytics_api_key, analytics_id};
 use crate::environment::Environment;
 use crate::flops::measure_gflops;
 use crate::system::estimate_peak_gflops;

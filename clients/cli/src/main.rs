@@ -5,6 +5,7 @@ mod config;
 mod environment;
 mod error_classifier;
 mod events;
+mod flops;
 mod keys;
 mod logging;
 #[path = "proto/nexus.orchestrator.rs"]
