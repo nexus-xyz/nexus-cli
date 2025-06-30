@@ -1,6 +1,5 @@
 use crate::environment::Environment;
-use crate::flops::measure_gflops;
-use crate::system::estimate_peak_gflops;
+use crate::system::{estimate_peak_gflops, measure_gflops};
 use chrono::Datelike;
 use chrono::Timelike;
 use reqwest::header::ACCEPT;
