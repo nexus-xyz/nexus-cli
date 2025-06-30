@@ -63,7 +63,7 @@ pub async fn set_user_properties(
 ) -> Result<(), TrackError> {
     let analytics_id = analytics_id(environment);
     let analytics_api_key = analytics_api_key(environment);
-    
+
     if analytics_id.is_empty() {
         return Ok(());
     }
