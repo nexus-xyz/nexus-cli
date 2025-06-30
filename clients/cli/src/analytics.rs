@@ -1,4 +1,7 @@
 use crate::environment::Environment;
+use crate::config::{analytics_api_key, analytics_id, Environment};
+use crate::flops::measure_gflops;
+use crate::system::estimate_peak_gflops;
 use chrono::Datelike;
 use chrono::Timelike;
 use reqwest::header::ACCEPT;
@@ -47,6 +50,109 @@ pub fn analytics_api_key(environment: &Environment) -> String {
     }
 }
 
+/// Set user properties that will be automatically included with all subsequent events
+///
+/// # Arguments
+/// * `environment` - The environment in which the application is running.
+/// * `client_id` - A unique identifier for the client, typically a UUID or similar.
+/// * `num_provers` - Number of prover threads to use for peak flops calculation.
+pub async fn set_user_properties(
+    environment: &Environment,
+    client_id: String,
+    num_provers: usize,
+) -> Result<(), TrackError> {
+    let analytics_id = analytics_id(environment);
+    let analytics_api_key = analytics_api_key(environment);
+    
+    if analytics_id.is_empty() {
+        return Ok(());
+    }
+
+    let system_time = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
+    let timezone = iana_time_zone::get_timezone().ok().map_or_else(
+        || String::from("UTC"), // fallback to UTC
+        |tz| tz,
+    );
+
+    // Get both measured and theoretical peak flops
+    let measured_flops = measure_gflops();
+    let peak_flops = estimate_peak_gflops(num_provers);
+
+    // Set user properties including both flops values
+    let body = json!({
+        "client_id": client_id,
+        "user_properties": {
+            "flops_per_sec": {
+                "value": measured_flops
+            },
+            "peak_flops_per_sec": {
+                "value": peak_flops
+            },
+            "flops_efficiency": {
+                "value": (measured_flops as f64 / peak_flops * 100.0).round() as i32
+            },
+            "platform": {
+                "value": "CLI"
+            },
+            "os": {
+                "value": env::consts::OS
+            },
+            "os_version": {
+                "value": env::consts::OS
+            },
+            "app_version": {
+                "value": env!("CARGO_PKG_VERSION")
+            },
+            "timezone": {
+                "value": timezone
+            }
+        }
+    });
+
+    let client = reqwest::Client::new();
+    let url = format!(
+        "https://www.google-analytics.com/mp/collect?measurement_id={}&api_secret={}",
+        analytics_id, analytics_api_key
+    );
+
+    let response = client
+        .post(&url)
+        .json(&body)
+        .header(ACCEPT, "application/json")
+        .send()
+        .await?;
+
+    let status = response.status();
+    if !status.is_success() {
+        let body_text = response.text().await?;
+        return Err(TrackError::FailedResponse {
+            status,
+            body: body_text,
+        });
+    }
+
+    Ok(())
+}
+
+/// Measure flops and immediately set user properties for analytics.
+/// This ensures flops are measured once and immediately available for all subsequent events.
+///
+/// # Arguments
+/// * `environment` - The environment in which the application is running.
+/// * `client_id` - A unique identifier for the client, typically a UUID or similar.
+/// * `num_provers` - Number of prover threads to use for peak flops calculation.
+pub async fn measure_flops_and_set_user_properties(
+    environment: &Environment,
+    client_id: String,
+    num_provers: usize,
+) -> Result<(), TrackError> {
+    // This will trigger the flops measurement and cache it
+    let _flops = measure_gflops();
+    
+    // Immediately set user properties with the measured flops
+    set_user_properties(environment, client_id, num_provers).await
+}
+
 /// Track an event with the Firebase Measurement Protocol
 ///
 /// # Arguments
@@ -77,18 +183,9 @@ pub async fn track(
     // https://developers.google.com/analytics/devguides/collection/protocol/ga4/reference?client_type=firebase#payload_query_parameters
 
     let system_time = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
-    let timezone = iana_time_zone::get_timezone().ok().map_or_else(
-        || String::from("UTC"), // fallback to UTC
-        |tz| tz,
-    );
 
     let mut properties = json!({
         "time": system_time,
-        "platform": "CLI",
-        "os": env::consts::OS,
-        "os_version": env::consts::OS,  // We could get more specific version if needed
-        "app_version": env!("CARGO_PKG_VERSION"),
-        "timezone": timezone,
         "local_hour": local_now.hour(),
         "day_of_week": local_now.weekday().number_from_monday(),
         "event_id": system_time,
