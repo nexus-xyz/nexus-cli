@@ -94,7 +94,6 @@ pub fn measure_gflops() -> f32 {
                 let start = Instant::now();
 
                 let total_flops: u64 = (0..num_cores)
-                    .into_iter()
                     .map(|_| {
                         let mut x: f64 = 1.0;
                         for _ in 0..NUM_TESTS {
