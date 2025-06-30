@@ -116,6 +116,12 @@ message SubmitProofRequest {
   bytes signature = 8;
 }
 
+// Response to a proof submission.
+message SubmitProofResponse {
+  // Optional update to the displayed points for this node
+  uint64 points = 1;
+}
+
 // Performance stats of a node.
 message NodeTelemetry {
   // Flops per second

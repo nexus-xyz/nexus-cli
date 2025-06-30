@@ -109,6 +109,13 @@ pub struct SubmitProofRequest {
     #[prost(bytes = "vec", tag = "8")]
     pub signature: ::prost::alloc::vec::Vec<u8>,
 }
+/// Response to a proof submission.
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct SubmitProofResponse {
+    /// The number of points to display in the UI for this node.
+    #[prost(uint64, tag = "1")]
+    pub points: u64,
+}
 /// Performance stats of a node.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct NodeTelemetry {
