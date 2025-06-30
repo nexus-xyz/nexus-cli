@@ -670,8 +670,8 @@ async fn process_proof_submission(
         )
         .await
     {
-        Ok(_) => {
-            handle_submission_success(&task, event_sender, successful_tasks).await;
+        Ok(points) => {
+            handle_submission_success(&task, points, event_sender, successful_tasks).await;
             Some(true)
         }
         Err(e) => {
@@ -684,16 +684,23 @@ async fn process_proof_submission(
 /// Handle successful proof submission
 async fn handle_submission_success(
     task: &Task,
+    points: Option<u64>,
     event_sender: &mpsc::Sender<Event>,
     successful_tasks: &TaskCache,
 ) {
     successful_tasks.insert(task.task_id.clone()).await;
-    let msg = format!("Successfully submitted proof for task {}", task.task_id);
+    
+    let mut msg = format!("Successfully submitted proof for task {}", task.task_id);
+    if let Some(points) = points {
+        msg.push_str(&format!(" (Points: {})", points));
+    }
+    
     let _ = event_sender
         .send(Event::proof_submitter_with_level(
             msg,
             crate::events::EventType::Success,
             LogLevel::Info,
+            points,
         ))
         .await;
 }

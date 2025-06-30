@@ -112,7 +112,7 @@ pub struct SubmitProofRequest {
 /// Response to a proof submission.
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct SubmitProofResponse {
-    /// The number of points to display in the UI for this node.
+    /// Optional update to the displayed points for this node
     #[prost(uint64, tag = "1")]
     pub points: u64,
 }

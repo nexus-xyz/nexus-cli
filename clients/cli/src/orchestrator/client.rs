@@ -289,7 +289,7 @@ impl Orchestrator for OrchestratorClient {
         proof: Vec<u8>,
         signing_key: SigningKey,
         num_provers: usize,
-    ) -> Result<(), OrchestratorError> {
+    ) -> Result<Option<u64>, OrchestratorError> {
         let (program_memory, total_memory) = get_memory_info();
         let flops = estimate_peak_gflops(num_provers);
         let (signature, public_key) = self.create_signature(&signing_key, task_id, proof_hash);
@@ -313,8 +313,10 @@ impl Orchestrator for OrchestratorClient {
         };
         let request_bytes = Self::encode_request(&request);
 
-        self.post_request_no_response("v3/tasks/submit", request_bytes)
-            .await
+        let response: crate::nexus_orchestrator::SubmitProofResponse = 
+            self.post_request("v3/tasks/submit", request_bytes).await?;
+        
+        Ok(Some(response.points))
     }
 }
 

@@ -51,6 +51,9 @@ pub struct App {
 
     /// Broadcasts shutdown signal to worker threads.
     shutdown_sender: broadcast::Sender<()>,
+
+    /// Current points for the node
+    points: Option<u64>,
 }
 
 impl App {
@@ -69,14 +72,20 @@ impl App {
             events: Default::default(),
             event_receiver,
             shutdown_sender,
+            points: None,
         }
+    }
+
+    /// Updates the points value for this node.
+    pub fn update_points(&mut self, points: u64) {
+        self.points = Some(points);
     }
 
     /// Handles a complete login process, transitioning to the dashboard screen.
     #[allow(unused)]
     pub fn login(&mut self) {
         let node_id = Some(123); // Placeholder for node ID, replace with actual logic to get node ID
-        let state = DashboardState::new(node_id, self.environment, self.start_time, &self.events);
+        let state = DashboardState::new(node_id, self.environment, self.start_time, &self.events, self.points);
         self.current_screen = Screen::Dashboard(state);
     }
 }
@@ -90,6 +99,13 @@ pub async fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::i
     loop {
         // Drain prover events from the async channel into app.events
         while let Ok(event) = app.event_receiver.try_recv() {
+            // Update points if this is a Success event with points
+            if event.event_type == crate::events::EventType::Success {
+                if let Some(points) = event.points {
+                    app.update_points(points);
+                }
+            }
+            
             if app.events.len() >= MAX_EVENTS {
                 app.events.pop_front();
             }
@@ -102,7 +118,7 @@ pub async fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::i
             Screen::Login => {}
             Screen::Dashboard(_) => {
                 let state =
-                    DashboardState::new(app.node_id, app.environment, app.start_time, &app.events);
+                    DashboardState::new(app.node_id, app.environment, app.start_time, &app.events, app.points);
                 app.current_screen = Screen::Dashboard(state);
             }
         }
@@ -116,6 +132,7 @@ pub async fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::i
                     app.environment,
                     app.start_time,
                     &app.events,
+                    app.points,
                 ));
                 continue;
             }
@@ -145,6 +162,7 @@ pub async fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::i
                                 app.environment,
                                 app.start_time,
                                 &app.events,
+                                app.points,
                             ));
                         }
                     }

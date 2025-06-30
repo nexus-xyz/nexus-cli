@@ -32,6 +32,7 @@ pub struct Event {
     pub timestamp: String,
     pub event_type: EventType,
     pub log_level: LogLevel,
+    pub points: Option<u64>,
 }
 
 impl Event {
@@ -42,6 +43,7 @@ impl Event {
             timestamp: Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
             event_type,
             log_level: LogLevel::Info,
+            points: None,
         }
     }
 
@@ -50,6 +52,7 @@ impl Event {
         msg: String,
         event_type: EventType,
         log_level: LogLevel,
+        points: Option<u64>,
     ) -> Self {
         Self {
             worker: kind,
@@ -57,6 +60,7 @@ impl Event {
             timestamp: Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
             event_type,
             log_level,
+            points,
         }
     }
 
@@ -69,7 +73,7 @@ impl Event {
         event_type: EventType,
         log_level: LogLevel,
     ) -> Self {
-        Self::new_with_level(Worker::TaskFetcher, msg, event_type, log_level)
+        Self::new_with_level(Worker::TaskFetcher, msg, event_type, log_level, None)
     }
 
     pub fn prover(worker_id: usize, msg: String, event_type: EventType) -> Self {
@@ -82,7 +86,7 @@ impl Event {
         event_type: EventType,
         log_level: LogLevel,
     ) -> Self {
-        Self::new_with_level(Worker::Prover(worker_id), msg, event_type, log_level)
+        Self::new_with_level(Worker::Prover(worker_id), msg, event_type, log_level, None)
     }
 
     pub fn proof_submitter(msg: String, event_type: EventType) -> Self {
@@ -93,8 +97,9 @@ impl Event {
         msg: String,
         event_type: EventType,
         log_level: LogLevel,
+        points: Option<u64>,
     ) -> Self {
-        Self::new_with_level(Worker::ProofSubmitter, msg, event_type, log_level)
+        Self::new_with_level(Worker::ProofSubmitter, msg, event_type, log_level, points)
     }
 
     pub fn should_display(&self) -> bool {
