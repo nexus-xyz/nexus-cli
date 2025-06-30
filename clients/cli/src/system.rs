@@ -2,6 +2,7 @@
 
 use cfg_if::cfg_if;
 use rayon::prelude::*;
+use rayon::iter::IntoParallelIterator;
 use std::hint::black_box;
 use std::process;
 use std::sync::OnceLock;
