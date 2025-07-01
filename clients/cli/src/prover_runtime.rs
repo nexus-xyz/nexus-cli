@@ -3,6 +3,7 @@
 //! Main orchestrator for authenticated and anonymous proving modes.
 //! Coordinates online workers (network I/O) and offline workers (computation).
 
+use crate::consts::prover::{EVENT_QUEUE_SIZE, RESULT_QUEUE_SIZE, TASK_QUEUE_SIZE};
 use crate::environment::Environment;
 use crate::events::Event;
 use crate::orchestrator::OrchestratorClient;
@@ -13,11 +14,6 @@ use ed25519_dalek::SigningKey;
 use nexus_sdk::stwo::seq::Proof;
 use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;
-
-// Queue sizes. Chosen to be larger than the tasks API page size (currently, 50)
-const TASK_QUEUE_SIZE: usize = 100;
-const EVENT_QUEUE_SIZE: usize = 100;
-const RESULT_QUEUE_SIZE: usize = 100;
 
 /// Maximum number of completed tasks to keep in memory. Chosen to be larger than the task queue size.
 const MAX_COMPLETED_TASKS: usize = 500;

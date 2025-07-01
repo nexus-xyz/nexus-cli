@@ -5,6 +5,10 @@
 //! - Proof submission to the orchestrator
 //! - Network error handling with exponential backoff
 
+use crate::consts::prover::{
+    BACKOFF_DURATION, BATCH_SIZE, LOW_WATER_MARK, MAX_404S_BEFORE_GIVING_UP, QUEUE_LOG_INTERVAL,
+    TASK_QUEUE_SIZE,
+};
 use crate::error_classifier::{ErrorClassifier, LogLevel};
 use crate::events::Event;
 use crate::orchestrator::Orchestrator;
@@ -17,14 +21,6 @@ use sha3::{Digest, Keccak256};
 use std::time::Duration;
 use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;
-
-// Task fetching thresholds
-const TASK_QUEUE_SIZE: usize = 100; // Queue sizes from runtime
-const BATCH_SIZE: usize = TASK_QUEUE_SIZE / 5; // Fetch this many tasks at once
-const LOW_WATER_MARK: usize = TASK_QUEUE_SIZE / 4; // Fetch new tasks when queue drops below this
-const MAX_404S_BEFORE_GIVING_UP: usize = 5; // Allow several 404s before stopping batch fetch
-const BACKOFF_DURATION: u64 = 30000; // 30 seconds
-const QUEUE_LOG_INTERVAL: u64 = 30000; // 30 seconds
 
 /// State for managing task fetching behavior
 pub struct TaskFetchState {
