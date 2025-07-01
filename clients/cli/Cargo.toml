@@ -41,7 +41,6 @@ prost-types = "0.13.5"
 rand = "0.8"
 rand_core = "0.6"
 ratatui = "0.29.0"
-rayon = "1.10"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 serde = { version = "1.0.217", features = ["derive"] }
 serde_json = { version = "1.0.138" }

@@ -3,8 +3,9 @@
 
 name: Deploy to Firebase Hosting on release
 on:
-  release:
-    types: [ published ]
+  push:
+    tags:
+      - 'v*'  # Triggers on any tag push starting with 'v'
   workflow_dispatch:  # Manual trigger
 
 jobs:

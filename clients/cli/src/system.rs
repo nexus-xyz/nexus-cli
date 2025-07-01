@@ -1,8 +1,6 @@
 //! System information and performance measurements
 
 use cfg_if::cfg_if;
-use rayon::iter::IntoParallelIterator;
-use rayon::prelude::*;
 use std::hint::black_box;
 use std::process;
 use std::sync::OnceLock;
@@ -96,7 +94,6 @@ pub fn measure_gflops() -> f32 {
                 let start = Instant::now();
 
                 let total_flops: u64 = (0..num_cores)
-                    .into_par_iter()
                     .map(|_| {
                         let mut x: f64 = 1.0;
                         for _ in 0..NUM_TESTS {
