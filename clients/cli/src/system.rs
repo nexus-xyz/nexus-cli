@@ -87,8 +87,6 @@ pub fn measure_gflops() -> f32 {
             }
         };
 
-        println!("Using {} logical cores for FLOPS measurement", num_cores);
-
         let avg_flops: f64 = (0..NUM_REPEATS)
             .map(|_| {
                 let start = Instant::now();
