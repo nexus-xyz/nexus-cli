@@ -15,6 +15,14 @@ path = "src/main.rs"
 [profile.dev]
 opt-level = 1
 
+[profile.release]
+opt-level = 3          # Maximum optimization level
+lto = true             # Link Time Optimization for better performance
+codegen-units = 1      # Single codegen unit for maximum optimization
+panic = 'abort'        # Abort on panic (smaller binaries, better performance)
+strip = true           # Strip symbols for smaller binaries
+debug = true           # Keep debug symbols for easier debugging
+
 [profile.ci-build]
 inherits = "dev"
 opt-level = 0
