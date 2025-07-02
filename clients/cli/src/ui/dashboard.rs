@@ -1,11 +1,12 @@
 //! Dashboard screen rendering.
 
 use crate::environment::Environment;
-use crate::events::{Event as WorkerEvent, EventType};
+use crate::events::{Event as WorkerEvent, EventType, Worker};
 use crate::system;
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout};
 use ratatui::prelude::{Color, Modifier, Style};
+use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
 use std::collections::VecDeque;
 use std::time::Instant;
@@ -62,6 +63,110 @@ impl DashboardState {
             events: events.clone(),
         }
     }
+
+    /// Get a ratatui color for a worker based on its type and ID
+    fn get_worker_color(worker: &Worker) -> Color {
+        match worker {
+            Worker::TaskFetcher => Color::Cyan,
+            Worker::Prover(worker_id) => {
+                // Cycle through different colors for different worker IDs
+                let colors = [
+                    Color::Green,
+                    Color::Yellow,
+                    Color::Magenta,
+                    Color::Blue,
+                    Color::Red,
+                    Color::LightGreen,
+                    Color::LightYellow,
+                    Color::LightMagenta,
+                    Color::LightBlue,
+                    Color::LightRed,
+                ];
+                colors[*worker_id % colors.len()]
+            }
+            Worker::ProofSubmitter => Color::White,
+        }
+    }
+
+    /// Format timestamp to include date but no year (MM-DD HH:MM:SS)
+    fn format_compact_timestamp(timestamp: &str) -> String {
+        // Extract from "YYYY-MM-DD HH:MM:SS" format to "MM-DD HH:MM:SS"
+        if let Some(date_time) = timestamp.split_once(' ') {
+            let date_part = date_time.0; // "YYYY-MM-DD"
+            let time_part = date_time.1; // "HH:MM:SS"
+
+            if let Some(month_day) = date_part.get(5..) {
+                // Skip "YYYY-"
+                format!("{} {}", month_day, time_part)
+            } else {
+                timestamp.to_string()
+            }
+        } else {
+            timestamp.to_string()
+        }
+    }
+
+    /// Truncate long messages to prevent layout overflow
+    fn truncate_message(msg: &str, max_length: usize) -> String {
+        if msg.len() <= max_length {
+            msg.to_string()
+        } else {
+            // Try to truncate at word boundary if possible
+            let truncate_target = max_length.saturating_sub(3);
+            if let Some(last_space) = msg[..truncate_target].rfind(' ') {
+                format!("{}...", &msg[..last_space])
+            } else {
+                format!("{}...", &msg[..truncate_target])
+            }
+        }
+    }
+
+    /// Clean HTTP error messages to show only essential information
+    fn clean_http_error_message(msg: &str) -> String {
+        // Handle common HTTP error patterns with HTML content
+        if msg.contains("<html>") || msg.contains("<!DOCTYPE") {
+            // Extract specific HTTP status codes
+            if msg.contains("502") {
+                return "❌ HTTP 502 Bad Gateway".to_string();
+            }
+            if msg.contains("503") {
+                return "❌ HTTP 503 Service Unavailable".to_string();
+            }
+            if msg.contains("504") {
+                return "❌ HTTP 504 Gateway Timeout".to_string();
+            }
+            if msg.contains("500") {
+                return "❌ HTTP 500 Internal Server Error".to_string();
+            }
+            if msg.contains("429") {
+                return "⏳ HTTP 429 Rate Limited".to_string();
+            }
+            // Generic fallback for other HTML error responses
+            return "❌ HTTP Error (server returned HTML)".to_string();
+        }
+
+        // Handle messages with "status XXX:" pattern (clean format)
+        if let Some(status_pos) = msg.find("status ") {
+            if let Some(status_end) = msg[status_pos..]
+                .find(':')
+                .or_else(|| msg[status_pos..].find('<'))
+            {
+                let status_part = &msg[..status_pos + status_end];
+                // Look for additional context before "status"
+                if let Some(error_start) = status_part
+                    .rfind("error")
+                    .or_else(|| status_part.rfind("Error"))
+                {
+                    return format!("❌ {}", &status_part[error_start..]);
+                } else {
+                    return format!("❌ HTTP {}", &status_part[status_pos..]);
+                }
+            }
+        }
+
+        // Return original message if no HTTP error pattern detected
+        msg.to_string()
+    }
 }
 
 // const SUCCESS_ICON: &str = "✅";
@@ -98,9 +203,10 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
     f.render_widget(title, chunks[0]);
 
     // Body layout: Split into two columns (status and logs)
+    // Make status column slightly wider to accommodate more text
     let body_chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(25), Constraint::Percentage(75)].as_ref())
+        .constraints([Constraint::Percentage(28), Constraint::Percentage(72)].as_ref())
         .split(chunks[1]);
 
     // --- Status using List ---
@@ -166,33 +272,64 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
     };
     f.render_stateful_widget(status, body_chunks[0], &mut status_list_state);
 
-    let logs: Vec<String> = state
+    // Create styled log items with enhanced UX and visual improvements
+    let log_items: Vec<ListItem> = state
         .events
         .iter()
         .filter(|event| event.should_display())
+        .rev() // newest first
         .map(|event| {
-            let icon = match event.event_type {
+            let main_icon = match event.event_type {
                 EventType::Success => "✅",
-                EventType::Error => "⚠️",
+                EventType::Error => "❌",
                 EventType::Refresh => "🔄",
                 EventType::Shutdown => "🔴",
             };
-            format!("{} [{}] {}", icon, event.timestamp, event.msg)
+
+            let worker_type = match event.worker {
+                Worker::TaskFetcher => "Fetcher".to_string(),
+                Worker::Prover(worker_id) => format!("P{}", worker_id),
+                Worker::ProofSubmitter => "Submitter".to_string(),
+            };
+
+            let worker_color = DashboardState::get_worker_color(&event.worker);
+            let compact_time = DashboardState::format_compact_timestamp(&event.timestamp);
+
+            // Clean HTTP error messages first, then truncate if needed
+            let cleaned_msg = DashboardState::clean_http_error_message(&event.msg);
+            let final_msg = DashboardState::truncate_message(&cleaned_msg, 120);
+
+            // Create a more structured layout with better visual hierarchy
+            let line = Line::from(vec![
+                // Main status icon
+                Span::raw(format!("{} ", main_icon)),
+                // Compact timestamp in muted color
+                Span::styled(
+                    format!("{} ", compact_time),
+                    Style::default().fg(Color::DarkGray),
+                ),
+                // Worker type in bold with worker color
+                Span::styled(
+                    format!("[{}] ", worker_type),
+                    Style::default()
+                        .fg(worker_color)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                // Cleaned and truncated message in worker color
+                Span::styled(final_msg, Style::default().fg(worker_color)),
+            ]);
+
+            ListItem::new(line)
         })
         .collect();
 
-    // Logs using List
-    let mut log_items: Vec<ListItem> = logs
-        .iter()
-        .rev() // newest first
-        .map(|line| ListItem::new(line.clone()))
-        .collect();
+    let final_log_items = if log_items.is_empty() {
+        vec![ListItem::new("Starting...")]
+    } else {
+        log_items
+    };
 
-    if log_items.is_empty() {
-        log_items.push(ListItem::new("Starting...".to_string()));
-    }
-
-    let log_widget = List::new(log_items)
+    let log_widget = List::new(final_log_items)
         .block(Block::default().title("LOGS").borders(Borders::NONE))
         .style(
             Style::default()

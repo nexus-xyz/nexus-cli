@@ -138,9 +138,8 @@ async fn attempt_task_fetch(
     let _ = event_sender
         .send(Event::task_fetcher_with_level(
             format!(
-                "Fetching new tasks: queue at {} tasks (threshold: {})",
-                TASK_QUEUE_SIZE - sender.capacity(),
-                LOW_WATER_MARK
+                "🔍 Fetching tasks (queue: {} tasks)",
+                TASK_QUEUE_SIZE - sender.capacity()
             ),
             crate::events::EventType::Refresh,
             LogLevel::Debug,
@@ -176,10 +175,7 @@ async fn attempt_task_fetch(
             state.record_fetch_attempt();
             let _ = event_sender
                 .send(Event::task_fetcher_with_level(
-                    format!(
-                        "Fetch timeout: request took longer than {}s",
-                        timeout_duration.as_secs()
-                    ),
+                    format!("⏰ Fetch timeout after {}s", timeout_duration.as_secs()),
                     crate::events::EventType::Error,
                     LogLevel::Warn,
                 ))
@@ -201,14 +197,11 @@ async fn log_queue_status(
     let backoff_secs = state.backoff_duration.as_secs();
 
     let message = if state.should_fetch(tasks_in_queue) {
-        format!(
-            "Queue low: {} tasks, ready to fetch (backoff: {}s)",
-            tasks_in_queue, backoff_secs
-        )
+        format!("⚡ Queue low: {} tasks, ready to fetch", tasks_in_queue)
     } else {
         let time_since_secs = time_since_last.as_secs();
         format!(
-            "Queue low: {} tasks, waiting {}s more (retry every {}s)",
+            "⚡ Queue low: {} tasks, waiting {}s more (retry every {}s)",
             tasks_in_queue,
             backoff_secs.saturating_sub(time_since_secs),
             backoff_secs
@@ -252,7 +245,7 @@ async fn handle_empty_task_response(
 ) {
     let current_queue_level = TASK_QUEUE_SIZE - sender.capacity();
     let msg = format!(
-        "Queue status: No new tasks available from server (current queue: {} tasks)",
+        "💤 No tasks available (queue: {} tasks)",
         current_queue_level
     );
     let _ = event_sender
@@ -369,7 +362,7 @@ async fn handle_all_duplicates(
     let _ = event_sender
         .send(Event::task_fetcher_with_level(
             format!(
-                "All {} fetched tasks were duplicates - backing off for {}s",
+                "🔄 All {} tasks were duplicates - backing off for {}s",
                 duplicate_count,
                 state.backoff_duration.as_secs()
             ),
@@ -390,7 +383,7 @@ async fn handle_fetch_error(
         let _ = event_sender
             .send(Event::task_fetcher_with_level(
                 format!(
-                    "Rate limited (429), backing off for {} seconds",
+                    "⏳ Rate limited - retrying in {}s",
                     state.backoff_duration.as_secs()
                 ),
                 crate::events::EventType::Error,
@@ -486,10 +479,7 @@ async fn fetch_new_tasks_batch(
             Err(OrchestratorError::Http { status: 429, .. }) => {
                 let _ = event_sender
                     .send(Event::task_fetcher_with_level(
-                        format!(
-                            "fetch_task_batch: Hit rate limit (429) on attempt #{}",
-                            i + 1
-                        ),
+                        "⏳ Rate limited during batch fetch".to_string(),
                         crate::events::EventType::Refresh,
                         LogLevel::Debug,
                     ))
@@ -614,7 +604,7 @@ async fn report_performance_stats(
     };
 
     let msg = format!(
-        "Performance: {} tasks completed in {:.1}s ({:.1} tasks/min)",
+        "📊 Performance: {} tasks in {:.1}s ({:.1} tasks/min)",
         completed_count,
         elapsed.as_secs_f64(),
         tasks_per_minute
@@ -684,7 +674,7 @@ async fn handle_submission_success(
     successful_tasks: &TaskCache,
 ) {
     successful_tasks.insert(task.task_id.clone()).await;
-    let msg = format!("Successfully submitted proof for task {}", task.task_id);
+    let msg = "📤 Proof submitted".to_string();
     let _ = event_sender
         .send(Event::proof_submitter_with_level(
             msg,
