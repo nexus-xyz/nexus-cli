@@ -10,4 +10,7 @@ pub mod prover {
     pub const MAX_404S_BEFORE_GIVING_UP: usize = 5; // Allow several 404s before stopping batch fetch
     pub const BACKOFF_DURATION: u64 = 30000; // 30 seconds
     pub const QUEUE_LOG_INTERVAL: u64 = 30000; // 30 seconds
+
+    /// How long a task ID remains in the duplicate-prevention cache before expiring.
+    pub const CACHE_EXPIRATION: u64 = 300000; // 5 minutes
 }
