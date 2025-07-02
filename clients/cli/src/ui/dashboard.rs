@@ -45,22 +45,30 @@ impl DashboardState {
     /// * `node_id` - This node's unique identifier, if available.
     /// * `start_time` - The start time of the application, used for computing uptime.
     /// * `environment` - The environment in which the application is running.
+    /// * `events` - The current events queue.
+    /// * `points` - Optional current points value.
     pub fn new(
         node_id: Option<u64>,
         environment: Environment,
         start_time: Instant,
         events: &VecDeque<WorkerEvent>,
+        points: Option<u64>,
     ) -> Self {
         Self {
             node_id,
             environment,
-            nex_points: None,
+            nex_points: points,
             start_time,
             current_task: None,
             total_cores: system::num_cores(),
             total_ram_gb: system::total_memory_gb(),
             events: events.clone(),
         }
+    }
+
+    /// Updates the points value for this node.
+    pub fn update_points(&mut self, points: u64) {
+        self.nex_points = Some(points);
     }
 }
 

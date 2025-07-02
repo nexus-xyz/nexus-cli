@@ -46,5 +46,5 @@ pub trait Orchestrator: Send + Sync {
         proof: Vec<u8>,
         signing_key: SigningKey,
         num_provers: usize,
-    ) -> Result<(), OrchestratorError>;
+    ) -> Result<Option<u64>, OrchestratorError>;
 }
