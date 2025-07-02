@@ -53,6 +53,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "clients/cli -> target"
+          cache-all-crates: "true"
+          cache-on-failure: "true"
+          key: "linux-x86_64"
+
+      - name: Install & Use `mold`
+        uses: rui314/setup-mold@v1
+
       # Set up the Rust toolchain for the specified target(s)
       # When passing an explicit toolchain... you'll want to use "dtolnay/rust-toolchain@master"
       - name: Install Rust
@@ -73,6 +83,8 @@ jobs:
       - name: Build Linux x86_64 binary
         working-directory: clients/cli
         run: cargo build --release --target x86_64-unknown-linux-gnu
+        env:
+          RUSTFLAGS: "-C target-feature=+crt-static"
 
       # Rename the binary to indicate the target OS
       - name: Rename binary
@@ -93,6 +105,16 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "clients/cli -> target"
+          cache-all-crates: "true"
+          cache-on-failure: "true"
+          key: "linux-arm64"
+
+      - name: Install & Use `mold`
+        uses: rui314/setup-mold@v1
 
       # Set up the Rust toolchain for the specified target(s)
       # When passing an explicit toolchain... you'll want to use "dtolnay/rust-toolchain@master"
@@ -127,6 +149,8 @@ jobs:
         run: |
           export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
           cargo build -Zbuild-std=std,panic_abort --release --target aarch64-unknown-linux-gnu
+        env:
+          RUSTFLAGS: "-C target-feature=+crt-static"
 
       # Rename the binary to indicate the target OS
       - name: Rename binary
@@ -147,6 +171,16 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "clients/cli -> target"
+          cache-all-crates: "true"
+          cache-on-failure: "true"
+          key: "macos-x86_64"
+
+      - name: Install & Use `mold`
+        uses: rui314/setup-mold@v1
 
       # Set up the Rust toolchain for the specified target(s)
       # When passing an explicit toolchain... you'll want to use "dtolnay/rust-toolchain@master"
@@ -178,6 +212,7 @@ jobs:
         env:
           RUSTUP_TOOLCHAIN: ${{ env.RUSTUP_TOOLCHAIN }}
           RUSTC_BOOTSTRAP: 1
+          RUSTFLAGS: "-C target-feature=+sse4.2,+avx,+avx2"
 
       # Rename the binary to indicate the target OS
       - name: Rename binary
@@ -201,6 +236,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "clients/cli -> target"
+          cache-all-crates: "true"
+          cache-on-failure: "true"
+          key: "macos-arm64"
+
+      - name: Install & Use `mold`
+        uses: rui314/setup-mold@v1
+
       # Set up the Rust toolchain for the specified target(s)
       # When passing an explicit toolchain... you'll want to use "dtolnay/rust-toolchain@master"
       - name: Install Rust
@@ -222,6 +267,8 @@ jobs:
       - name: Build CLI binary
         working-directory: clients/cli
         run: cargo build --release --target=aarch64-apple-darwin
+        env:
+          RUSTFLAGS: "-C target-feature=+neon,+fp-armv8,+crc"
 
       # Rename the binary to indicate the target OS and platform
       - name: Rename binary
@@ -244,6 +291,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "clients/cli -> target"
+          cache-all-crates: "true"
+          cache-on-failure: "true"
+          key: "windows-x86_64"
+
       # Set up the Rust toolchain for the specified target(s)
       # When passing an explicit toolchain... you'll want to use "dtolnay/rust-toolchain@master"
       - name: Install Rust
@@ -265,6 +319,8 @@ jobs:
       - name: Build CLI binary
         working-directory: clients/cli
         run: cargo build --release --target=x86_64-pc-windows-msvc
+        env:
+          RUSTFLAGS: "-C target-feature=+sse4.2,+avx,+avx2"
 
       # Rename the binary to indicate the target OS and platform
       - name: Rename binary
