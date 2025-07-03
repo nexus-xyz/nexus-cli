@@ -91,7 +91,7 @@ expected from all contributors.
 
 If you encounter content or behavior that violates the Code of Conduct, you should report it. There are two ways to do so:
 
-* **Contact the Nexus team**. You can reach out directly or via Discord.
+* **Contact the Nexus team**. You can reach out directly or via [Discord](https://discord.com/invite/nexus-xyz).
 * **Use the GitHub "Report content" feature**. To report inappropriate content (such as comments, issues, or pull requests) directly on GitHub, click the "Report content" option (usually available via the three-dot menu next to the content) and follow the instructions. This helps ensure that violations are addressed promptly and appropriately.
 
 ### Ways to contribute
