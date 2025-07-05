@@ -4,9 +4,8 @@
 
 use crate::environment::Environment;
 use crate::nexus_orchestrator::{
-    GetProofTaskRequest, GetProofTaskResponse, GetTasksRequest, GetTasksResponse, NodeType,
-    RegisterNodeRequest, RegisterNodeResponse, RegisterUserRequest, SubmitProofRequest,
-    UserResponse,
+    GetProofTaskRequest, GetProofTaskResponse, GetTasksResponse, NodeType, RegisterNodeRequest,
+    RegisterNodeResponse, RegisterUserRequest, SubmitProofRequest, UserResponse,
 };
 use crate::orchestrator::Orchestrator;
 use crate::orchestrator::error::OrchestratorError;
@@ -67,16 +66,9 @@ impl OrchestratorClient {
     async fn get_request<T: Message + Default>(
         &self,
         endpoint: &str,
-        body: Vec<u8>,
     ) -> Result<T, OrchestratorError> {
         let url = self.build_url(endpoint);
-        let response = self
-            .client
-            .get(&url)
-            .header("Content-Type", "application/octet-stream")
-            .body(body)
-            .send()
-            .await?;
+        let response = self.client.get(&url).send().await?;
 
         let response = Self::handle_response_status(response).await?;
         let response_bytes = response.bytes().await?;
@@ -222,7 +214,7 @@ impl Orchestrator for OrchestratorClient {
         let wallet_path = urlencoding::encode(wallet_address).into_owned();
         let endpoint = format!("v3/users/{}", wallet_path);
 
-        let user_response: UserResponse = self.get_request(&endpoint, vec![]).await?;
+        let user_response: UserResponse = self.get_request(&endpoint).await?;
         Ok(user_response.user_id)
     }
 
@@ -255,13 +247,7 @@ impl Orchestrator for OrchestratorClient {
     }
 
     async fn get_tasks(&self, node_id: &str) -> Result<Vec<Task>, OrchestratorError> {
-        let request = GetTasksRequest {
-            node_id: node_id.to_string(),
-            next_cursor: "".to_string(),
-        };
-        let request_bytes = Self::encode_request(&request);
-
-        let response: GetTasksResponse = self.get_request("v3/tasks", request_bytes).await?;
+        let response: GetTasksResponse = self.get_request(&format!("v3/tasks/{}", node_id)).await?;
         let tasks = response.tasks.iter().map(Task::from).collect();
         Ok(tasks)
     }
