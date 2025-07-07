@@ -42,7 +42,7 @@ The [Discord][discord] is always available for any concerns you may have that ar
 1. Clone the repository:
    ```bash
    git clone https://github.com/nexus-xyz/nexus-cli
-   cd nexus-xyz/nexus-cli
+   cd nexus-cli/clients/cli
    ```
 
 2. Build the CLI:
