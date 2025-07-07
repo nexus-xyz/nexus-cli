@@ -19,6 +19,7 @@ pub mod system;
 mod task;
 mod task_cache;
 mod ui;
+mod version_checker;
 mod workers;
 
 use crate::config::{Config, get_config_path};

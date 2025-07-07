@@ -15,6 +15,8 @@ pub enum Worker {
     Prover(usize),
     /// Worker that submits proofs to the orchestrator.
     ProofSubmitter,
+    /// Worker that checks for new CLI versions.
+    VersionChecker,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, strum::Display)]
@@ -97,6 +99,14 @@ impl Event {
         Self::new_with_level(Worker::ProofSubmitter, msg, event_type, log_level)
     }
 
+    pub fn version_checker_with_level(
+        msg: String,
+        event_type: EventType,
+        log_level: LogLevel,
+    ) -> Self {
+        Self::new_with_level(Worker::VersionChecker, msg, event_type, log_level)
+    }
+
     pub fn should_display(&self) -> bool {
         // Always show success events and info level events
         if self.event_type == EventType::Success || self.log_level >= LogLevel::Info {
@@ -112,6 +122,7 @@ impl Display for Event {
             Worker::TaskFetcher => "Task Fetcher".to_string(),
             Worker::Prover(worker_id) => format!("Prover {}", worker_id),
             Worker::ProofSubmitter => "Proof Submitter".to_string(),
+            Worker::VersionChecker => "Version Checker".to_string(),
         };
         write!(
             f,

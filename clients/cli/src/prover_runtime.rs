@@ -9,6 +9,7 @@ use crate::events::Event;
 use crate::orchestrator::OrchestratorClient;
 use crate::task::Task;
 use crate::task_cache::TaskCache;
+use crate::version_checker::start_version_checker_task;
 use crate::workers::{offline, online};
 use ed25519_dalek::SigningKey;
 use nexus_sdk::stwo::seq::Proof;
@@ -31,6 +32,17 @@ pub async fn start_authenticated_workers(
     let mut join_handles = Vec::new();
     // Worker events
     let (event_sender, event_receiver) = mpsc::channel::<Event>(EVENT_QUEUE_SIZE);
+
+    // Start version checker
+    let version_checker_handle = {
+        let current_version = env!("CARGO_PKG_VERSION").to_string();
+        let event_sender = event_sender.clone();
+        let shutdown = shutdown.resubscribe();
+        tokio::spawn(async move {
+            start_version_checker_task(current_version, event_sender, shutdown).await;
+        })
+    };
+    join_handles.push(version_checker_handle);
 
     // A bounded list of recently fetched task IDs (prevents refetching currently processing tasks)
     let enqueued_tasks = TaskCache::new(MAX_COMPLETED_TASKS);
@@ -101,7 +113,38 @@ pub async fn start_anonymous_workers(
     environment: Environment,
     client_id: String,
 ) -> (mpsc::Receiver<Event>, Vec<JoinHandle<()>>) {
-    offline::start_anonymous_workers(num_workers, shutdown, environment, client_id).await
+    let mut join_handles = Vec::new();
+    // Worker events
+    let (event_sender, event_receiver) = mpsc::channel::<Event>(EVENT_QUEUE_SIZE);
+
+    // Start version checker
+    let version_checker_handle = {
+        let current_version = env!("CARGO_PKG_VERSION").to_string();
+        let event_sender = event_sender.clone();
+        let shutdown = shutdown.resubscribe();
+        tokio::spawn(async move {
+            start_version_checker_task(current_version, event_sender, shutdown).await;
+        })
+    };
+    join_handles.push(version_checker_handle);
+
+    // Start anonymous workers
+    let (anonymous_event_receiver, anonymous_handles) =
+        offline::start_anonymous_workers(num_workers, shutdown, environment, client_id).await;
+    join_handles.extend(anonymous_handles);
+
+    // Forward events from anonymous workers to our event sender
+    let event_forwarder_handle = tokio::spawn(async move {
+        let mut anonymous_event_receiver = anonymous_event_receiver;
+        while let Some(event) = anonymous_event_receiver.recv().await {
+            if event_sender.send(event).await.is_err() {
+                break; // Main event channel closed
+            }
+        }
+    });
+    join_handles.push(event_forwarder_handle);
+
+    (event_receiver, join_handles)
 }
 
 #[cfg(test)]

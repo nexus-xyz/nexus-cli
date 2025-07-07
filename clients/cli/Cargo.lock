@@ -1644,6 +1644,7 @@ dependencies = [
  "rand_core 0.6.4",
  "ratatui",
  "reqwest",
+ "semver",
  "serde",
  "serde_json",
  "sha3",
