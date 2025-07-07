@@ -1621,7 +1621,7 @@ dependencies = [
 
 [[package]]
 name = "nexus-network"
-version = "0.8.18"
+version = "0.9.1"
 dependencies = [
  "assert_cmd",
  "async-trait",
@@ -1644,6 +1644,7 @@ dependencies = [
  "rand_core 0.6.4",
  "ratatui",
  "reqwest",
+ "semver",
  "serde",
  "serde_json",
  "sha3",

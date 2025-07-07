@@ -41,8 +41,8 @@ The [Discord][discord] is always available for any concerns you may have that ar
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/nexus-xyz/network-api.git
-   cd network-api/clients/cli
+   git clone https://github.com/nexus-xyz/nexus-cli
+   cd nexus-cli/clients/cli
    ```
 
 2. Build the CLI:
@@ -89,7 +89,10 @@ cargo build --features build_proto
 The Nexus network project adheres to the [Rust Code of Conduct][rust-coc]. This code of conduct describes the _minimum_ behavior
 expected from all contributors.
 
-Instances of violations of the Code of Conduct can be reported by contacting the Nexus team.
+If you encounter content or behavior that violates the Code of Conduct, you should report it. There are two ways to do so:
+
+* **Contact the Nexus team**. You can reach out directly or via [Discord](https://discord.com/invite/nexus-xyz).
+* **Use the GitHub "Report content" feature**. To report inappropriate content (such as comments, issues, or pull requests) directly on GitHub, click the "Report content" option (usually available via the three-dot menu next to the content) and follow the instructions. This helps ensure that violations are addressed promptly and appropriately.
 
 ### Ways to contribute
 

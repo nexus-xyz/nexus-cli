@@ -37,6 +37,12 @@ pub struct DashboardState {
 
     /// A queue of events received from worker threads.
     pub events: VecDeque<WorkerEvent>,
+
+    /// Whether a new version is available.
+    pub update_available: bool,
+
+    /// The latest version string, if known.
+    pub latest_version: Option<String>,
 }
 
 impl DashboardState {
@@ -52,6 +58,9 @@ impl DashboardState {
         start_time: Instant,
         events: &VecDeque<WorkerEvent>,
     ) -> Self {
+        // Check for version update messages in recent events
+        let (update_available, latest_version) = Self::check_for_version_updates(events);
+
         Self {
             node_id,
             environment,
@@ -61,7 +70,37 @@ impl DashboardState {
             total_cores: system::num_cores(),
             total_ram_gb: system::total_memory_gb(),
             events: events.clone(),
+            update_available,
+            latest_version,
         }
+    }
+
+    /// Check recent events for version update information
+    fn check_for_version_updates(events: &VecDeque<WorkerEvent>) -> (bool, Option<String>) {
+        // Look for the most recent version checker success event
+        for event in events.iter().rev() {
+            if matches!(event.worker, Worker::VersionChecker)
+                && event.event_type == EventType::Success
+            {
+                // Parse the version from the message
+                if let Some(version) = Self::extract_version_from_message(&event.msg) {
+                    return (true, Some(version));
+                }
+            }
+        }
+        (false, None)
+    }
+
+    /// Extract version number from version checker message
+    fn extract_version_from_message(message: &str) -> Option<String> {
+        // Look for pattern like "New version v0.9.1 available!"
+        if let Some(start) = message.find("version ") {
+            let after_version = &message[start + 8..];
+            if let Some(end) = after_version.find(" available") {
+                return Some(after_version[..end].to_string());
+            }
+        }
+        None
     }
 
     /// Get a ratatui color for a worker based on its type and ID
@@ -85,6 +124,7 @@ impl DashboardState {
                 colors[*worker_id % colors.len()]
             }
             Worker::ProofSubmitter => Color::White,
+            Worker::VersionChecker => Color::LightCyan,
         }
     }
 
@@ -188,15 +228,33 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
         )
         .split(f.area());
 
-    // Title section
+    // Title section with version info
     let version = env!("CARGO_PKG_VERSION");
-    let title_text = format!("=== NEXUS PROVER v{} ===", version);
+    let title_text = if state.update_available {
+        if let Some(latest) = &state.latest_version {
+            format!(
+                "=== NEXUS PROVER v{} → 🚀 {} UPDATE AVAILABLE ===",
+                version, latest
+            )
+        } else {
+            format!("=== NEXUS PROVER v{} → 🚀 UPDATE AVAILABLE ===", version)
+        }
+    } else {
+        format!("=== NEXUS PROVER v{} ===", version)
+    };
+
+    let title_color = if state.update_available {
+        Color::LightYellow // Highlight when update is available
+    } else {
+        Color::Cyan
+    };
+
     let title_block = Block::default().borders(Borders::BOTTOM);
     let title = Paragraph::new(title_text)
-        .alignment(Alignment::Center) // ← Horizontally center the text
+        .alignment(Alignment::Center)
         .style(
             Style::default()
-                .fg(Color::Cyan)
+                .fg(title_color)
                 .add_modifier(Modifier::BOLD),
         )
         .block(title_block);
@@ -233,6 +291,24 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
 
         // Environment
         items.push(ListItem::new(format!("ENVIRONMENT: {}", state.environment)));
+
+        // Version status
+        if state.update_available {
+            if let Some(latest) = &state.latest_version {
+                let version_text = format!("VERSION: {} → {} 🚀", version, latest);
+                items.push(ListItem::new(Line::from(vec![Span::styled(
+                    version_text,
+                    Style::default().fg(Color::LightYellow),
+                )])));
+            } else {
+                items.push(ListItem::new(Line::from(vec![Span::styled(
+                    "VERSION: Update Available 🚀",
+                    Style::default().fg(Color::LightYellow),
+                )])));
+            }
+        } else {
+            items.push(ListItem::new(format!("VERSION: {}", version)));
+        }
 
         // Uptime in Days, Hours, Minutes, Seconds
         let uptime = state.start_time.elapsed();
@@ -290,6 +366,7 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
                 Worker::TaskFetcher => "Fetcher".to_string(),
                 Worker::Prover(worker_id) => format!("P{}", worker_id),
                 Worker::ProofSubmitter => "Submitter".to_string(),
+                Worker::VersionChecker => "Version".to_string(),
             };
 
             let worker_color = DashboardState::get_worker_color(&event.worker);
@@ -339,9 +416,15 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
 
     f.render_widget(log_widget, body_chunks[1]);
 
-    // Footer
-    let footer = Paragraph::new("[Q] Quit")
-        .alignment(Alignment::Center) // ← Horizontally center the text
+    // Footer with version info
+    let footer_text = if state.update_available {
+        "[Q] Quit | 🚀 New version available! Check release notes at github.com/nexus-xyz/nexus-cli"
+    } else {
+        "[Q] Quit"
+    };
+
+    let footer = Paragraph::new(footer_text)
+        .alignment(Alignment::Center)
         .style(
             Style::default()
                 .fg(Color::Cyan)
