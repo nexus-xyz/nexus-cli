@@ -50,9 +50,6 @@ impl ErrorClassifier {
 
     pub fn classify_worker_error(&self, error: &ProverError) -> LogLevel {
         match error {
-            // Analytics should never halt operations
-            ProverError::Analytics(_) => LogLevel::Debug,
-
             // Temporary resource issues
             ProverError::Stwo(msg) if msg.contains("memory") => LogLevel::Warn,
             ProverError::Stwo(msg) if msg.contains("timeout") => LogLevel::Warn,
