@@ -1,10 +1,7 @@
-use crate::analytics::track;
-use crate::environment::Environment;
 use crate::task::Task;
-use log::{debug, error};
+use log::error;
 use nexus_sdk::stwo::seq::Proof;
 use nexus_sdk::{KnownExitCodes, Local, Prover, Viewable, stwo::seq::Stwo};
-use serde_json::json;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -20,16 +17,10 @@ pub enum ProverError {
 
     #[error("Guest Program error: {0}")]
     GuestProgram(String),
-
-    #[error("Analytics tracking error: {0}")]
-    Analytics(String),
 }
 
 /// Proves a program locally with hardcoded inputs.
-pub async fn prove_anonymously(
-    environment: &Environment,
-    client_id: String,
-) -> Result<Proof, ProverError> {
+pub async fn prove_anonymously() -> Result<Proof, ProverError> {
     // Compute the 10th Fibonacci number using fib_input_initial
     // Input: (n=9, init_a=1, init_b=1)
     // This computes F(9) = 55 in the classic Fibonacci sequence starting with 1,1
@@ -58,35 +49,12 @@ pub async fn prove_anonymously(
         )));
     }
 
-    // Send analytics event for anonymous proof - return analytics error but don't fail the proof
-    if let Err(e) = track(
-        "cli_proof_anon_v3".to_string(),
-        json!({
-            "program_name": "fib_input_initial",
-            "public_input": public_input.0,
-            "public_input_2": public_input.1,
-            "public_input_3": public_input.2,
-        }),
-        environment,
-        client_id,
-    )
-    .await
-    {
-        // Log locally but also return the analytics error so it can be classified and displayed
-        debug!("Analytics tracking failed (non-critical): {}", e);
-        return Err(ProverError::Analytics(e.to_string()));
-    }
-
     Ok(proof)
 }
 
 /// Proves a program with a given node ID
-pub async fn authenticated_proving(
-    task: &Task,
-    environment: &Environment,
-    client_id: String,
-) -> Result<Proof, ProverError> {
-    let (view, proof, analytics_input) = match task.program_id.as_str() {
+pub async fn authenticated_proving(task: &Task) -> Result<Proof, ProverError> {
+    let (view, proof, _) = match task.program_id.as_str() {
         "fast-fib" => {
             // fast-fib uses string inputs
             let input = get_string_public_input(task)?;
@@ -123,40 +91,6 @@ pub async fn authenticated_proving(
             "Prover exited with non-zero exit code: {}",
             exit_code
         )));
-    }
-
-    // Send analytics event for authenticated proof
-    let analytics_data = match task.program_id.as_str() {
-        "fast-fib" => json!({
-            "program_name": "fast-fib",
-            "public_input": analytics_input,
-            "task_id": task.task_id,
-        }),
-        "fib_input_initial" => {
-            let inputs = get_triple_public_input(task)?;
-            json!({
-                "program_name": "fib_input_initial",
-                "public_input": inputs.0,
-                "public_input_2": inputs.1,
-                "public_input_3": inputs.2,
-                "task_id": task.task_id,
-            })
-        }
-        _ => unreachable!(),
-    };
-
-    // Send analytics event for authenticated proof - return analytics error but don't fail the proof
-    if let Err(e) = track(
-        "cli_proof_node_v3".to_string(),
-        analytics_data,
-        environment,
-        client_id,
-    )
-    .await
-    {
-        // Log locally but also return the analytics error so it can be classified and displayed
-        debug!("Analytics tracking failed (non-critical): {}", e);
-        return Err(ProverError::Analytics(e.to_string()));
     }
 
     Ok(proof)
@@ -230,9 +164,7 @@ mod tests {
     #[tokio::test]
     // Proves a program with hardcoded inputs should succeed.
     async fn test_prove_anonymously() {
-        let environment = Environment::Local;
-        let client_id = "test_client_id".to_string();
-        if let Err(e) = prove_anonymously(&environment, client_id).await {
+        if let Err(e) = prove_anonymously().await {
             panic!("Failed to prove anonymously: {}", e);
         }
     }
