@@ -139,7 +139,7 @@ async fn start(
                 ),
             )
         })?);
-        println!("Read Node ID: {} from config file", node_id.unwrap());
+        println!("Read Node ID: {} from config file\n", node_id.unwrap());
     }
 
     // Create a signing key for the prover.

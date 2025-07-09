@@ -241,7 +241,10 @@ pub async fn version_checker_task_with_interval(
                     return;
                 }
             } else {
-                let message = format!("✅ Version {} is up to date", version_info.current_version);
+                let message = format!(
+                    "✅ Version {} is up to date\n",
+                    version_info.current_version
+                );
 
                 let event =
                     Event::version_checker_with_level(message, EventType::Refresh, LogLevel::Debug);

@@ -138,8 +138,8 @@ async fn attempt_task_fetch(
     let _ = event_sender
         .send(Event::task_fetcher_with_level(
             format!(
-                "🔍 Fetching tasks (queue: {} tasks)",
-                TASK_QUEUE_SIZE - sender.capacity()
+                "\x1b[32m\t[Task step 1 of 3] Fetching tasks...\x1b[0m",
+                // TASK_QUEUE_SIZE - sender.capacity()
             ),
             crate::events::EventType::Refresh,
             LogLevel::Debug,
@@ -175,7 +175,7 @@ async fn attempt_task_fetch(
             state.record_fetch_attempt();
             let _ = event_sender
                 .send(Event::task_fetcher_with_level(
-                    format!("⏰ Fetch timeout after {}s", timeout_duration.as_secs()),
+                    format!("\t⏰ Fetch timeout after {}s", timeout_duration.as_secs()),
                     crate::events::EventType::Error,
                     LogLevel::Warn,
                 ))
@@ -197,11 +197,14 @@ async fn log_queue_status(
     let backoff_secs = state.backoff_duration.as_secs();
 
     let message = if state.should_fetch(tasks_in_queue) {
-        format!("⚡ Queue low: {} tasks, ready to fetch", tasks_in_queue)
+        format!(
+            "\t\tTasks Queue low: {} tasks to compute, ready to fetch",
+            tasks_in_queue
+        )
     } else {
         let time_since_secs = time_since_last.as_secs();
         format!(
-            "⚡ Queue low: {} tasks, waiting {}s more (retry every {}s)",
+            "\t\tTasks to compute: {} tasks, waiting {}s more (retry every {}s)",
             tasks_in_queue,
             backoff_secs.saturating_sub(time_since_secs),
             backoff_secs
@@ -239,15 +242,12 @@ async fn handle_fetch_success(
 
 /// Handle empty task response from server
 async fn handle_empty_task_response(
-    sender: &mpsc::Sender<Task>,
+    _sender: &mpsc::Sender<Task>,
     event_sender: &mpsc::Sender<Event>,
     state: &mut TaskFetchState,
 ) {
-    let current_queue_level = TASK_QUEUE_SIZE - sender.capacity();
-    let msg = format!(
-        "💤 No tasks available (queue: {} tasks)",
-        current_queue_level
-    );
+    // let current_queue_level = TASK_QUEUE_SIZE - sender.capacity();
+    let msg = format!("\t\tNo tasks available yet for this node");
     let _ = event_sender
         .send(Event::task_fetcher_with_level(
             msg,
@@ -321,7 +321,7 @@ async fn log_successful_fetch(
     // Enhanced queue status logging
     let msg = if added_count >= 5 {
         format!(
-            "Queue status: +{} tasks → {} total ({}/{}={queued_percentage}% full)",
+            "\t\tQueue status: +{} tasks → {} total ({}/{}={queued_percentage}% full)",
             added_count,
             current_queue_level,
             current_queue_level,
@@ -330,7 +330,7 @@ async fn log_successful_fetch(
         )
     } else {
         format!(
-            "Queue status: +{} tasks → {} total ({}% full)",
+            "\t\tQueue status: +{} tasks → {} total ({}% full)",
             added_count, current_queue_level, queue_percentage
         )
     };
@@ -479,7 +479,7 @@ async fn fetch_new_tasks_batch(
             Err(OrchestratorError::Http { status: 429, .. }) => {
                 let _ = event_sender
                     .send(Event::task_fetcher_with_level(
-                        "⏳ Rate limited during batch fetch".to_string(),
+                        "\t\tEvery node in the Prover Network is rate limited to 3 tasks per 3 minutes".to_string(),
                         crate::events::EventType::Refresh,
                         LogLevel::Debug,
                     ))
@@ -491,7 +491,7 @@ async fn fetch_new_tasks_batch(
                 consecutive_404s += 1;
                 let _ = event_sender
                     .send(Event::task_fetcher_with_level(
-                        format!("fetch_task_batch: No task available (404) on attempt #{}, consecutive_404s: {}", i + 1, consecutive_404s),
+                        format!("\t\tfetch_task_batch: No task available (404) on attempt #{}, consecutive_404s: {}", i + 1, consecutive_404s),
                         crate::events::EventType::Refresh,
                         LogLevel::Debug,
                     ))
@@ -501,7 +501,7 @@ async fn fetch_new_tasks_batch(
                     let _ = event_sender
                         .send(Event::task_fetcher_with_level(
                             format!(
-                                "fetch_task_batch: Too many 404s ({}), giving up",
+                                "\t\tfetch_task_batch: Too many 404s ({}), giving up",
                                 consecutive_404s
                             ),
                             crate::events::EventType::Refresh,
@@ -516,7 +516,7 @@ async fn fetch_new_tasks_batch(
                 let _ = event_sender
                     .send(Event::task_fetcher_with_level(
                         format!(
-                            "fetch_task_batch: get_proof_task #{} failed with error: {:?}",
+                            "\t\tfetch_task_batch: get_proof_task #{} failed with error: {:?}",
                             i + 1,
                             e
                         ),
@@ -604,7 +604,7 @@ async fn report_performance_stats(
     };
 
     let msg = format!(
-        "📊 Performance: {} tasks in {:.1}s ({:.1} tasks/min)",
+        "\t\tPerformance Status: {} tasks completed in the past {:.1}s ({:.1} tasks/min)",
         completed_count,
         elapsed.as_secs_f64(),
         tasks_per_minute
@@ -674,7 +674,10 @@ async fn handle_submission_success(
     successful_tasks: &TaskCache,
 ) {
     successful_tasks.insert(task.task_id.clone()).await;
-    let msg = "📤 Proof submitted".to_string();
+    let msg = format!(
+        "\x1b[32m\t[Task step 3 of 3] Proof submitted\x1b[0m (Task ID: {})\n\t\t\t\t\t\t\tPoints for this node will be updated in https://app.nexus.xyz/rewards within 10 minutes\n",
+        task.task_id
+    );
     let _ = event_sender
         .send(Event::proof_submitter_with_level(
             msg,
