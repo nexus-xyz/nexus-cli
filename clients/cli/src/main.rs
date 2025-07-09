@@ -155,19 +155,21 @@ async fn start(
     let client_id = if config_path.exists() {
         match Config::load_from_file(&config_path) {
             Ok(config) => {
-                // First try user_id, then node_id, then fallback to UUID
-                if !config.user_id.is_empty() {
-                    config.user_id
-                } else if !config.node_id.is_empty() {
-                    config.node_id
+                // If user has a node_id, use "cli-{node_id}" format
+                if !config.node_id.is_empty() {
+                    format!("cli-{}", config.node_id)
+                } else if !config.user_id.is_empty() {
+                    // Fallback to user_id if no node_id but user is registered
+                    format!("cli-{}", config.user_id)
                 } else {
-                    uuid::Uuid::new_v4().to_string() // Fallback to random UUID
+                    // No node_id or user_id - this shouldn't happen with current flow
+                    "anonymous".to_string()
                 }
             }
-            Err(_) => uuid::Uuid::new_v4().to_string(), // Fallback to random UUID
+            Err(_) => "anonymous".to_string(), // Fallback to anonymous
         }
     } else {
-        uuid::Uuid::new_v4().to_string() // Fallback to random UUID
+        "anonymous".to_string() // No config file = anonymous user
     };
 
     let (mut event_receiver, mut join_handles) = match node_id {
