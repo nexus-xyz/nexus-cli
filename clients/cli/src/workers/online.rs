@@ -138,7 +138,7 @@ async fn attempt_task_fetch(
     let _ = event_sender
         .send(Event::task_fetcher_with_level(
             format!(
-                "\x1b[32m\t[Task step 1 of 3] Fetching tasks (CLI tasks are harder to solve, so they receive 10 times more points than web provers)...\x1b[0m",
+                "\x1b[32m\t[Task step 1 of 3] Fetching tasks...\x1b[0m\n\t\t\t\t\t\t\tNote:CLI tasks are harder to solve, so they receive 10 times more points than web provers",
                 // TASK_QUEUE_SIZE - sender.capacity()
             ),
             crate::events::EventType::Refresh,
