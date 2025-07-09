@@ -172,7 +172,7 @@ async fn attempt_task_fetch(
             state.record_fetch_attempt();
             let _ = event_sender
                 .send(Event::task_fetcher_with_level(
-                    format!("\t⏰ Fetch timeout after {}s", timeout_duration.as_secs()),
+                    format!("\t\tFetch timeout after {}s", timeout_duration.as_secs()),
                     crate::events::EventType::Error,
                     LogLevel::Warn,
                 ))
