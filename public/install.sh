@@ -128,10 +128,22 @@ esac
 # -----------------------------------------------------------------------------
 # 5) Download latest release binary
 # -----------------------------------------------------------------------------
-LATEST_RELEASE_URL=$(curl -s https://api.github.com/repos/nexus-xyz/nexus-cli/releases/latest |
-    grep "browser_download_url" |
-    grep "$BINARY_NAME\"" |       # Match exact file name (not .sha256)
-    cut -d '"' -f 4)
+LATEST_RELEASE_URL=$(curl -s https://api.github.com/repos/nexus-xyz/nexus-cli/releases/latest | \
+awk -v name="$BINARY_NAME" '
+  /"name":/ {
+    # Remove quotes and commas, get the value
+    gsub(/[" ,]/, "", $2)
+    last_name=$2
+  }
+  /"browser_download_url":/ {
+    gsub(/[" ,]/, "", $2)
+    if(last_name == name) {
+      print $2
+      exit
+    }
+  }
+')
+
 
 if [ -z "$LATEST_RELEASE_URL" ]; then
     echo "${RED}Could not find a precompiled binary for $PLATFORM-$ARCH${NC}"
