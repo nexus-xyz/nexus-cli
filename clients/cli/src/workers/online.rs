@@ -137,10 +137,7 @@ async fn attempt_task_fetch(
 ) -> Result<(), bool> {
     let _ = event_sender
         .send(Event::task_fetcher_with_level(
-            format!(
-                "\x1b[32m\t[Task step 1 of 3] Fetching tasks...\x1b[0m\n\t\t\t\t\t\t\tNote:CLI tasks are harder to solve, so they receive 10 times more points than web provers",
-                // TASK_QUEUE_SIZE - sender.capacity()
-            ),
+            "\x1b[32m\t[Task step 1 of 3] Fetching tasks...\x1b[0m\n\t\t\t\t\t\t\tNote: CLI tasks are harder to solve, so they receive 10 times more points than web provers".to_string(),
             crate::events::EventType::Refresh,
             LogLevel::Debug,
         ))
@@ -247,7 +244,7 @@ async fn handle_empty_task_response(
     state: &mut TaskFetchState,
 ) {
     // let current_queue_level = TASK_QUEUE_SIZE - sender.capacity();
-    let msg = format!("\t\tNo tasks available yet for this node");
+    let msg = "\t\tNo tasks available yet for this node".to_string();
     let _ = event_sender
         .send(Event::task_fetcher_with_level(
             msg,
