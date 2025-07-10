@@ -15,10 +15,7 @@ pub struct TaskCache {
 
 impl TaskCache {
     pub fn new(capacity: usize) -> Self {
-        Self {
-            capacity,
-            inner: Arc::new(Mutex::new(VecDeque::with_capacity(capacity))),
-        }
+        Self { capacity, inner: Arc::new(Mutex::new(VecDeque::with_capacity(capacity))) }
     }
 
     /// Prune expired tasks from the cache.
@@ -40,10 +37,11 @@ impl TaskCache {
     pub async fn insert(&self, task_id: String) {
         self.prune_expired().await;
 
-        let mut queue = self.inner.lock().await;
-        if queue.iter().any(|(id, _)| *id == task_id) {
+        if self.contains(&task_id).await {
             return;
         }
+
+        let mut queue = self.inner.lock().await;
         if queue.len() == self.capacity {
             queue.pop_front();
         }
