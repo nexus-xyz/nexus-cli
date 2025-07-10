@@ -89,7 +89,7 @@ pub fn start_workers(
                         match authenticated_proving(&task).await {
                             Ok(proof) => {
                                 let message = format!(
-                                    "\x1b[32m\t[Task step 2 of 3] Proof completed successfully\x1b[0m (Task ID: {})",
+                                    "[Task step 2 of 3] Proof completed successfully (Task ID: {})",
                                     task.task_id
                                 );
                                 let _ = prover_event_sender
