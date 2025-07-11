@@ -1,0 +1,4 @@
+services:
+  nexus-network:
+    build: .
+    command: ["start", "--headless", "--node-id", "<your-node-id>"]
