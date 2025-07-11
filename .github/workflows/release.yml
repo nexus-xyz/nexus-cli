@@ -1,0 +1,384 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"            # Trigger on tag push (e.g. "v1.0.0"). Adjust pattern as needed.
+  workflow_dispatch: # Allow manual triggering of the workflow.
+    inputs:
+      create_release:
+        description: 'Create a GitHub release from the latest tag'
+        required: true
+        type: boolean
+        default: false
+
+env:
+  # Set the default Rust toolchain to use for all jobs
+  RUSTUP_TOOLCHAIN: nightly-2025-04-06
+
+jobs:
+  build-docker:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: clients/cli
+          file: clients/cli/Dockerfile  # Optional. Explicitly specify the Dockerfile path
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            nexusxyz/nexus-cli:latest
+            nexusxyz/nexus-cli:${{ github.sha }}
+            nexusxyz/nexus-cli:${{ github.ref_name }}
+
+
+  build-linux-x86_64:
+    name: Build Linux (x86_64)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "clients/cli -> target"
+          cache-all-crates: "true"
+          cache-on-failure: "true"
+          key: "linux-x86_64"
+
+      - name: Install & Use `mold`
+        uses: rui314/setup-mold@v1
+
+      # Set up the Rust toolchain for the specified target(s)
+      # When passing an explicit toolchain... you'll want to use "dtolnay/rust-toolchain@master"
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUSTUP_TOOLCHAIN }}
+          targets: x86_64-unknown-linux-gnu
+          components: rustfmt
+
+      - name: Debug Rust environment
+        run: |
+          echo "Rust version: $(rustc --version --verbose)"
+          echo "Cargo version: $(cargo --version)"
+          echo "Rustup installed targets: $(rustup target list --installed | tr '\n' ',' | sed 's/,$//')"
+          echo "Rustup active toolchain: $(rustup show active-toolchain)"
+          echo "Host target: $(rustc -vV | grep host)"
+
+      - name: Build Linux x86_64 binary
+        working-directory: clients/cli
+        run: cargo build --release --target x86_64-unknown-linux-gnu
+        env:
+          RUSTFLAGS: "-C target-feature=+crt-static"
+
+      # Rename the binary to indicate the target OS
+      - name: Rename binary
+        working-directory: clients/cli/target/x86_64-unknown-linux-gnu/release/
+        run: cp nexus-network nexus-network-linux-x86_64
+
+      # Upload the binary as an artifact
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexus-network-linux-x86_64 # Name of the artifact
+          path: clients/cli/target/x86_64-unknown-linux-gnu/release/nexus-network-linux-x86_64 # Path to file to upload
+
+
+  build-linux-arm64:
+    name: Build Linux (ARM64)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "clients/cli -> target"
+          cache-all-crates: "true"
+          cache-on-failure: "true"
+          key: "linux-arm64"
+
+      - name: Install & Use `mold`
+        uses: rui314/setup-mold@v1
+
+      # Set up the Rust toolchain for the specified target(s)
+      # When passing an explicit toolchain... you'll want to use "dtolnay/rust-toolchain@master"
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUSTUP_TOOLCHAIN }}
+          targets: aarch64-unknown-linux-gnu
+          components: rustfmt
+
+      # Install the required targets for cross-compilation
+      - name: Ensure targets are installed (fallback)
+        run: |
+          rustup target add aarch64-unknown-linux-gnu
+          rustup component add rust-src --toolchain ${{ env.RUSTUP_TOOLCHAIN }}
+
+      - name: Install ARM64 Linux linker
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross
+
+      - name: Debug Rust environment
+        run: |
+          echo "Rust version: $(rustc --version --verbose)"
+          echo "Cargo version: $(cargo --version)"
+          echo "Rustup installed targets: $(rustup target list --installed | tr '\n' ',' | sed 's/,$//')"
+          echo "Rustup active toolchain: $(rustup show active-toolchain)"
+          echo "Host target: $(rustc -vV | grep host)"
+
+      - name: Build Linux ARM64 binary (build-std)
+        working-directory: clients/cli
+        run: |
+          export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
+          cargo build -Zbuild-std=std,panic_abort --release --target aarch64-unknown-linux-gnu
+        env:
+          RUSTFLAGS: "-C target-feature=+crt-static"
+
+      # Rename the binary to indicate the target OS
+      - name: Rename binary
+        working-directory: clients/cli/target/aarch64-unknown-linux-gnu/release/
+        run: cp nexus-network nexus-network-linux-arm64
+
+      # Upload the binary as an artifact
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexus-network-linux-arm64 # Name of the artifact
+          path: clients/cli/target/aarch64-unknown-linux-gnu/release/nexus-network-linux-arm64 # Path to file to upload
+
+  build-macos-x86_64:
+    name: Build macOS (x86_64)
+    runs-on: macos-latest
+    #    needs: build-linux   # Ensure Linux job (and release creation) runs first
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "clients/cli -> target"
+          cache-all-crates: "true"
+          cache-on-failure: "true"
+          key: "macos-x86_64"
+
+      - name: Install & Use `mold`
+        uses: rui314/setup-mold@v1
+
+      # Set up the Rust toolchain for the specified target(s)
+      # When passing an explicit toolchain... you'll want to use "dtolnay/rust-toolchain@master"
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUSTUP_TOOLCHAIN }}
+          targets: x86_64-apple-darwin
+          components: rustfmt, rust-src
+
+      # Install the required targets for cross-compilation
+      - name: Ensure targets are installed (fallback)
+        run: |
+          rustup target add x86_64-apple-darwin
+          rustup component add rust-src --toolchain  ${{ env.RUSTUP_TOOLCHAIN }}
+
+      - name: Debug Rust environment
+        run: |
+          echo "Rust version: $(rustc --version --verbose)"
+          echo "Cargo version: $(cargo --version)"
+          echo "Rustup installed targets: $(rustup target list --installed | tr '\n' ',' | sed 's/,$//')"
+          echo "Rustup active toolchain: $(rustup show active-toolchain)"
+          echo "Host target: $(rustc -vV | grep host)"
+
+      # Build the release binary for the specified target. Explicitly using the nightly toolchain.
+      - name: Build CLI binary
+        working-directory: clients/cli
+        run: cargo +nightly-2025-04-06 build --release --target=x86_64-apple-darwin -Z build-std=std,panic_abort
+        env:
+          RUSTUP_TOOLCHAIN: ${{ env.RUSTUP_TOOLCHAIN }}
+          RUSTC_BOOTSTRAP: 1
+          RUSTFLAGS: "-C target-feature=+sse4.2,+avx,+avx2"
+
+      # Rename the binary to indicate the target OS
+      - name: Rename binary
+        working-directory: clients/cli/target/x86_64-apple-darwin/release/
+        run: cp nexus-network nexus-network-macos-x86_64
+
+
+      # Upload the binary as an artifact
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexus-network-macos-x86_64 # Name of the artifact
+          path: clients/cli/target/x86_64-apple-darwin/release/nexus-network-macos-x86_64 # Path to file to upload
+
+
+  build-macos-arm64:
+    name: Build macOS (ARM64)
+    runs-on: macos-latest
+    #    needs: build-linux   # Ensure Linux job (and release creation) runs first
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "clients/cli -> target"
+          cache-all-crates: "true"
+          cache-on-failure: "true"
+          key: "macos-arm64"
+
+      - name: Install & Use `mold`
+        uses: rui314/setup-mold@v1
+
+      # Set up the Rust toolchain for the specified target(s)
+      # When passing an explicit toolchain... you'll want to use "dtolnay/rust-toolchain@master"
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUSTUP_TOOLCHAIN }}
+          targets: aarch64-apple-darwin
+          components: rustfmt, rust-src
+
+      - name: Debug Rust environment
+        run: |
+          echo "Rust version: $(rustc --version --verbose)"
+          echo "Cargo version: $(cargo --version)"
+          echo "Rustup installed targets: $(rustup target list --installed | tr '\n' ',' | sed 's/,$//')"
+          echo "Rustup active toolchain: $(rustup show active-toolchain)"
+          echo "Host target: $(rustc -vV | grep host)"
+
+      # Build the release binary for the specified target
+      - name: Build CLI binary
+        working-directory: clients/cli
+        run: cargo build --release --target=aarch64-apple-darwin
+        env:
+          RUSTFLAGS: "-C target-feature=+neon,+fp-armv8,+crc"
+
+      # Rename the binary to indicate the target OS and platform
+      - name: Rename binary
+        working-directory: clients/cli/target/aarch64-apple-darwin/release/
+        run: cp nexus-network nexus-network-macos-arm64
+
+      # Upload the binary as an artifact
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexus-network-macos-arm64 # Name of the artifact
+          path: clients/cli/target/aarch64-apple-darwin/release/nexus-network-macos-arm64 # Path to file to upload
+
+
+  build-windows-x86_64:
+    name: Build Windows (x86_64)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "clients/cli -> target"
+          cache-all-crates: "true"
+          cache-on-failure: "true"
+          key: "windows-x86_64"
+
+      # Set up the Rust toolchain for the specified target(s)
+      # When passing an explicit toolchain... you'll want to use "dtolnay/rust-toolchain@master"
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUSTUP_TOOLCHAIN }}
+          targets: x86_64-pc-windows-msvc
+          components: rustfmt, rust-src
+
+      - name: Debug Rust environment
+        run: |
+          echo "Rust version: $(rustc --version --verbose)"
+          echo "Cargo version: $(cargo --version)"
+          echo "Rustup installed targets: $(rustup target list --installed | tr '\n' ',' | sed 's/,$//')"
+          echo "Rustup active toolchain: $(rustup show active-toolchain)"
+          echo "Host target: $(rustc -vV | grep host)"
+
+      # Build the release binary for the specified target
+      - name: Build CLI binary
+        working-directory: clients/cli
+        run: cargo build --release --target=x86_64-pc-windows-msvc
+        env:
+          RUSTFLAGS: "-C target-feature=+sse4.2,+avx,+avx2"
+
+      # Rename the binary to indicate the target OS and platform
+      - name: Rename binary
+        working-directory: clients/cli/target/x86_64-pc-windows-msvc/release/
+        run: cp nexus-network.exe nexus-network-windows-x86_64.exe
+
+      # Upload the binary as an artifact
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexus-network-windows-x86_64.exe # Name of the artifact
+          path: clients/cli/target/x86_64-pc-windows-msvc/release/nexus-network-windows-x86_64.exe # Path to file to upload
+
+
+  release:
+    name: Create Release
+    needs: [ build-linux-x86_64, build-linux-arm64, build-macos-x86_64, build-macos-arm64, build-windows-x86_64 ]
+    if: github.event.inputs.create_release == 'true' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: List downloaded artifacts (debug)
+        run: ls -lh artifacts/
+
+      - name: Generate individual .sha256 files
+        run: |
+          cd artifacts
+          for file in *; do
+            if [ -f "$file" ]; then
+              sha256sum "$file" | awk '{print $1}' > "$file.sha256"
+            fi
+          done
+          ls -lh
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/nexus-network-macos-arm64
+            artifacts/nexus-network-macos-arm64.sha256
+            artifacts/nexus-network-macos-x86_64
+            artifacts/nexus-network-macos-x86_64.sha256
+            artifacts/nexus-network-linux-arm64
+            artifacts/nexus-network-linux-arm64.sha256
+            artifacts/nexus-network-linux-x86_64
+            artifacts/nexus-network-linux-x86_64.sha256
+            artifacts/nexus-network-windows-x86_64.exe
+            artifacts/nexus-network-windows-x86_64.exe.sha256
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

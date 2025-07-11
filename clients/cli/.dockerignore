@@ -1,0 +1,4 @@
+target/
+.git/
+docs/
+tests/

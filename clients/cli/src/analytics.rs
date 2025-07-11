@@ -1,28 +1,70 @@
-use crate::config::{analytics_api_key, analytics_id};
+use crate::environment::Environment;
+use crate::system::{estimate_peak_gflops, measure_gflops, num_cores};
 use chrono::Datelike;
 use chrono::Timelike;
-use reqwest::header::{ACCEPT, CONTENT_TYPE};
-use serde_json::{json, Value};
+use reqwest::header::ACCEPT;
+use serde_json::{Value, json};
 use std::{
     env,
     time::{SystemTime, UNIX_EPOCH},
 };
 
-pub fn track(
-    event_name: String,
-    description: String,
-    ws_addr_string: &str,
-    event_properties: Value,
-    print_description: bool,
-) {
-    if print_description {
-        println!("{}", description);
-    }
+#[derive(Debug, thiserror::Error)]
+pub enum TrackError {
+    #[error("System time error: {0}")]
+    SystemTimeError(#[from] std::time::SystemTimeError),
 
-    let firebase_app_id = analytics_id(ws_addr_string);
-    let firebase_api_key = analytics_api_key(ws_addr_string);
-    if firebase_app_id.is_empty() {
-        return;
+    #[error("event_properties is not a valid JSON object")]
+    InvalidEventProperties,
+
+    #[error("HTTP error: {0}")]
+    HttpError(#[from] reqwest::Error),
+
+    #[error("Non-successful response: {status} - {body}")]
+    FailedResponse {
+        status: reqwest::StatusCode,
+        body: String,
+    },
+}
+
+pub const STAGING_MEASUREMENT_ID: &str = "G-T0M0Q3V6WN";
+pub const BETA_MEASUREMENT_ID: &str = "G-GLH0GMEEFH";
+pub const STAGING_API_SECRET: &str = "OI7H53soRMSDWfJf1ittHQ";
+pub const BETA_API_SECRET: &str = "3wxu8FjVSPqOlxSsZEnBOw";
+
+pub fn analytics_id(environment: &Environment) -> String {
+    match environment {
+        Environment::Staging => STAGING_MEASUREMENT_ID.to_string(),
+        Environment::Beta => BETA_MEASUREMENT_ID.to_string(),
+        Environment::Local => String::new(),
+    }
+}
+
+pub fn analytics_api_key(environment: &Environment) -> String {
+    match environment {
+        Environment::Staging => STAGING_API_SECRET.to_string(),
+        Environment::Beta => BETA_API_SECRET.to_string(),
+        Environment::Local => String::new(),
+    }
+}
+
+/// Track an event with the Firebase Measurement Protocol
+///
+/// # Arguments
+/// * `event_name` - The name of the event to track.
+/// * `event_properties` - A JSON object containing properties of the event.
+/// * `environment` - The environment in which the application is running.
+/// * `client_id` - A unique identifier for the client, typically a UUID or similar.
+pub async fn track(
+    event_name: String,
+    event_properties: Value,
+    environment: &Environment,
+    client_id: String,
+) -> Result<(), TrackError> {
+    let analytics_id = analytics_id(environment);
+    let analytics_api_key = analytics_api_key(environment);
+    if analytics_id.is_empty() {
+        return Ok(());
     }
     let local_now = chrono::offset::Local::now();
 
@@ -35,14 +77,7 @@ pub fn track(
     // https://developers.google.com/analytics/devguides/collection/protocol/ga4/reference?client_type=firebase#payload
     // https://developers.google.com/analytics/devguides/collection/protocol/ga4/reference?client_type=firebase#payload_query_parameters
 
-    let system_time = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_else(|e| {
-            eprintln!("Error calculating system time: {}", e);
-            std::time::Duration::from_secs(0) // fallback to epoch start
-        })
-        .as_millis();
-
+    let system_time = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
     let timezone = iana_time_zone::get_timezone().ok().map_or_else(
         || String::from("UTC"), // fallback to UTC
         |tz| tz,
@@ -50,72 +85,60 @@ pub fn track(
 
     let mut properties = json!({
         "time": system_time,
-        // app_instance_id is the standard key Firebase uses this key to track the same user across sessions
-        // It is a bit redundant, but I wanted to keep the recommended format Firebase uses to minimize surprises
-        // I still left the distinct_id key as well for backwards compatibility
-        "app_instance_id": event_properties["prover_id"],
-        "distinct_id": event_properties["prover_id"],
-        "prover_type": "volunteer",
-        "client_type": "cli",
-        "operating_system": env::consts::OS,
-        "time_zone": timezone,
+        "platform": "CLI",
+        "os": env::consts::OS,
+        "os_version": env::consts::OS,  // We could get more specific version if needed
+        "app_version": env!("CARGO_PKG_VERSION"),
+        "timezone": timezone,
         "local_hour": local_now.hour(),
-        "local_weekday_number_from_monday": local_now.weekday().number_from_monday(),
-        "ws_addr_string": ws_addr_string,
+        "day_of_week": local_now.weekday().number_from_monday(),
+        "event_id": system_time,
+        "measured_flops": measure_gflops(),
+        "num_cores": num_cores(),
+        "peak_flops": estimate_peak_gflops(num_cores()),
     });
 
     // Add event properties to the properties JSON
     // This is done by iterating over the key-value pairs in the event_properties JSON object
     // but checking that it is a valid JSON object first
-    match event_properties.as_object() {
-        Some(obj) => {
-            for (k, v) in obj {
-                properties[k] = v.clone();
-            }
+    if let Some(obj) = event_properties.as_object() {
+        for (k, v) in obj {
+            properties[k] = v.clone();
         }
-        None => eprintln!("Warning: event_properties is not a valid JSON object"),
+    } else {
+        return Err(TrackError::InvalidEventProperties);
     }
 
-    // Firebase format for events
+    // Format for events
     let body = json!({
-        "app_instance_id": event_properties["prover_id"],
+        "client_id": client_id,
         "events": [{
             "name": event_name,
             "params": properties
         }],
     });
 
-    tokio::spawn(async move {
-        let client = reqwest::Client::new();
+    let client = reqwest::Client::new();
+    let url = format!(
+        "https://www.google-analytics.com/mp/collect?measurement_id={}&api_secret={}",
+        analytics_id, analytics_api_key
+    );
 
-        let url = format!(
-            "https://www.google-analytics.com/mp/collect?firebase_app_id={}&api_secret={}",
-            firebase_app_id, firebase_api_key
-        );
+    let response = client
+        .post(&url)
+        .json(&body)
+        .header(ACCEPT, "application/json")
+        .send()
+        .await?;
 
-        match client
-            .post(&url)
-            .body(format!("[{}]", body))
-            .header(ACCEPT, "text/plain")
-            .header(CONTENT_TYPE, "application/json")
-            .send()
-            .await
-        {
-            Ok(response) => match response.text().await {
-                Ok(_) => {}
-                Err(e) => {
-                    eprintln!(
-                        "Failed to read analytics response for event '{}': {}",
-                        event_name, e
-                    );
-                }
-            },
-            Err(e) => {
-                eprintln!(
-                    "Failed to send analytics request for event '{}' to {}: {}",
-                    event_name, url, e
-                );
-            }
-        }
-    });
+    let status = response.status();
+    if !status.is_success() {
+        let body_text = response.text().await?;
+        return Err(TrackError::FailedResponse {
+            status,
+            body: body_text,
+        });
+    }
+
+    Ok(())
 }

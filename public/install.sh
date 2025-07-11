@@ -1,50 +1,196 @@
 #!/bin/sh
 
-rustc --version || curl https://sh.rustup.rs -sSf | sh
-NEXUS_HOME=$HOME/.nexus
+# -----------------------------------------------------------------------------
+# 1) Define environment variables and colors for terminal output.
+# -----------------------------------------------------------------------------
+NEXUS_HOME="$HOME/.nexus"
+BIN_DIR="$NEXUS_HOME/bin"
 GREEN='\033[1;32m'
 ORANGE='\033[1;33m'
-NC='\033[0m' # No Color
+RED='\033[1;31m'
+NC='\033[0m'  # No Color
 
-[ -d $NEXUS_HOME ] || mkdir -p $NEXUS_HOME
+# Ensure the $NEXUS_HOME and $BIN_DIR directories exist.
+[ -d "$NEXUS_HOME" ] || mkdir -p "$NEXUS_HOME"
+[ -d "$BIN_DIR" ] || mkdir -p "$BIN_DIR"
 
-while [ -z "$NONINTERACTIVE" ] && [ ! -f "$NEXUS_HOME/prover-id" ]; do
+# -----------------------------------------------------------------------------
+# 2) Display a message if we're interactive (NONINTERACTIVE is not set) and the
+#    $NODE_ID is not a 28-character ID. This is for Testnet II info.
+# -----------------------------------------------------------------------------
+if [ -z "$NONINTERACTIVE" ] && [ "${#NODE_ID}" -ne "28" ]; then
+    echo ""
+    echo "${GREEN}Testnet III is now live!${NC}"
+    echo ""
+fi
+
+# -----------------------------------------------------------------------------
+# 3) Prompt the user to agree to the Nexus Beta Terms of Use if we're in an
+#    interactive mode (i.e., NONINTERACTIVE is not set) and no config.json file exists.
+#    We explicitly read from /dev/tty to ensure user input is requested from the
+#    terminal rather than the script's standard input.
+# -----------------------------------------------------------------------------
+while [ -z "$NONINTERACTIVE" ] && [ ! -f "$NEXUS_HOME/config.json" ]; do
     read -p "Do you agree to the Nexus Beta Terms of Use (https://nexus.xyz/terms-of-use)? (Y/n) " yn </dev/tty
+    echo ""
+
     case $yn in
-        [Nn]* ) exit;;
-        [Yy]* ) break;;
-        "" ) break;;
-        * ) echo "Please answer yes or no.";;
+        [Nn]* )
+            echo ""
+            exit;;
+        [Yy]* )
+            echo ""
+            break;;
+        "" )
+            echo ""
+            break;;
+        * )
+            echo "Please answer yes or no."
+            echo "";;
     esac
 done
 
-git --version 2>&1 >/dev/null
-GIT_IS_AVAILABLE=$?
-if [ $GIT_IS_AVAILABLE != 0 ]; then
-  echo Unable to find git. Please install it and try again.
-  exit 1;
+# -----------------------------------------------------------------------------
+# 4) Determine the platform and architecture
+# -----------------------------------------------------------------------------
+case "$(uname -s)" in
+    Linux*)
+        PLATFORM="linux"
+        case "$(uname -m)" in
+            x86_64)
+                ARCH="x86_64"
+                BINARY_NAME="nexus-network-linux-x86_64"
+                ;;
+            aarch64|arm64)
+                ARCH="arm64"
+                BINARY_NAME="nexus-network-linux-arm64"
+                ;;
+            *)
+                echo "${RED}Unsupported architecture: $(uname -m)${NC}"
+                echo "Please build from source:"
+                echo "  git clone https://github.com/nexus-xyz/nexus-cli.git"
+                echo "  cd nexus-cli/clients/cli"
+                echo "  cargo build --release"
+                exit 1
+                ;;
+        esac
+        ;;
+    Darwin*)
+        PLATFORM="macos"
+        case "$(uname -m)" in
+            x86_64)
+                ARCH="x86_64"
+                BINARY_NAME="nexus-network-macos-x86_64"
+                echo "${ORANGE}Note: You are running on an Intel Mac.${NC}"
+                ;;
+            arm64)
+                ARCH="arm64"
+                BINARY_NAME="nexus-network-macos-arm64"
+                echo "${ORANGE}Note: You are running on an Apple Silicon Mac (M1/M2/M3).${NC}"
+                ;;
+            *)
+                echo "${RED}Unsupported architecture: $(uname -m)${NC}"
+                echo "Please build from source:"
+                echo "  git clone https://github.com/nexus-xyz/nexus-cli.git"
+                echo "  cd nexus-cli/clients/cli"
+                echo "  cargo build --release"
+                exit 1
+                ;;
+        esac
+        ;;
+    MINGW*|MSYS*|CYGWIN*)
+        PLATFORM="windows"
+        case "$(uname -m)" in
+            x86_64)
+                ARCH="x86_64"
+                BINARY_NAME="nexus-network-windows-x86_64.exe"
+                ;;
+            *)
+                echo "${RED}Unsupported architecture: $(uname -m)${NC}"
+                echo "Please build from source:"
+                echo "  git clone https://github.com/nexus-xyz/nexus-cli.git"
+                echo "  cd nexus-cli/clients/cli"
+                echo "  cargo build --release"
+                exit 1
+                ;;
+        esac
+        ;;
+    *)
+        echo "${RED}Unsupported platform: $(uname -s)${NC}"
+        echo "Please build from source:"
+        echo "  git clone https://github.com/nexus-xyz/nexus-cli.git"
+        echo "  cd nexus-cli/clients/cli"
+        echo "  cargo build --release"
+        exit 1
+        ;;
+esac
+
+# -----------------------------------------------------------------------------
+# 5) Download latest release binary
+# -----------------------------------------------------------------------------
+LATEST_RELEASE_URL=$(curl -s https://api.github.com/repos/nexus-xyz/nexus-cli/releases/latest | \
+awk -v name="$BINARY_NAME" '
+  /"name":/ {
+    # Remove quotes and commas, get the value
+    gsub(/[" ,]/, "", $2)
+    last_name=$2
+  }
+  /"browser_download_url":/ {
+    gsub(/[" ,]/, "", $2)
+    if(last_name == name) {
+      print $2
+      exit
+    }
+  }
+')
+
+
+if [ -z "$LATEST_RELEASE_URL" ]; then
+    echo "${RED}Could not find a precompiled binary for $PLATFORM-$ARCH${NC}"
+    echo "Please build from source:"
+    echo "  git clone https://github.com/nexus-xyz/nexus-cli.git"
+    echo "  cd nexus-cli/clients/cli"
+    echo "  cargo build --release"
+    exit 1
 fi
 
-PROVER_ID=$(cat $NEXUS_HOME/prover-id 2>/dev/null)
-if [ -z "$NONINTERACTIVE" ] && [ "${#PROVER_ID}" -ne "28" ]; then
-    echo "\n${ORANGE}The Nexus network is currently in devnet. It is important to note that you cannot earn Nexus points.${NC}"
-    echo "\nInstead, devnet allows developers to experiment and build with the network. Stay tuned for updates regarding future testnets.\n"
-    read -p "Do you want to continue? (Y/n) " yn </dev/tty
-    case $yn in
-        [Nn]* ) exit;;
-        [Yy]* ) ;;
-        "" ) ;;
-        * ) echo "Please answer yes or no."; exit;;
-    esac
+echo "Downloading latest release for $PLATFORM-$ARCH..."
+curl -L -o "$BIN_DIR/nexus-network" "$LATEST_RELEASE_URL"
+chmod +x "$BIN_DIR/nexus-network"
+ln -s "$BIN_DIR/nexus-network" "$BIN_DIR/nexus-cli"
+chmod +x "$BIN_DIR/nexus-cli"
+
+# -----------------------------------------------------------------------------
+# 6) Add $BIN_DIR to PATH if not already present
+# -----------------------------------------------------------------------------
+case "$SHELL" in
+    */bash)
+        PROFILE_FILE="$HOME/.bashrc"
+        ;;
+    */zsh)
+        PROFILE_FILE="$HOME/.zshrc"
+        ;;
+    *)
+        PROFILE_FILE="$HOME/.profile"
+        ;;
+esac
+
+# Only append if not already in PATH
+if ! echo "$PATH" | grep -q "$BIN_DIR"; then
+    if ! grep -qs "$BIN_DIR" "$PROFILE_FILE"; then
+        echo "" >> "$PROFILE_FILE"
+        echo "# Add Nexus CLI to PATH" >> "$PROFILE_FILE"
+        echo "export PATH=\"$BIN_DIR:\$PATH\"" >> "$PROFILE_FILE"
+        echo "${GREEN}Updated PATH in $PROFILE_FILE${NC}"
+    fi
 fi
 
-REPO_PATH=$NEXUS_HOME/network-api
-if [ -d "$REPO_PATH" ]; then
-  echo "$REPO_PATH exists. Updating.";
-  (cd $REPO_PATH && git stash && git fetch --tags)
-else
-  (cd $NEXUS_HOME && git clone https://github.com/nexus-xyz/network-api)
-fi
-(cd $REPO_PATH && git -c advice.detachedHead=false checkout $(git rev-list --tags --max-count=1))
-
-(cd $REPO_PATH/clients/cli && cargo run --release --bin prover -- beta.orchestrator.nexus.xyz)
+echo ""
+echo "${GREEN}Installation complete!${NC}"
+echo "Restart your terminal or run the following command to update your PATH:"
+echo "  source $PROFILE_FILE"
+echo ""
+echo "${ORANGE}To get your node ID, visit: https://app.nexus.xyz/nodes${NC}"
+echo ""
+echo "Register your user to begin linked proving with the Nexus CLI by: nexus-cli register-user --wallet-address <WALLET_ADDRESS>"
+echo "Or follow the guide at https://docs.nexus.xyz/layer-1/testnet/cli-node"

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question
+    url: https://discord.gg/nexus-xyz
+    about: Please ask and answer questions about Nexus on the Discord server.
+  - name: General Nexus Bug Report
+    url: https://docs.google.com/forms/d/e/1FAIpQLSfDPGykipbxEhlRNZdodygJ1gdB8Oh0TpB64hPffpOn9a-JMQ/viewform
+    about: Report issues that aren't specific to the CLI, like Nexus OS.

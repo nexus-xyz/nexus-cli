@@ -7,10 +7,11 @@ on:
   pull_request:
     branches:
       - "**"
+  workflow_dispatch:  # Allow manual triggering
 
 jobs:
   build:
-    name: Lint CLI and run cargotests
+    name: Build and Test
     runs-on: ubuntu-latest
 
     steps:
@@ -21,33 +22,40 @@ jobs:
             clients/cli
             proto
 
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
+      # Install Rust toolchain used by CLI
+      # When passing an explicit toolchain... use "dtolnay/rust-toolchain@master""
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly-2025-04-06
+          target: x86_64-unknown-linux-gnu
+          components: rustfmt, clippy
 
       - name: Set up Rust cache
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: ./clients/cli
 
-      - name: Format
-        working-directory: clients/cli
+      - name: Install Protobuf Compiler
         run: |
-          rustfmt src/**/*.rs --check --edition 2021
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
 
-      - name: Build
+      - name: Check formatting
         working-directory: clients/cli
-        run: |
-          cargo build --profile=ci-build
+        run: cargo fmt --all -- --check
 
       - name: Run cargo clippy
         working-directory: clients/cli
-        run: |
-          cargo clippy --profile=ci-build --no-deps --all-targets --workspace -- -D warnings
+        run: cargo clippy --profile=ci-build --no-deps --package nexus-network -- -D warnings
+
+      - name: Build
+        working-directory: clients/cli
+        run: cargo build --profile=ci-build
 
       - name: Test
         working-directory: clients/cli
-        run: |
-          cargo test --profile=ci-build --tests
+        run: cargo test --profile=ci-build --tests
 
       - name: Ensure checked in generated files are up to date
         run: |
