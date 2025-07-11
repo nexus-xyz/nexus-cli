@@ -19,7 +19,7 @@ pub enum ProverError {
     GuestProgram(String),
 }
 
-/// Proves a program locally with hardcoded inputs.
+/// Proves a program locally with hard-coded inputs.
 pub async fn prove_anonymously() -> Result<Proof, ProverError> {
     // Compute the 10th Fibonacci number using fib_input_initial
     // Input: (n=9, init_a=1, init_b=1)
