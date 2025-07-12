@@ -15,7 +15,10 @@ pub struct TaskCache {
 
 impl TaskCache {
     pub fn new(capacity: usize) -> Self {
-        Self { capacity, inner: Arc::new(Mutex::new(VecDeque::with_capacity(capacity))) }
+        Self {
+            capacity,
+            inner: Arc::new(Mutex::new(VecDeque::with_capacity(capacity))),
+        }
     }
 
     /// Prune expired tasks from the cache.
