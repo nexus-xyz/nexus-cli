@@ -101,6 +101,7 @@ Make sure docker and docker compose have been installed on you machine. check do
 Then, modify the node id in the `docker-compose.yaml` file, run:
 
 ```bash
+docker compose build --no-cache
 docker compose up -d
 ```
 
