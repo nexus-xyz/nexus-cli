@@ -28,6 +28,9 @@ pub trait Orchestrator: Send + Sync {
     /// Registers a new node with the orchestrator.
     async fn register_node(&self, user_id: &str) -> Result<String, OrchestratorError>;
 
+    /// Get the wallet address associated with a node ID.
+    async fn get_node(&self, node_id: &str) -> Result<String, OrchestratorError>;
+
     /// Get the list of tasks currently assigned to the node.
     async fn get_tasks(&self, node_id: &str) -> Result<Vec<Task>, OrchestratorError>;
 

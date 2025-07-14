@@ -150,26 +150,21 @@ async fn start(
     let num_workers: usize = max_threads.unwrap_or(1).clamp(1, 8) as usize;
     let (shutdown_sender, _) = broadcast::channel(1); // Only one shutdown signal needed
 
-    // Load config to get client_id for analytics
-    let config_path = get_config_path()?;
-    let client_id = if config_path.exists() {
-        match Config::load_from_file(&config_path) {
-            Ok(config) => {
-                // If user has a node_id, use "cli-{node_id}" format
-                if !config.node_id.is_empty() {
-                    format!("cli-{}", config.node_id)
-                } else if !config.user_id.is_empty() {
-                    // Fallback to user_id if no node_id but user is registered
-                    format!("cli-{}", config.user_id)
-                } else {
-                    // No node_id or user_id - this shouldn't happen with current flow
-                    "anonymous".to_string()
-                }
+    // Get client_id for analytics - use wallet address from API if available, otherwise "anonymous"
+    let client_id = if let Some(node_id) = node_id {
+        match orchestrator_client.get_node(&node_id.to_string()).await {
+            Ok(wallet_address) => {
+                // Use wallet address as client_id for analytics
+                wallet_address
             }
-            Err(_) => "anonymous".to_string(), // Fallback to anonymous
+            Err(_) => {
+                // If API call fails, use "anonymous" regardless of config
+                "anonymous".to_string()
+            }
         }
     } else {
-        "anonymous".to_string() // No config file = anonymous user
+        // No node_id available, use "anonymous"
+        "anonymous".to_string()
     };
 
     let (mut event_receiver, mut join_handles) = match node_id {

@@ -131,13 +131,18 @@ message NodeTelemetry {
   optional string location = 4;
 }
 
-
 // Node information
 message Node {
   // The node's ID
   string node_id = 1;
   // The type of node
   NodeType node_type = 2;
+}
+
+// Response to get a single node by ID
+message GetNodeResponse {
+  // The wallet address of the node's owner
+  string wallet_address = 1;
 }
 
 // Response returning all nodes associated with a user

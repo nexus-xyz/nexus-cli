@@ -135,6 +135,13 @@ pub struct Node {
     #[prost(enumeration = "NodeType", tag = "2")]
     pub node_type: i32,
 }
+/// Response to get a single node by ID
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetNodeResponse {
+    /// The wallet address of the node's owner
+    #[prost(string, tag = "1")]
+    pub wallet_address: ::prost::alloc::string::String,
+}
 /// Response returning all nodes associated with a user
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct UserResponse {
