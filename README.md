@@ -93,6 +93,30 @@ For troubleshooting or to see available command line options, run:
 nexus-cli --help
 ```
 
+### Use Docker
+Make sure docker and docker compose have been installed on you machine. check documentation here:
+- [Install Docker](https://docs.docker.com/engine/install/)
+- [Install Docker Compose](https://docs.docker.com/compose/install/)
+
+Then, modify the node id in the `docker-compose.yaml` file, run:
+
+```bash
+docker compose build --no-cache
+docker compose up -d
+```
+
+Check log
+
+```bash
+docker compose logs
+```
+
+If you want to shut down, run:
+
+```bash
+docker compose down
+```
+
 ---
 
 ## Terms of Use

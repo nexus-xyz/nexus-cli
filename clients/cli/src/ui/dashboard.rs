@@ -196,6 +196,9 @@ impl DashboardState {
 
 /// Render the dashboard screen.
 pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
+    let background_block = Block::default().style(Style::default().bg(Color::Rgb(18, 18, 24)));
+    f.render_widget(background_block, f.area());
+
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints(
