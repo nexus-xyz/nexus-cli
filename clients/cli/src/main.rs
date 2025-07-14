@@ -245,28 +245,4 @@ async fn start(
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::environment::Environment;
-    use crate::orchestrator::OrchestratorClient;
 
-    #[tokio::test]
-    async fn test_analytics_client_id_logic() {
-        // Test case 1: No node_id should return "anonymous"
-        let env = Environment::Local;
-        let orchestrator_client = OrchestratorClient::new(env);
-        let node_id: Option<u64> = None;
-
-        let client_id = if let Some(node_id) = node_id {
-            match orchestrator_client.get_node(&node_id.to_string()).await {
-                Ok(wallet_address) => wallet_address,
-                Err(_) => "anonymous".to_string(),
-            }
-        } else {
-            "anonymous".to_string()
-        };
-
-        assert_eq!(client_id, "anonymous");
-    }
-}

@@ -2,6 +2,8 @@ use assert_cmd::Command;
 use predicates::str::contains;
 use std::fs;
 use std::path::PathBuf;
+use nexus_network::environment::Environment;
+use nexus_network::orchestrator::OrchestratorClient;
 
 /// Helper to get a temporary config directory
 fn temp_config_dir() -> tempfile::TempDir {
@@ -70,4 +72,38 @@ fn logout_deletes_config_file() {
 
     // Confirm the file was deleted
     assert!(!config_path.exists());
+}
+
+#[tokio::test]
+/// Test that analytics client_id logic works correctly.
+async fn test_analytics_client_id_logic() {
+    // Test case 1: No node_id should return "anonymous"
+    let env = Environment::Local;
+    let orchestrator_client = OrchestratorClient::new(env);
+    let node_id: Option<u64> = None;
+    
+    let client_id = if let Some(node_id) = node_id {
+        match orchestrator_client.get_node(&node_id.to_string()).await {
+            Ok(wallet_address) => wallet_address,
+            Err(_) => "anonymous".to_string(),
+        }
+    } else {
+        "anonymous".to_string()
+    };
+    
+    assert_eq!(client_id, "anonymous");
+    
+    // Test case 2: With node_id but API failure should return "anonymous"
+    let node_id: Option<u64> = Some(999999); // Non-existent node ID
+    let client_id = if let Some(node_id) = node_id {
+        match orchestrator_client.get_node(&node_id.to_string()).await {
+            Ok(wallet_address) => wallet_address,
+            Err(_) => "anonymous".to_string(),
+        }
+    } else {
+        "anonymous".to_string()
+    };
+    
+    // Should fall back to "anonymous" when API call fails
+    assert_eq!(client_id, "anonymous");
 }
