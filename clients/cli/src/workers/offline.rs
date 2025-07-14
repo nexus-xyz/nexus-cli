@@ -236,7 +236,7 @@ async fn track_authenticated_proof_analytics(
     };
 
     let _ = track(
-        "cli_proof_node_v3".to_string(),
+        vec!["cli_proof_node_v4".to_string(), "proof_node".to_string()],
         analytics_data,
         environment,
         client_id,
@@ -251,7 +251,7 @@ async fn track_anonymous_proof_analytics(environment: &Environment, client_id: S
     let public_input = (9, 1, 1);
 
     let _ = track(
-        "cli_proof_anon_v3".to_string(),
+        vec!["cli_proof_anon_v3".to_string()],
         json!({
             "program_name": "fib_input_initial",
             "public_input": public_input.0,
