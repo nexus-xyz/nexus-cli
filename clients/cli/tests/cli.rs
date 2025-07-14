@@ -40,7 +40,7 @@ fn register_user_command_creates_config_file() {
     cmd.arg("register-user")
         .arg("--wallet-address")
         .arg("0x1234567890abcdef1234567890abcdef12345600")
-        .env("HOME", tmp.path()) // simulate different $HOME
+        .env("HOME", tmp.path()) // simulates different $HOME
         .assert()
         .success()
         .stdout(contains("User registered successfully"));
