@@ -250,7 +250,8 @@ impl Orchestrator for OrchestratorClient {
     async fn get_node(&self, node_id: &str) -> Result<String, OrchestratorError> {
         let endpoint = format!("v3/nodes/{}", node_id);
 
-        let node_response: crate::nexus_orchestrator::GetNodeResponse = self.get_request(&endpoint).await?;
+        let node_response: crate::nexus_orchestrator::GetNodeResponse =
+            self.get_request(&endpoint).await?;
         Ok(node_response.wallet_address)
     }
 
