@@ -18,7 +18,7 @@
 set -e  # Exit on any error
 
 # Configuration
-ORCHESTRATOR_HOST="beta.orchestrator.nexus.xyz"
+ORCHESTRATOR_HOST="production.orchestrator.nexus.xyz"
 # The new version number used to test the updater
 TEST_NEW_VERSION="0.9.9" 
 

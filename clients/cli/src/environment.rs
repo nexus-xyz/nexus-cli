@@ -19,7 +19,7 @@ impl Environment {
         match self {
             Environment::Local => "http://localhost:50505".to_string(),
             Environment::Staging => "https://staging.orchestrator.nexus.xyz".to_string(),
-            Environment::Beta => "https://beta.orchestrator.nexus.xyz".to_string(),
+            Environment::Beta => "https://production.orchestrator.nexus.xyz".to_string(),
         }
     }
 }
