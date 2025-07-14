@@ -112,10 +112,12 @@ pub async fn track(
     // Format for events
     let body = json!({
         "client_id": client_id,
-        "events": [{
-            "name": event_name,
-            "params": properties
-        }],
+        "events": event_names.iter().map(|event_name| {
+            json!({
+                "name": event_name,
+                "params": properties
+            })
+        }).collect::<Vec<_>>(),
     });
 
     let client = reqwest::Client::new();
