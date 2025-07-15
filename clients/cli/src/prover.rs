@@ -1,5 +1,6 @@
 use crate::task::Task;
 use log::error;
+use nexus_sdk::Verifiable;
 use nexus_sdk::stwo::seq::Proof;
 use nexus_sdk::{KnownExitCodes, Local, Prover, Viewable, stwo::seq::Stwo};
 use thiserror::Error;
@@ -62,6 +63,24 @@ pub async fn authenticated_proving(task: &Task) -> Result<Proof, ProverError> {
             let (view, proof) = stwo_prover
                 .prove_with_input::<(), u32>(&(), &input)
                 .map_err(|e| ProverError::Stwo(format!("Failed to run fast-fib prover: {}", e)))?;
+            // We should verify the proof before returning it to the server
+            // otherwise, the orchestrator will punish the worker for returning an invalid proof
+            // TODO: We need to implement clone in zkVM SDK
+            let stwo_prover = get_default_stwo_prover()?;
+            proof
+                .verify_expected(
+                    &input,
+                    nexus_sdk::KnownExitCodes::ExitSuccess as u32,
+                    &(),
+                    &stwo_prover.elf,
+                    &[],
+                )
+                .map_err(|e| {
+                    ProverError::Stwo(format!(
+                        "Failed to verify proof: {} for inputs: {:?}",
+                        e, input
+                    ))
+                })?;
             (view, proof, input)
         }
         "fib_input_initial" => {
@@ -71,6 +90,24 @@ pub async fn authenticated_proving(task: &Task) -> Result<Proof, ProverError> {
                 .prove_with_input::<(), (u32, u32, u32)>(&(), &inputs)
                 .map_err(|e| {
                     ProverError::Stwo(format!("Failed to run fib_input_initial prover: {}", e))
+                })?;
+            // We should verify the proof before returning it to the server
+            // otherwise, the orchestrator will punish the worker for returning an invalid proof
+            // TODO: We need to implement clone in zkVM SDK
+            let stwo_prover = get_initial_stwo_prover()?;
+            proof
+                .verify_expected::<(u32, u32, u32), ()>(
+                    &inputs, // three u32 inputs
+                    nexus_sdk::KnownExitCodes::ExitSuccess as u32,
+                    &(),              // no public output
+                    &stwo_prover.elf, // expected elf (program binary)
+                    &[],              // no associated data,
+                )
+                .map_err(|e| {
+                    ProverError::Stwo(format!(
+                        "Failed to verify proof: {} for inputs: {:?}",
+                        e, inputs
+                    ))
                 })?;
             (view, proof, inputs.0)
         }
