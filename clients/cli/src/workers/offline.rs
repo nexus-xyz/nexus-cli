@@ -5,7 +5,7 @@
 //! - Proof computation (authenticated and anonymous)
 //! - Worker management
 
-use crate::analytics::track;
+use crate::analytics::{ProofMetrics, track};
 use crate::environment::Environment;
 use crate::error_classifier::ErrorClassifier;
 use crate::events::{Event, EventType};
@@ -13,6 +13,7 @@ use crate::prover::authenticated_proving;
 use crate::task::Task;
 use nexus_sdk::stwo::seq::Proof;
 use serde_json::json;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;
@@ -62,6 +63,7 @@ pub fn start_workers(
     shutdown: broadcast::Receiver<()>,
     environment: Environment,
     client_id: String,
+    metrics: Arc<ProofMetrics>,
 ) -> (Vec<mpsc::Sender<Task>>, Vec<JoinHandle<()>>) {
     let mut senders = Vec::with_capacity(num_workers);
     let mut handles = Vec::with_capacity(num_workers);
@@ -74,6 +76,7 @@ pub fn start_workers(
         let mut shutdown_rx = shutdown.resubscribe();
         let client_id = client_id.clone();
         let error_classifier = ErrorClassifier::new();
+        let metrics = metrics.clone();
         let handle = tokio::spawn(async move {
             loop {
                 tokio::select! {
@@ -86,7 +89,7 @@ pub fn start_workers(
                     }
                     // Check if there are tasks to process
                     Some(task) = task_receiver.recv() => {
-                        match authenticated_proving(&task).await {
+                        match authenticated_proving(&task, &metrics).await {
                             Ok(proof) => {
                                 let message = format!(
                                     "[Task step 2 of 3] Proof completed successfully (Task ID: {})",
@@ -97,7 +100,7 @@ pub fn start_workers(
                                     .await;
 
                                 // Track analytics for successful proof (non-blocking)
-                                track_authenticated_proof_analytics(&task, &environment, client_id.clone()).await;
+                                track_authenticated_proof_analytics(&task, &environment, client_id.clone(), &metrics).await;
 
                                 let _ = results_sender.send((task, proof)).await;
                             }
@@ -132,6 +135,7 @@ pub async fn start_anonymous_workers(
     shutdown: broadcast::Receiver<()>,
     environment: Environment,
     client_id: String,
+    metrics: Arc<ProofMetrics>,
 ) -> (mpsc::Receiver<Event>, Vec<JoinHandle<()>>) {
     let (event_sender, event_receiver) = mpsc::channel::<Event>(100);
     let mut join_handles = Vec::new();
@@ -140,6 +144,7 @@ pub async fn start_anonymous_workers(
         let mut shutdown_rx = shutdown.resubscribe(); // clone receiver for each worker
         let client_id = client_id.clone();
         let error_classifier = ErrorClassifier::new();
+        let metrics = metrics.clone();
 
         let handle = tokio::spawn(async move {
             loop {
@@ -154,14 +159,14 @@ pub async fn start_anonymous_workers(
 
                     _ = tokio::time::sleep(Duration::from_millis(300)) => {
                         // Perform work
-                        match crate::prover::prove_anonymously().await {
+                        match crate::prover::prove_anonymously(&metrics).await {
                             Ok(_proof) => {
                                 let message = "Anonymous proof completed successfully".to_string();
                                 let _ = prover_event_sender
                                     .send(Event::prover(worker_id, message, EventType::Success)).await;
 
                                 // Track analytics for successful anonymous proof (non-blocking)
-                                track_anonymous_proof_analytics(&environment, client_id.clone()).await;
+                                track_anonymous_proof_analytics(&environment, client_id.clone(), &metrics).await;
                             }
                             Err(e) => {
                                 let log_level = error_classifier.classify_worker_error(&e);
@@ -190,6 +195,7 @@ async fn track_authenticated_proof_analytics(
     task: &Task,
     environment: &Environment,
     client_id: String,
+    metrics: &ProofMetrics,
 ) {
     let analytics_data = match task.program_id.as_str() {
         "fast-fib" => {
@@ -203,6 +209,7 @@ async fn track_authenticated_proof_analytics(
                 "program_name": "fast-fib",
                 "public_input": input,
                 "task_id": task.task_id,
+                "invalid_proof_count": metrics.get_invalid_proof_count(),
             })
         }
         "fib_input_initial" => {
@@ -225,12 +232,14 @@ async fn track_authenticated_proof_analytics(
                 "public_input_2": inputs.1,
                 "public_input_3": inputs.2,
                 "task_id": task.task_id,
+                "invalid_proof_count": metrics.get_invalid_proof_count(),
             })
         }
         _ => {
             json!({
                 "program_name": task.program_id,
                 "task_id": task.task_id,
+                "invalid_proof_count": metrics.get_invalid_proof_count(),
             })
         }
     };
@@ -246,7 +255,11 @@ async fn track_authenticated_proof_analytics(
 }
 
 /// Track analytics for anonymous proof (non-blocking)
-async fn track_anonymous_proof_analytics(environment: &Environment, client_id: String) {
+async fn track_anonymous_proof_analytics(
+    environment: &Environment,
+    client_id: String,
+    metrics: &ProofMetrics,
+) {
     // Anonymous proofs use hardcoded input: (n=9, init_a=1, init_b=1)
     let public_input = (9, 1, 1);
 
@@ -257,6 +270,7 @@ async fn track_anonymous_proof_analytics(environment: &Environment, client_id: S
             "public_input": public_input.0,
             "public_input_2": public_input.1,
             "public_input_3": public_input.2,
+            "invalid_proof_count": metrics.get_invalid_proof_count(),
         }),
         environment,
         client_id,

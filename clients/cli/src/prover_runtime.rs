@@ -3,6 +3,7 @@
 //! Main orchestrator for authenticated and anonymous proving modes.
 //! Coordinates online workers (network I/O) and offline workers (computation).
 
+use crate::analytics::ProofMetrics;
 use crate::consts::prover::{EVENT_QUEUE_SIZE, RESULT_QUEUE_SIZE, TASK_QUEUE_SIZE};
 use crate::environment::Environment;
 use crate::events::Event;
@@ -13,6 +14,7 @@ use crate::version_checker::start_version_checker_task;
 use crate::workers::{offline, online};
 use ed25519_dalek::SigningKey;
 use nexus_sdk::stwo::seq::Proof;
+use std::sync::Arc;
 use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;
 
@@ -71,6 +73,7 @@ pub async fn start_authenticated_workers(
 
     // Workers
     let (result_sender, result_receiver) = mpsc::channel::<(Task, Proof)>(RESULT_QUEUE_SIZE);
+    let metrics = Arc::new(ProofMetrics::new());
 
     let (worker_senders, worker_handles) = offline::start_workers(
         num_workers,
@@ -79,6 +82,7 @@ pub async fn start_authenticated_workers(
         shutdown.resubscribe(),
         environment,
         client_id,
+        metrics,
     );
     join_handles.extend(worker_handles);
 
@@ -129,8 +133,10 @@ pub async fn start_anonymous_workers(
     join_handles.push(version_checker_handle);
 
     // Start anonymous workers
+    let metrics = Arc::new(ProofMetrics::new());
     let (anonymous_event_receiver, anonymous_handles) =
-        offline::start_anonymous_workers(num_workers, shutdown, environment, client_id).await;
+        offline::start_anonymous_workers(num_workers, shutdown, environment, client_id, metrics)
+            .await;
     join_handles.extend(anonymous_handles);
 
     // Forward events from anonymous workers to our event sender

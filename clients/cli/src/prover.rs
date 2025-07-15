@@ -1,3 +1,4 @@
+use crate::analytics::ProofMetrics;
 use crate::task::Task;
 use log::error;
 use nexus_sdk::Verifiable;
@@ -21,7 +22,7 @@ pub enum ProverError {
 }
 
 /// Proves a program locally with hardcoded inputs.
-pub async fn prove_anonymously() -> Result<Proof, ProverError> {
+pub async fn prove_anonymously(metrics: &ProofMetrics) -> Result<Proof, ProverError> {
     // Compute the 10th Fibonacci number using fib_input_initial
     // Input: (n=9, init_a=1, init_b=1)
     // This computes F(9) = 55 in the classic Fibonacci sequence starting with 1,1
@@ -30,12 +31,29 @@ pub async fn prove_anonymously() -> Result<Proof, ProverError> {
 
     // Use the new initial ELF file for anonymous proving
     let stwo_prover = get_initial_stwo_prover()?;
+    let elf = stwo_prover.elf.clone();
     let (view, proof) = stwo_prover
         .prove_with_input::<(), (u32, u32, u32)>(&(), &public_input)
         .map_err(|e| {
             ProverError::Stwo(format!(
                 "Failed to run fib_input_initial prover (anonymous): {}",
                 e
+            ))
+        })?;
+
+    proof
+        .verify_expected(
+            &public_input,
+            nexus_sdk::KnownExitCodes::ExitSuccess as u32,
+            &(),
+            &elf,
+            &[],
+        )
+        .map_err(|e| {
+            let _ = metrics.increment_invalid_proof_count();
+            ProverError::Stwo(format!(
+                "Failed to verify proof: {} for inputs: {:?}",
+                e, public_input
             ))
         })?;
 
@@ -54,7 +72,10 @@ pub async fn prove_anonymously() -> Result<Proof, ProverError> {
 }
 
 /// Proves a program with a given node ID
-pub async fn authenticated_proving(task: &Task) -> Result<Proof, ProverError> {
+pub async fn authenticated_proving(
+    task: &Task,
+    metrics: &ProofMetrics,
+) -> Result<Proof, ProverError> {
     let (view, proof, _) = match task.program_id.as_str() {
         "fast-fib" => {
             // fast-fib uses string inputs
@@ -75,6 +96,7 @@ pub async fn authenticated_proving(task: &Task) -> Result<Proof, ProverError> {
                     &[],
                 )
                 .map_err(|e| {
+                    let _ = metrics.increment_invalid_proof_count();
                     ProverError::Stwo(format!(
                         "Failed to verify proof: {} for inputs: {:?}",
                         e, input
@@ -102,6 +124,7 @@ pub async fn authenticated_proving(task: &Task) -> Result<Proof, ProverError> {
                     &[],  // no associated data,
                 )
                 .map_err(|e| {
+                    let _ = metrics.increment_invalid_proof_count();
                     ProverError::Stwo(format!(
                         "Failed to verify proof: {} for inputs: {:?}",
                         e, inputs
@@ -199,8 +222,60 @@ mod tests {
     #[tokio::test]
     // Proves a program with hardcoded inputs should succeed.
     async fn test_prove_anonymously() {
-        if let Err(e) = prove_anonymously().await {
+        let metrics = ProofMetrics::new();
+        if let Err(e) = prove_anonymously(&metrics).await {
             panic!("Failed to prove anonymously: {}", e);
         }
+    }
+
+    #[test]
+    fn test_proof_metrics() {
+        use crate::analytics::ProofMetrics;
+        let metrics = ProofMetrics::new();
+
+        // Initial count should be 0
+        assert_eq!(metrics.get_invalid_proof_count(), 0);
+
+        // Increment and check count
+        let count1 = metrics.increment_invalid_proof_count();
+        assert_eq!(count1, 1);
+        assert_eq!(metrics.get_invalid_proof_count(), 1);
+
+        // Increment again
+        let count2 = metrics.increment_invalid_proof_count();
+        assert_eq!(count2, 2);
+        assert_eq!(metrics.get_invalid_proof_count(), 2);
+
+        // Reset and check
+        metrics.reset();
+        assert_eq!(metrics.get_invalid_proof_count(), 0);
+    }
+
+    #[test]
+    fn test_proof_metrics_thread_safety() {
+        use crate::analytics::ProofMetrics;
+        use std::sync::Arc;
+        use std::thread;
+
+        let metrics = Arc::new(ProofMetrics::new());
+        let mut handles = vec![];
+
+        // Spawn multiple threads to increment the counter
+        for _ in 0..10 {
+            let metrics_clone = metrics.clone();
+            handles.push(thread::spawn(move || {
+                for _ in 0..100 {
+                    metrics_clone.increment_invalid_proof_count();
+                }
+            }));
+        }
+
+        // Wait for all threads to complete
+        for handle in handles {
+            handle.join().unwrap();
+        }
+
+        // Should have incremented 10 * 100 = 1000 times
+        assert_eq!(metrics.get_invalid_proof_count(), 1000);
     }
 }
