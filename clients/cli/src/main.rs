@@ -244,5 +244,3 @@ async fn start(
     println!("Nexus CLI application exited successfully.");
     Ok(())
 }
-
-
