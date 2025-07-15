@@ -35,13 +35,10 @@ impl ErrorClassifier {
         match error {
             // Non-critical: Temporary server issues
             OrchestratorError::Http { status, .. } if *status == 429 => LogLevel::Debug,
-            OrchestratorError::Http { status, .. } if (500..=599).contains(status) => {
-                LogLevel::Warn
-            }
+            OrchestratorError::Http { status, .. } if (500..=599).contains(status) => LogLevel::Warn,
 
             // Critical: Auth, malformed responses
-            OrchestratorError::Http { status, .. } if *status == 401 => LogLevel::Error,
-            OrchestratorError::Http { status, .. } if *status == 403 => LogLevel::Error,
+            OrchestratorError::Http { status, .. } if *status == 401 || *status == 403 => LogLevel::Error,
 
             // Network issues - usually temporary
             _ => LogLevel::Warn,
