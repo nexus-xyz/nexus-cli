@@ -76,7 +76,7 @@ impl App {
     #[allow(unused)]
     pub fn login(&mut self) {
         let node_id = Some(123); // Placeholder for node ID, replace with actual logic to get node ID
-        let state = DashboardState::new(node_id, self.environment, self.start_time, &self.events);
+        let state = DashboardState::new(node_id, self.environment.clone(), self.start_time, &self.events);
         self.current_screen = Screen::Dashboard(state);
     }
 }
@@ -102,7 +102,7 @@ pub async fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::i
             Screen::Login => {}
             Screen::Dashboard(_) => {
                 let state =
-                    DashboardState::new(app.node_id, app.environment, app.start_time, &app.events);
+                    DashboardState::new(app.node_id, app.environment.clone(), app.start_time, &app.events);
                 app.current_screen = Screen::Dashboard(state);
             }
         }
@@ -113,7 +113,7 @@ pub async fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::i
             if splash_start.elapsed() >= splash_duration {
                 app.current_screen = Screen::Dashboard(DashboardState::new(
                     app.node_id,
-                    app.environment,
+                    app.environment.clone(),
                     app.start_time,
                     &app.events,
                 ));
@@ -142,7 +142,7 @@ pub async fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::i
                         if key.code != KeyCode::Esc && key.code != KeyCode::Char('q') {
                             app.current_screen = Screen::Dashboard(DashboardState::new(
                                 app.node_id,
-                                app.environment,
+                                app.environment.clone(),
                                 app.start_time,
                                 &app.events,
                             ));

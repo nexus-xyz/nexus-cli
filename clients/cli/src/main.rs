@@ -62,6 +62,10 @@ enum Command {
         /// Maximum number of threads to use for proving.
         #[arg(long = "max-threads", value_name = "MAX_THREADS")]
         max_threads: Option<u32>,
+
+        /// Custom orchestrator URL (overrides environment setting)
+        #[arg(long = "orchestrator-url", value_name = "URL")]
+        orchestrator_url: Option<String>,
     },
     /// Register a new user
     RegisterUser {
@@ -94,7 +98,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
             node_id,
             headless,
             max_threads,
-        } => start(node_id, environment, config_path, headless, max_threads).await,
+            orchestrator_url,
+        } => {
+            // If a custom orchestrator URL is provided, create a custom environment
+            let final_environment = if let Some(url) = orchestrator_url {
+                Environment::Custom { orchestrator_url: url }
+            } else {
+                environment
+            };
+            start(node_id, final_environment, config_path, headless, max_threads).await
+        }
         Command::Logout => {
             println!("Logging out and clearing node configuration file...");
             Config::clear_node_config(&config_path).map_err(Into::into)
@@ -145,7 +158,7 @@ async fn start(
     // Create a signing key for the prover.
     let mut csprng = rand_core::OsRng;
     let signing_key: SigningKey = SigningKey::generate(&mut csprng);
-    let orchestrator_client = OrchestratorClient::new(env);
+    let orchestrator_client = OrchestratorClient::new(env.clone());
     // Clamp the number of workers to [1,8]. Keep this low for now to avoid rate limiting.
     let num_workers: usize = max_threads.unwrap_or(1).clamp(1, 8) as usize;
     let (shutdown_sender, _) = broadcast::channel(1); // Only one shutdown signal needed
@@ -175,7 +188,7 @@ async fn start(
                 orchestrator_client.clone(),
                 num_workers,
                 shutdown_sender.subscribe(),
-                env,
+                env.clone(),
                 client_id,
             )
             .await
@@ -198,7 +211,7 @@ async fn start(
         // Create the application and run it.
         let app = ui::App::new(
             node_id,
-            *orchestrator_client.environment(),
+                            orchestrator_client.environment().clone(),
             event_receiver,
             shutdown_sender,
         );

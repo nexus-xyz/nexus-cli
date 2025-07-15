@@ -58,7 +58,7 @@ pub async fn register_user(
             user_id,
             wallet_address.to_string(),
             String::new(), // node_id is empty for now
-            *orchestrator.environment(),
+            orchestrator.environment().clone(),
         );
         // Save the configuration file with the user ID and wallet address.
         config
@@ -89,7 +89,7 @@ pub async fn register_user(
         uuid,
         wallet_address.to_string(),
         String::new(), // node_id is empty for now
-        *orchestrator.environment(),
+        orchestrator.environment().clone(),
     );
     config
         .save(config_path)
@@ -175,7 +175,7 @@ mod tests {
         let mut orchestrator = MockOrchestrator::new();
         orchestrator
             .expect_environment()
-            .return_const(Environment::Staging); // whatever you need here
+            .return_const(Environment::Production); // whatever you need here
 
         orchestrator
             .expect_get_user()
