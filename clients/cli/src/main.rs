@@ -102,11 +102,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
         } => {
             // If a custom orchestrator URL is provided, create a custom environment
             let final_environment = if let Some(url) = orchestrator_url {
-                Environment::Custom { orchestrator_url: url }
+                Environment::Custom {
+                    orchestrator_url: url,
+                }
             } else {
                 environment
             };
-            start(node_id, final_environment, config_path, headless, max_threads).await
+            start(
+                node_id,
+                final_environment,
+                config_path,
+                headless,
+                max_threads,
+            )
+            .await
         }
         Command::Logout => {
             println!("Logging out and clearing node configuration file...");
@@ -211,7 +220,7 @@ async fn start(
         // Create the application and run it.
         let app = ui::App::new(
             node_id,
-                            orchestrator_client.environment().clone(),
+            orchestrator_client.environment().clone(),
             event_receiver,
             shutdown_sender,
         );
