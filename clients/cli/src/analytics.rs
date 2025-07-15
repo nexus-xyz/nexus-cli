@@ -4,10 +4,49 @@ use chrono::Datelike;
 use chrono::Timelike;
 use reqwest::header::ACCEPT;
 use serde_json::{Value, json};
+use std::sync::atomic::AtomicBool;
 use std::{
     env,
+    sync::atomic::Ordering,
     time::{SystemTime, UNIX_EPOCH},
 };
+
+/// Metrics context for tracking proof-related statistics
+#[derive(Debug)]
+pub struct ProofMetrics {
+    is_invalid: AtomicBool,
+}
+
+impl ProofMetrics {
+    /// Create a new metrics context
+    pub fn new() -> Self {
+        Self {
+            is_invalid: AtomicBool::new(false),
+        }
+    }
+
+    /// Get the current invalid proof count
+    pub fn is_invalid_proof(&self) -> bool {
+        self.is_invalid.load(Ordering::Relaxed)
+    }
+
+    /// Increment the invalid proof count and return the new count
+    pub fn set_invalid_proof(&self) -> bool {
+        self.is_invalid.fetch_or(true, Ordering::Relaxed)
+    }
+
+    /// Reset the invalid proof count (useful for testing)
+    #[cfg(test)]
+    pub fn reset(&self) {
+        self.is_invalid.store(false, Ordering::Relaxed);
+    }
+}
+
+impl Default for ProofMetrics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum TrackError {
@@ -96,6 +135,7 @@ pub async fn track(
         "measured_flops": measure_gflops(),
         "num_cores": num_cores(),
         "peak_flops": estimate_peak_gflops(num_cores()),
+        "invalid_proof": false,
     });
 
     // Add event properties to the properties JSON
@@ -143,4 +183,42 @@ pub async fn track(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_proof_metrics_creation() {
+        let metrics = ProofMetrics::new();
+        assert!(!metrics.is_invalid_proof());
+    }
+
+    #[test]
+    fn test_proof_metrics_set_invalid_proof() {
+        let metrics = ProofMetrics::new();
+        assert!(!metrics.is_invalid_proof());
+        metrics.set_invalid_proof();
+        assert!(metrics.is_invalid_proof());
+        // Setting again should still be true
+        metrics.set_invalid_proof();
+        assert!(metrics.is_invalid_proof());
+    }
+
+    #[test]
+    fn test_proof_metrics_reset() {
+        let metrics = ProofMetrics::new();
+        assert!(!metrics.is_invalid_proof());
+        metrics.set_invalid_proof();
+        assert!(metrics.is_invalid_proof());
+        metrics.reset();
+        assert!(!metrics.is_invalid_proof());
+    }
+
+    #[test]
+    fn test_proof_metrics_default() {
+        let metrics = ProofMetrics::default();
+        assert!(!metrics.is_invalid_proof());
+    }
 }

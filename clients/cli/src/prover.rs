@@ -1,3 +1,4 @@
+use crate::analytics::ProofMetrics;
 use crate::task::Task;
 use log::error;
 use nexus_sdk::Verifiable;
@@ -21,7 +22,7 @@ pub enum ProverError {
 }
 
 /// Proves a program locally with hardcoded inputs.
-pub async fn prove_anonymously() -> Result<Proof, ProverError> {
+pub async fn prove_anonymously(metrics: &ProofMetrics) -> Result<Proof, ProverError> {
     // Compute the 10th Fibonacci number using fib_input_initial
     // Input: (n=9, init_a=1, init_b=1)
     // This computes F(9) = 55 in the classic Fibonacci sequence starting with 1,1
@@ -30,12 +31,29 @@ pub async fn prove_anonymously() -> Result<Proof, ProverError> {
 
     // Use the new initial ELF file for anonymous proving
     let stwo_prover = get_initial_stwo_prover()?;
+    let elf = stwo_prover.elf.clone();
     let (view, proof) = stwo_prover
         .prove_with_input::<(), (u32, u32, u32)>(&(), &public_input)
         .map_err(|e| {
             ProverError::Stwo(format!(
                 "Failed to run fib_input_initial prover (anonymous): {}",
                 e
+            ))
+        })?;
+
+    proof
+        .verify_expected(
+            &public_input,
+            nexus_sdk::KnownExitCodes::ExitSuccess as u32,
+            &(),
+            &elf,
+            &[],
+        )
+        .map_err(|e| {
+            let _ = metrics.set_invalid_proof();
+            ProverError::Stwo(format!(
+                "Failed to verify proof: {} for inputs: {:?}",
+                e, public_input
             ))
         })?;
 
@@ -54,7 +72,10 @@ pub async fn prove_anonymously() -> Result<Proof, ProverError> {
 }
 
 /// Proves a program with a given node ID
-pub async fn authenticated_proving(task: &Task) -> Result<Proof, ProverError> {
+pub async fn authenticated_proving(
+    task: &Task,
+    metrics: &ProofMetrics,
+) -> Result<Proof, ProverError> {
     let (view, proof, _) = match task.program_id.as_str() {
         "fast-fib" => {
             // fast-fib uses string inputs
@@ -75,6 +96,7 @@ pub async fn authenticated_proving(task: &Task) -> Result<Proof, ProverError> {
                     &[],
                 )
                 .map_err(|e| {
+                    let _ = metrics.set_invalid_proof();
                     ProverError::Stwo(format!(
                         "Failed to verify proof: {} for inputs: {:?}",
                         e, input
@@ -102,6 +124,7 @@ pub async fn authenticated_proving(task: &Task) -> Result<Proof, ProverError> {
                     &[],  // no associated data,
                 )
                 .map_err(|e| {
+                    let _ = metrics.set_invalid_proof();
                     ProverError::Stwo(format!(
                         "Failed to verify proof: {} for inputs: {:?}",
                         e, inputs
@@ -185,6 +208,7 @@ pub fn get_initial_stwo_prover() -> Result<Stwo<Local>, ProverError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::analytics::ProofMetrics;
 
     #[test]
     // The default Stwo prover should be created successfully.
@@ -199,8 +223,29 @@ mod tests {
     #[tokio::test]
     // Proves a program with hardcoded inputs should succeed.
     async fn test_prove_anonymously() {
-        if let Err(e) = prove_anonymously().await {
+        let metrics = ProofMetrics::new();
+        if let Err(e) = prove_anonymously(&metrics).await {
             panic!("Failed to prove anonymously: {}", e);
         }
+    }
+
+    #[test]
+    fn test_proof_metrics() {
+        let metrics = ProofMetrics::new();
+
+        // Initial metrics should be false
+        assert!(!metrics.is_invalid_proof());
+
+        // Set to true and check
+        metrics.set_invalid_proof();
+        assert!(metrics.is_invalid_proof());
+
+        // Set to true again
+        metrics.set_invalid_proof();
+        assert!(metrics.is_invalid_proof());
+
+        // Reset and check false
+        metrics.reset();
+        assert!(!metrics.is_invalid_proof());
     }
 }
