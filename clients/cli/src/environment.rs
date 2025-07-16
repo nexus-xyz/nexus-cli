@@ -2,18 +2,13 @@ use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 
 /// Represents the different deployment environments available for the CLI.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Default)]
 pub enum Environment {
     /// Production environment.
+    #[default]
     Production,
     /// Custom environment with a specific orchestrator URL.
     Custom { orchestrator_url: String },
-}
-
-impl Default for Environment {
-    fn default() -> Self {
-        Environment::Production
-    }
 }
 
 impl Environment {
@@ -23,11 +18,6 @@ impl Environment {
             Environment::Production => "https://production.orchestrator.nexus.xyz".to_string(),
             Environment::Custom { orchestrator_url } => orchestrator_url.clone(),
         }
-    }
-
-    /// Returns true if this is a custom environment (not one of the predefined ones).
-    pub fn is_custom(&self) -> bool {
-        matches!(self, Environment::Custom { .. })
     }
 }
 
