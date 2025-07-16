@@ -181,30 +181,9 @@ pub async fn track_verification_failed(
 
     let _ = track(
         vec![
-            "cli_verification_failed".to_string(),
-            "verification_failed".to_string(),
+            "cli_local_verification_failed".to_string(),
+            "local_verification_failed".to_string(),
         ],
-        analytics_data,
-        environment,
-        client_id,
-    )
-    .await;
-    // TODO: Catch errors and log them
-}
-
-/// Track analytics for proof validation success (non-blocking)
-pub async fn track_proof_valid(
-    task: &crate::task::Task,
-    environment: &Environment,
-    client_id: String,
-) {
-    let analytics_data = json!({
-        "program_name": task.program_id,
-        "task_id": task.task_id,
-    });
-
-    let _ = track(
-        vec!["cli_proof_valid".to_string(), "proof_valid".to_string()],
         analytics_data,
         environment,
         client_id,
@@ -259,6 +238,30 @@ pub async fn track_proof_accepted(
         vec![
             "cli_proof_accepted".to_string(),
             "proof_accepted".to_string(),
+        ],
+        analytics_data,
+        environment,
+        client_id,
+    )
+    .await;
+    // TODO: Catch errors and log them
+}
+
+/// Track analytics for proof submission success (non-blocking)
+pub async fn track_proof_submission_success(
+    task: &crate::task::Task,
+    environment: &Environment,
+    client_id: String,
+) {
+    let analytics_data = json!({
+        "program_name": task.program_id,
+        "task_id": task.task_id,
+    });
+
+    let _ = track(
+        vec![
+            "cli_proof_submission_success".to_string(),
+            "proof_submission_success".to_string(),
         ],
         analytics_data,
         environment,

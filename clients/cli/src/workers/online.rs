@@ -5,7 +5,10 @@
 //! - Proof submission to the orchestrator
 //! - Network error handling with exponential backoff
 
-use crate::analytics::{track_got_task, track_proof_accepted, track_proof_submission_error};
+use crate::analytics::{
+    track_got_task, track_proof_accepted, track_proof_submission_error,
+    track_proof_submission_success,
+};
 use crate::consts::prover::{
     BACKOFF_DURATION, BATCH_SIZE, LOW_WATER_MARK, MAX_404S_BEFORE_GIVING_UP, QUEUE_LOG_INTERVAL,
     TASK_QUEUE_SIZE,
@@ -696,6 +699,8 @@ async fn process_proof_submission(
         .await
     {
         Ok(_) => {
+            // Track analytics for proof submission success (non-blocking)
+            track_proof_submission_success(&task, environment, client_id.to_string()).await;
             handle_submission_success(
                 &task,
                 event_sender,

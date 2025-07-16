@@ -1,4 +1,4 @@
-use crate::analytics::{track_proof_valid, track_verification_failed};
+use crate::analytics::track_verification_failed;
 use crate::environment::Environment;
 use crate::task::Task;
 use log::error;
@@ -81,7 +81,6 @@ pub async fn authenticated_proving(
             ) {
                 Ok(_) => {
                     // Track analytics for proof validation success (non-blocking)
-                    track_proof_valid(task, environment, client_id.to_string()).await;
                 }
                 Err(e) => {
                     let error_msg =
@@ -114,7 +113,6 @@ pub async fn authenticated_proving(
             ) {
                 Ok(_) => {
                     // Track analytics for proof validation success (non-blocking)
-                    track_proof_valid(task, environment, client_id.to_string()).await;
                 }
                 Err(e) => {
                     let error_msg =
