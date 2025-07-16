@@ -141,7 +141,7 @@ async fn attempt_task_fetch(
     recent_tasks: &TaskCache,
     state: &mut TaskFetchState,
     environment: &Environment,
-    client_id: &String,
+    client_id: &str,
 ) -> Result<(), bool> {
     let _ = event_sender
         .send(Event::task_fetcher_with_level(
@@ -242,7 +242,7 @@ async fn handle_fetch_success(
     recent_tasks: &TaskCache,
     state: &mut TaskFetchState,
     environment: &Environment,
-    client_id: &String,
+    client_id: &str,
 ) -> Result<(), bool> {
     if tasks.is_empty() {
         handle_empty_task_response(sender, event_sender, state).await;
@@ -290,7 +290,7 @@ async fn process_fetched_tasks(
     event_sender: &mpsc::Sender<Event>,
     recent_tasks: &TaskCache,
     environment: &Environment,
-    client_id: &String,
+    client_id: &str,
 ) -> Result<(usize, usize), bool> {
     let mut added_count = 0;
     let mut duplicate_count = 0;
@@ -313,7 +313,7 @@ async fn process_fetched_tasks(
         }
 
         // Track analytics for getting a task (non-blocking)
-        track_got_task(&task, environment, client_id.clone()).await;
+        track_got_task(&task, environment, client_id.to_string()).await;
 
         added_count += 1;
     }
@@ -662,7 +662,7 @@ async fn process_proof_submission(
     event_sender: &mpsc::Sender<Event>,
     successful_tasks: &TaskCache,
     environment: &Environment,
-    client_id: &String,
+    client_id: &str,
 ) -> Option<bool> {
     // Check for duplicate submissions
     if successful_tasks.contains(&task.task_id).await {
@@ -715,7 +715,7 @@ async fn handle_submission_success(
     event_sender: &mpsc::Sender<Event>,
     successful_tasks: &TaskCache,
     environment: &Environment,
-    client_id: &String,
+    client_id: &str,
 ) {
     successful_tasks.insert(task.task_id.clone()).await;
     let msg = format!(
@@ -723,7 +723,7 @@ async fn handle_submission_success(
         task.task_id
     );
     // Track analytics for proof acceptance (non-blocking)
-    track_proof_accepted(task, environment, client_id.clone()).await;
+    track_proof_accepted(task, environment, client_id.to_string()).await;
 
     let _ = event_sender
         .send(Event::proof_submitter_with_level(
@@ -740,7 +740,7 @@ async fn handle_submission_error(
     error: OrchestratorError,
     event_sender: &mpsc::Sender<Event>,
     environment: &Environment,
-    client_id: &String,
+    client_id: &str,
 ) {
     let (msg, status_code) = match error {
         OrchestratorError::Http { status, .. } => (
@@ -757,7 +757,7 @@ async fn handle_submission_error(
     };
 
     // Track analytics for proof submission error (non-blocking)
-    track_proof_submission_error(task, &msg, status_code, environment, client_id.clone()).await;
+    track_proof_submission_error(task, &msg, status_code, environment, client_id.to_string()).await;
 
     let _ = event_sender
         .send(Event::proof_submitter(

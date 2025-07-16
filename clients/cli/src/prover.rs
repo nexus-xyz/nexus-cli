@@ -59,7 +59,7 @@ pub async fn prove_anonymously() -> Result<Proof, ProverError> {
 pub async fn authenticated_proving(
     task: &Task,
     environment: &Environment,
-    client_id: &String,
+    client_id: &str,
 ) -> Result<Proof, ProverError> {
     let (view, proof, _) = match task.program_id.as_str() {
         "fast-fib" => {
@@ -81,13 +81,13 @@ pub async fn authenticated_proving(
             ) {
                 Ok(_) => {
                     // Track analytics for proof validation success (non-blocking)
-                    track_proof_valid(task, environment, client_id.clone()).await;
+                    track_proof_valid(task, environment, client_id.to_string()).await;
                 }
                 Err(e) => {
                     let error_msg =
                         format!("Failed to verify proof: {} for inputs: {:?}", e, input);
                     // Track analytics for verification failure (non-blocking)
-                    track_verification_failed(task, &error_msg, environment, client_id.clone())
+                    track_verification_failed(task, &error_msg, environment, client_id.to_string())
                         .await;
                     return Err(ProverError::Stwo(error_msg));
                 }
@@ -114,13 +114,13 @@ pub async fn authenticated_proving(
             ) {
                 Ok(_) => {
                     // Track analytics for proof validation success (non-blocking)
-                    track_proof_valid(task, environment, client_id.clone()).await;
+                    track_proof_valid(task, environment, client_id.to_string()).await;
                 }
                 Err(e) => {
                     let error_msg =
                         format!("Failed to verify proof: {} for inputs: {:?}", e, inputs);
                     // Track analytics for verification failure (non-blocking)
-                    track_verification_failed(task, &error_msg, environment, client_id.clone())
+                    track_verification_failed(task, &error_msg, environment, client_id.to_string())
                         .await;
                     return Err(ProverError::Stwo(error_msg));
                 }

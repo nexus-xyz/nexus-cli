@@ -54,7 +54,7 @@ pub async fn start_authenticated_workers(
         let orchestrator = orchestrator.clone();
         let event_sender = event_sender.clone();
         let shutdown = shutdown.resubscribe(); // Clone the receiver for task fetching
-        let environment = environment.clone();
+        let environment = environment;
         let client_id = client_id.clone();
         tokio::spawn(async move {
             online::fetch_prover_tasks(
@@ -81,7 +81,7 @@ pub async fn start_authenticated_workers(
         result_sender,
         event_sender.clone(),
         shutdown.resubscribe(),
-        environment.clone(),
+        environment,
         client_id.clone(),
     );
     join_handles.extend(worker_handles);
