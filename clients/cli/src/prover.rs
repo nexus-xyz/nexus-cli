@@ -84,9 +84,11 @@ pub async fn authenticated_proving(
                     track_proof_valid(task, environment, client_id.clone()).await;
                 }
                 Err(e) => {
-                    let error_msg = format!("Failed to verify proof: {} for inputs: {:?}", e, input);
+                    let error_msg =
+                        format!("Failed to verify proof: {} for inputs: {:?}", e, input);
                     // Track analytics for verification failure (non-blocking)
-                    track_verification_failed(task, &error_msg, environment, client_id.clone()).await;
+                    track_verification_failed(task, &error_msg, environment, client_id.clone())
+                        .await;
                     return Err(ProverError::Stwo(error_msg));
                 }
             }
@@ -115,9 +117,11 @@ pub async fn authenticated_proving(
                     track_proof_valid(task, environment, client_id.clone()).await;
                 }
                 Err(e) => {
-                    let error_msg = format!("Failed to verify proof: {} for inputs: {:?}", e, inputs);
+                    let error_msg =
+                        format!("Failed to verify proof: {} for inputs: {:?}", e, inputs);
                     // Track analytics for verification failure (non-blocking)
-                    track_verification_failed(task, &error_msg, environment, client_id.clone()).await;
+                    track_verification_failed(task, &error_msg, environment, client_id.clone())
+                        .await;
                     return Err(ProverError::Stwo(error_msg));
                 }
             }

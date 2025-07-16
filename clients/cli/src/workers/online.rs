@@ -5,9 +5,7 @@
 //! - Proof submission to the orchestrator
 //! - Network error handling with exponential backoff
 
-use crate::analytics::{
-    track_got_task, track_proof_accepted, track_proof_submission_error,
-};
+use crate::analytics::{track_got_task, track_proof_accepted, track_proof_submission_error};
 use crate::consts::prover::{
     BACKOFF_DURATION, BATCH_SIZE, LOW_WATER_MARK, MAX_404S_BEFORE_GIVING_UP, QUEUE_LOG_INTERVAL,
     TASK_QUEUE_SIZE,
@@ -726,7 +724,7 @@ async fn handle_submission_success(
     );
     // Track analytics for proof acceptance (non-blocking)
     track_proof_accepted(task, environment, client_id.clone()).await;
-    
+
     let _ = event_sender
         .send(Event::proof_submitter_with_level(
             msg,
@@ -745,27 +743,26 @@ async fn handle_submission_error(
     client_id: &String,
 ) {
     let (msg, status_code) = match error {
-        OrchestratorError::Http { status, .. } => {
-            (
-                format!(
-                    "Failed to submit proof for task {}. Status: {}",
-                    task.task_id, status
-                ),
-                Some(status)
-            )
-        }
-        e => {
-            (
-                format!("Failed to submit proof for task {}: {}", task.task_id, e),
-                None
-            )
-        }
+        OrchestratorError::Http { status, .. } => (
+            format!(
+                "Failed to submit proof for task {}. Status: {}",
+                task.task_id, status
+            ),
+            Some(status),
+        ),
+        e => (
+            format!("Failed to submit proof for task {}: {}", task.task_id, e),
+            None,
+        ),
     };
 
     // Track analytics for proof submission error (non-blocking)
     track_proof_submission_error(task, &msg, status_code, environment, client_id.clone()).await;
 
     let _ = event_sender
-        .send(Event::proof_submitter(msg.to_string(), crate::events::EventType::Error))
+        .send(Event::proof_submitter(
+            msg.to_string(),
+            crate::events::EventType::Error,
+        ))
         .await;
 }
