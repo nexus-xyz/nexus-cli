@@ -5,10 +5,14 @@
 //! - Proof submission to the orchestrator
 //! - Network error handling with exponential backoff
 
+use crate::analytics::{
+    track_got_task, track_proof_accepted, track_proof_submission_error,
+};
 use crate::consts::prover::{
     BACKOFF_DURATION, BATCH_SIZE, LOW_WATER_MARK, MAX_404S_BEFORE_GIVING_UP, QUEUE_LOG_INTERVAL,
     TASK_QUEUE_SIZE,
 };
+use crate::environment::Environment;
 use crate::error_classifier::{ErrorClassifier, LogLevel};
 use crate::events::Event;
 use crate::orchestrator::Orchestrator;
@@ -89,6 +93,8 @@ pub async fn fetch_prover_tasks(
     event_sender: mpsc::Sender<Event>,
     mut shutdown: broadcast::Receiver<()>,
     recent_tasks: TaskCache,
+    environment: Environment,
+    client_id: String,
 ) {
     let mut state = TaskFetchState::new();
 
@@ -114,6 +120,8 @@ pub async fn fetch_prover_tasks(
                         &event_sender,
                         &recent_tasks,
                         &mut state,
+                        &environment,
+                        &client_id,
                     ).await {
                         if should_return {
                             return;
@@ -134,6 +142,8 @@ async fn attempt_task_fetch(
     event_sender: &mpsc::Sender<Event>,
     recent_tasks: &TaskCache,
     state: &mut TaskFetchState,
+    environment: &Environment,
+    client_id: &String,
 ) -> Result<(), bool> {
     let _ = event_sender
         .send(Event::task_fetcher_with_level(
@@ -158,7 +168,16 @@ async fn attempt_task_fetch(
             Ok(tasks) => {
                 // Record successful fetch attempt timing
                 state.record_fetch_attempt();
-                handle_fetch_success(tasks, sender, event_sender, recent_tasks, state).await
+                handle_fetch_success(
+                    tasks,
+                    sender,
+                    event_sender,
+                    recent_tasks,
+                    state,
+                    environment,
+                    client_id,
+                )
+                .await
             }
             Err(e) => {
                 // Record failed fetch attempt timing
@@ -224,14 +243,23 @@ async fn handle_fetch_success(
     event_sender: &mpsc::Sender<Event>,
     recent_tasks: &TaskCache,
     state: &mut TaskFetchState,
+    environment: &Environment,
+    client_id: &String,
 ) -> Result<(), bool> {
     if tasks.is_empty() {
         handle_empty_task_response(sender, event_sender, state).await;
         return Ok(());
     }
 
-    let (added_count, duplicate_count) =
-        process_fetched_tasks(tasks, sender, event_sender, recent_tasks).await?;
+    let (added_count, duplicate_count) = process_fetched_tasks(
+        tasks,
+        sender,
+        event_sender,
+        recent_tasks,
+        environment,
+        client_id,
+    )
+    .await?;
 
     log_fetch_results(added_count, duplicate_count, sender, event_sender, state).await;
     Ok(())
@@ -263,6 +291,8 @@ async fn process_fetched_tasks(
     sender: &mpsc::Sender<Task>,
     event_sender: &mpsc::Sender<Event>,
     recent_tasks: &TaskCache,
+    environment: &Environment,
+    client_id: &String,
 ) -> Result<(usize, usize), bool> {
     let mut added_count = 0;
     let mut duplicate_count = 0;
@@ -283,6 +313,10 @@ async fn process_fetched_tasks(
                 .await;
             return Err(true); // Signal caller to return
         }
+
+        // Track analytics for getting a task (non-blocking)
+        track_got_task(&task, environment, client_id.clone()).await;
+
         added_count += 1;
     }
 
@@ -538,6 +572,8 @@ pub async fn submit_proofs(
     event_sender: mpsc::Sender<Event>,
     mut shutdown: broadcast::Receiver<()>,
     successful_tasks: TaskCache,
+    environment: Environment,
+    client_id: String,
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
         let mut completed_count = 0;
@@ -557,6 +593,8 @@ pub async fn submit_proofs(
                                 num_workers,
                                 &event_sender,
                                 &successful_tasks,
+                                &environment,
+                                &client_id,
                             ).await {
                                 if success {
                                     completed_count += 1;
@@ -625,6 +663,8 @@ async fn process_proof_submission(
     num_workers: usize,
     event_sender: &mpsc::Sender<Event>,
     successful_tasks: &TaskCache,
+    environment: &Environment,
+    client_id: &String,
 ) -> Option<bool> {
     // Check for duplicate submissions
     if successful_tasks.contains(&task.task_id).await {
@@ -654,11 +694,18 @@ async fn process_proof_submission(
         .await
     {
         Ok(_) => {
-            handle_submission_success(&task, event_sender, successful_tasks).await;
+            handle_submission_success(
+                &task,
+                event_sender,
+                successful_tasks,
+                environment,
+                client_id,
+            )
+            .await;
             Some(true)
         }
         Err(e) => {
-            handle_submission_error(&task, e, event_sender).await;
+            handle_submission_error(&task, e, event_sender, environment, client_id).await;
             Some(false)
         }
     }
@@ -669,12 +716,17 @@ async fn handle_submission_success(
     task: &Task,
     event_sender: &mpsc::Sender<Event>,
     successful_tasks: &TaskCache,
+    environment: &Environment,
+    client_id: &String,
 ) {
     successful_tasks.insert(task.task_id.clone()).await;
     let msg = format!(
         "[Task step 3 of 3] Proof submitted (Task ID: {}) Points for this node will be updated in https://app.nexus.xyz/rewards within 10 minutes",
         task.task_id
     );
+    // Track analytics for proof acceptance (non-blocking)
+    track_proof_accepted(task, environment, client_id.clone()).await;
+    
     let _ = event_sender
         .send(Event::proof_submitter_with_level(
             msg,
@@ -689,20 +741,31 @@ async fn handle_submission_error(
     task: &Task,
     error: OrchestratorError,
     event_sender: &mpsc::Sender<Event>,
+    environment: &Environment,
+    client_id: &String,
 ) {
-    let msg = match error {
+    let (msg, status_code) = match error {
         OrchestratorError::Http { status, .. } => {
-            format!(
-                "Failed to submit proof for task {}. Status: {}",
-                task.task_id, status
+            (
+                format!(
+                    "Failed to submit proof for task {}. Status: {}",
+                    task.task_id, status
+                ),
+                Some(status)
             )
         }
         e => {
-            format!("Failed to submit proof for task {}: {}", task.task_id, e)
+            (
+                format!("Failed to submit proof for task {}: {}", task.task_id, e),
+                None
+            )
         }
     };
 
+    // Track analytics for proof submission error (non-blocking)
+    track_proof_submission_error(task, &msg, status_code, environment, client_id.clone()).await;
+
     let _ = event_sender
-        .send(Event::proof_submitter(msg, crate::events::EventType::Error))
+        .send(Event::proof_submitter(msg.to_string(), crate::events::EventType::Error))
         .await;
 }

@@ -86,7 +86,7 @@ pub fn start_workers(
                     }
                     // Check if there are tasks to process
                     Some(task) = task_receiver.recv() => {
-                        match authenticated_proving(&task).await {
+                        match authenticated_proving(&task, &environment, &client_id).await {
                             Ok(proof) => {
                                 let message = format!(
                                     "[Task step 2 of 3] Proof completed successfully (Task ID: {})",

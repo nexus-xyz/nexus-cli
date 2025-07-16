@@ -144,3 +144,126 @@ pub async fn track(
 
     Ok(())
 }
+
+/// Track analytics for getting a task from orchestrator (non-blocking)
+pub async fn track_got_task(
+    task: &crate::task::Task,
+    environment: &Environment,
+    client_id: String,
+) {
+    let analytics_data = json!({
+        "program_name": task.program_id,
+        "task_id": task.task_id,
+    });
+
+    let _ = track(
+        vec!["cli_got_task".to_string(), "got_task".to_string()],
+        analytics_data,
+        environment,
+        client_id,
+    )
+    .await;
+    // TODO: Catch errors and log them
+}
+
+/// Track analytics for proof verification failure (non-blocking)
+pub async fn track_verification_failed(
+    task: &crate::task::Task,
+    error: &str,
+    environment: &Environment,
+    client_id: String,
+) {
+    let analytics_data = json!({
+        "program_name": task.program_id,
+        "task_id": task.task_id,
+        "error": error,
+    });
+
+    let _ = track(
+        vec![
+            "cli_verification_failed".to_string(),
+            "verification_failed".to_string(),
+        ],
+        analytics_data,
+        environment,
+        client_id,
+    )
+    .await;
+    // TODO: Catch errors and log them
+}
+
+/// Track analytics for proof validation success (non-blocking)
+pub async fn track_proof_valid(
+    task: &crate::task::Task,
+    environment: &Environment,
+    client_id: String,
+) {
+    let analytics_data = json!({
+        "program_name": task.program_id,
+        "task_id": task.task_id,
+    });
+
+    let _ = track(
+        vec!["cli_proof_valid".to_string(), "proof_valid".to_string()],
+        analytics_data,
+        environment,
+        client_id,
+    )
+    .await;
+    // TODO: Catch errors and log them
+}
+
+/// Track analytics for proof submission error (non-blocking)
+pub async fn track_proof_submission_error(
+    task: &crate::task::Task,
+    error: &str,
+    status_code: Option<u16>,
+    environment: &Environment,
+    client_id: String,
+) {
+    let mut analytics_data = json!({
+        "program_name": task.program_id,
+        "task_id": task.task_id,
+        "error": error,
+    });
+
+    if let Some(status) = status_code {
+        analytics_data["status_code"] = json!(status);
+    }
+
+    let _ = track(
+        vec![
+            "cli_proof_submission_error".to_string(),
+            "proof_submission_error".to_string(),
+        ],
+        analytics_data,
+        environment,
+        client_id,
+    )
+    .await;
+    // TODO: Catch errors and log them
+}
+
+/// Track analytics for proof acceptance (non-blocking)
+pub async fn track_proof_accepted(
+    task: &crate::task::Task,
+    environment: &Environment,
+    client_id: String,
+) {
+    let analytics_data = json!({
+        "program_name": task.program_id,
+        "task_id": task.task_id,
+    });
+
+    let _ = track(
+        vec![
+            "cli_proof_accepted".to_string(),
+            "proof_accepted".to_string(),
+        ],
+        analytics_data,
+        environment,
+        client_id,
+    )
+    .await;
+    // TODO: Catch errors and log them
+}
