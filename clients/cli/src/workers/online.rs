@@ -83,6 +83,7 @@ impl TaskFetchState {
 
 /// Fetches tasks from the orchestrator and place them in the task queue.
 /// Uses demand-driven fetching: only fetches when queue drops below LOW_WATER_MARK.
+#[allow(clippy::too_many_arguments)]
 pub async fn fetch_prover_tasks(
     node_id: u64,
     verifying_key: VerifyingKey,
@@ -132,6 +133,7 @@ pub async fn fetch_prover_tasks(
 }
 
 /// Attempt to fetch tasks with timeout and error handling
+#[allow(clippy::too_many_arguments)]
 async fn attempt_task_fetch(
     orchestrator_client: &dyn Orchestrator,
     node_id: &u64,
@@ -562,6 +564,7 @@ async fn fetch_new_tasks_batch(
 }
 
 /// Submits proofs to the orchestrator
+#[allow(clippy::too_many_arguments)]
 pub async fn submit_proofs(
     signing_key: SigningKey,
     orchestrator: Box<dyn Orchestrator>,
@@ -653,6 +656,7 @@ async fn report_performance_stats(
 
 /// Process a single proof submission
 /// Returns Some(true) if successful, Some(false) if failed, None if should skip
+#[allow(clippy::too_many_arguments)]
 async fn process_proof_submission(
     task: Task,
     proof: Proof,
