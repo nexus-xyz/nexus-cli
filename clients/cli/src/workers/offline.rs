@@ -73,6 +73,7 @@ pub fn start_workers(
         let results_sender = results_sender.clone();
         let mut shutdown_rx = shutdown.resubscribe();
         let client_id = client_id.clone();
+        let environment = environment.clone();
         let error_classifier = ErrorClassifier::new();
         let handle = tokio::spawn(async move {
             loop {
@@ -139,6 +140,7 @@ pub async fn start_anonymous_workers(
         let prover_event_sender = event_sender.clone();
         let mut shutdown_rx = shutdown.resubscribe(); // clone receiver for each worker
         let client_id = client_id.clone();
+        let environment = environment.clone();
         let error_classifier = ErrorClassifier::new();
 
         let handle = tokio::spawn(async move {
