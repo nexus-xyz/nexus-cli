@@ -129,11 +129,11 @@ esac
 # 5) Download latest release binary
 # -----------------------------------------------------------------------------
 LATEST_RELEASE_URL=$(curl -s https://api.github.com/repos/nexus-xyz/nexus-cli/releases/latest | \
-awk -v name="$BINARY_NAME" '
+awk -v name="nexus-network-$BINARY_NAME" '
   /"name":/ {
     # Remove quotes and commas, get the value
     gsub(/[" ,]/, "", $2)
-    last_name=$2
+    last_name="nexus-network-" $2
   }
   /"browser_download_url":/ {
     gsub(/[" ,]/, "", $2)
