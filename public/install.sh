@@ -128,8 +128,32 @@ esac
 # -----------------------------------------------------------------------------
 # 5) Download latest release binary
 # -----------------------------------------------------------------------------
-LATEST_RELEASE_URL=$(curl -s https://api.github.com/repos/nexus-xyz/nexus-cli/releases/latest | \
-awk -v name="$BINARY_NAME" '
+echo "Fetching latest release information..."
+
+# First, fetch the release data and check if we got a valid response
+RELEASE_DATA=$(curl -s --connect-timeout 10 --max-time 30 https://api.github.com/repos/nexus-xyz/nexus-cli/releases/latest)
+
+if [ $? -ne 0 ] || [ -z "$RELEASE_DATA" ]; then
+    echo "${RED}Failed to fetch release information from GitHub API${NC}"
+    echo "Please try again or build from source:"
+    echo "  git clone https://github.com/nexus-xyz/nexus-cli.git"
+    echo "  cd nexus-cli/clients/cli"
+    echo "  cargo build --release"
+    exit 1
+fi
+
+# Check if the response contains valid JSON (should have "assets" field)
+if ! echo "$RELEASE_DATA" | grep -q '"assets"'; then
+    echo "${RED}Invalid response from GitHub API${NC}"
+    echo "Please try again or build from source:"
+    echo "  git clone https://github.com/nexus-xyz/nexus-cli.git"
+    echo "  cd nexus-cli/clients/cli"
+    echo "  cargo build --release"
+    exit 1
+fi
+
+# Now process the data with awk
+LATEST_RELEASE_URL=$(echo "$RELEASE_DATA" | awk -v name="$BINARY_NAME" '
   /"name":/ {
     # Remove quotes and commas, get the value
     gsub(/[" ,]/, "", $2)
@@ -144,9 +168,9 @@ awk -v name="$BINARY_NAME" '
   }
 ')
 
-
 if [ -z "$LATEST_RELEASE_URL" ]; then
-    echo "${RED}Could not find a precompiled binary for $PLATFORM-$ARCH${NC}"
+    echo "${RED}Could not find a precompiled binary for $PLATFORM-$ARCH (looking for: $BINARY_NAME)${NC}"
+    echo "This might indicate that no release exists for your platform or there was an issue parsing the release data."
     echo "Please build from source:"
     echo "  git clone https://github.com/nexus-xyz/nexus-cli.git"
     echo "  cd nexus-cli/clients/cli"
