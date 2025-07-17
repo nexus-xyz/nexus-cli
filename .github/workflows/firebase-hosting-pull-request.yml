@@ -13,14 +13,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history and tags
 
       - name: Get latest release tag for preview
         id: get_version
         run: |
           # For PR previews, use the latest release tag
-          VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.10.0")
+          echo "Getting latest tag for PR preview..."
+          if VERSION=$(git describe --tags --abbrev=0 2>/dev/null); then
+            echo "Found latest tag: ${VERSION}"
+          else
+            echo "No tags found, using current Cargo.toml version..."
+            VERSION="v$(grep '^version = ' clients/cli/Cargo.toml | sed 's/version = "\(.*\)"/\1/')"
+            echo "Using version from Cargo.toml: ${VERSION}"
+          fi
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "Using version for preview: ${VERSION}"
+          echo "Final version for preview: ${VERSION}"
 
       - name: Generate install script with release URLs
         run: |

@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history and tags
 
       - name: Extract release tag
         id: get_version
@@ -20,12 +22,20 @@ jobs:
           if [ "${GITHUB_EVENT_NAME}" = "push" ] && [ "${GITHUB_REF_TYPE}" = "tag" ]; then
             # For tag pushes, extract tag from GITHUB_REF
             VERSION=${GITHUB_REF#refs/tags/}
+            echo "Using tag from push event: ${VERSION}"
           else
             # For manual triggers, get the latest tag
-            VERSION=$(git describe --tags --abbrev=0)
+            echo "Getting latest tag for manual trigger..."
+            if VERSION=$(git describe --tags --abbrev=0 2>/dev/null); then
+              echo "Found latest tag: ${VERSION}"
+            else
+              echo "No tags found, using current Cargo.toml version..."
+              VERSION="v$(grep '^version = ' clients/cli/Cargo.toml | sed 's/version = "\(.*\)"/\1/')"
+              echo "Using version from Cargo.toml: ${VERSION}"
+            fi
           fi
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "Detected version: ${VERSION}"
+          echo "Final detected version: ${VERSION}"
 
       - name: Generate install script with release URLs
         run: |
