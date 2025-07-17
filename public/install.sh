@@ -152,21 +152,25 @@ if ! echo "$RELEASE_DATA" | grep -q '"assets"'; then
     exit 1
 fi
 
-# Now process the data with awk
-LATEST_RELEASE_URL=$(echo "$RELEASE_DATA" | awk -v name="$BINARY_NAME" '
-  /"name":/ {
-    # Remove quotes and commas, get the value
-    gsub(/[" ,]/, "", $2)
-    last_name=$2
-  }
-  /"browser_download_url":/ {
-    gsub(/[" ,]/, "", $2)
-    if(last_name == name) {
-      print $2
-      exit
+# We need to match the exact name, not just a substring
+LATEST_RELEASE_URL=$(echo "$RELEASE_DATA" | \
+    tr ',' '\n' | \
+    awk -v target="$BINARY_NAME" '
+    BEGIN { found=0; url="" }
+    /"name":"/ {
+        gsub(/.*"name":"/, "", $0)
+        gsub(/".*/, "", $0)
+        if ($0 == target) found=1
+        else found=0
     }
-  }
-')
+    found && /"browser_download_url":"/ {
+        gsub(/.*"browser_download_url":"/, "", $0)
+        gsub(/".*/, "", $0)
+        url = $0
+        found=0
+    }
+    END { print url }
+    ')
 
 if [ -z "$LATEST_RELEASE_URL" ]; then
     echo "${RED}Could not find a precompiled binary for $PLATFORM-$ARCH (looking for: $BINARY_NAME)${NC}"
@@ -178,7 +182,8 @@ if [ -z "$LATEST_RELEASE_URL" ]; then
     exit 1
 fi
 
-echo "Downloading latest release for $PLATFORM-$ARCH..."
+echo "Downloading latest release for ${GREEN}$PLATFORM-$ARCH${NC}..."
+echo "Downloading from: ${GREEN}$LATEST_RELEASE_URL${NC}"
 curl -L -o "$BIN_DIR/nexus-network" "$LATEST_RELEASE_URL"
 chmod +x "$BIN_DIR/nexus-network"
 ln -s "$BIN_DIR/nexus-network" "$BIN_DIR/nexus-cli"
