@@ -77,4 +77,3 @@ target/
 
 # Generated files
 public/install.sh
-test_install_template.sh
