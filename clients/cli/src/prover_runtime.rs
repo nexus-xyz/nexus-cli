@@ -202,7 +202,7 @@ mod tests {
                 event_sender,
                 shutdown_receiver,
                 successful_tasks,
-                crate::environment::Environment::Beta,
+                crate::environment::Environment::Production,
                 "test-client-id".to_string(),
             )
             .await;
