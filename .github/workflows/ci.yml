@@ -57,6 +57,10 @@ jobs:
         working-directory: clients/cli
         run: cargo test --profile=ci-build --tests
 
+      - name: CLI smoke test (help)
+        working-directory: clients/cli
+        run: cargo run --profile=ci-build -- --help
+
       - name: Ensure checked in generated files are up to date
         run: |
           if [ -n "$(git status --porcelain)" ]; then \
