@@ -10,6 +10,13 @@ ORANGE='\033[1;33m'
 RED='\033[1;31m'
 NC='\033[0m'  # No Color
 
+# Release-specific download URLs (populated by CI)
+LINUX_X86_64_URL="__LINUX_X86_64_URL__"
+LINUX_ARM64_URL="__LINUX_ARM64_URL__"
+MACOS_X86_64_URL="__MACOS_X86_64_URL__"
+MACOS_ARM64_URL="__MACOS_ARM64_URL__"
+WINDOWS_X86_64_URL="__WINDOWS_X86_64_URL__"
+
 # Ensure the $NEXUS_HOME and $BIN_DIR directories exist.
 [ -d "$NEXUS_HOME" ] || mkdir -p "$NEXUS_HOME"
 [ -d "$BIN_DIR" ] || mkdir -p "$BIN_DIR"
@@ -51,7 +58,7 @@ while [ -z "$NONINTERACTIVE" ] && [ ! -f "$NEXUS_HOME/config.json" ]; do
 done
 
 # -----------------------------------------------------------------------------
-# 4) Determine the platform and architecture
+# 4) Determine the platform and architecture and select the appropriate download URL
 # -----------------------------------------------------------------------------
 case "$(uname -s)" in
     Linux*)
@@ -59,11 +66,11 @@ case "$(uname -s)" in
         case "$(uname -m)" in
             x86_64)
                 ARCH="x86_64"
-                BINARY_NAME="nexus-network-linux-x86_64"
+                DOWNLOAD_URL="$LINUX_X86_64_URL"
                 ;;
             aarch64|arm64)
                 ARCH="arm64"
-                BINARY_NAME="nexus-network-linux-arm64"
+                DOWNLOAD_URL="$LINUX_ARM64_URL"
                 ;;
             *)
                 echo "${RED}Unsupported architecture: $(uname -m)${NC}"
@@ -80,12 +87,12 @@ case "$(uname -s)" in
         case "$(uname -m)" in
             x86_64)
                 ARCH="x86_64"
-                BINARY_NAME="nexus-network-macos-x86_64"
+                DOWNLOAD_URL="$MACOS_X86_64_URL"
                 echo "${ORANGE}Note: You are running on an Intel Mac.${NC}"
                 ;;
             arm64)
                 ARCH="arm64"
-                BINARY_NAME="nexus-network-macos-arm64"
+                DOWNLOAD_URL="$MACOS_ARM64_URL"
                 echo "${ORANGE}Note: You are running on an Apple Silicon Mac (M1/M2/M3).${NC}"
                 ;;
             *)
@@ -103,7 +110,7 @@ case "$(uname -s)" in
         case "$(uname -m)" in
             x86_64)
                 ARCH="x86_64"
-                BINARY_NAME="nexus-network-windows-x86_64.exe"
+                DOWNLOAD_URL="$WINDOWS_X86_64_URL"
                 ;;
             *)
                 echo "${RED}Unsupported architecture: $(uname -m)${NC}"
@@ -126,55 +133,11 @@ case "$(uname -s)" in
 esac
 
 # -----------------------------------------------------------------------------
-# 5) Download latest release binary
+# 5) Validate download URL and download the binary
 # -----------------------------------------------------------------------------
-echo "Fetching latest release information..."
-
-# First, fetch the release data and check if we got a valid response
-RELEASE_DATA=$(curl -s --connect-timeout 10 --max-time 30 https://api.github.com/repos/nexus-xyz/nexus-cli/releases/latest)
-
-if [ $? -ne 0 ] || [ -z "$RELEASE_DATA" ]; then
-    echo "${RED}Failed to fetch release information from GitHub API${NC}"
-    echo "Please try again or build from source:"
-    echo "  git clone https://github.com/nexus-xyz/nexus-cli.git"
-    echo "  cd nexus-cli/clients/cli"
-    echo "  cargo build --release"
-    exit 1
-fi
-
-# Check if the response contains valid JSON (should have "assets" field)
-if ! echo "$RELEASE_DATA" | grep -q '"assets"'; then
-    echo "${RED}Invalid response from GitHub API${NC}"
-    echo "Please try again or build from source:"
-    echo "  git clone https://github.com/nexus-xyz/nexus-cli.git"
-    echo "  cd nexus-cli/clients/cli"
-    echo "  cargo build --release"
-    exit 1
-fi
-
-# We need to match the exact name, not just a substring
-LATEST_RELEASE_URL=$(echo "$RELEASE_DATA" | \
-    tr ',' '\n' | \
-    awk -v target="$BINARY_NAME" '
-    BEGIN { found=0; url="" }
-    /"name":"/ {
-        gsub(/.*"name":"/, "", $0)
-        gsub(/".*/, "", $0)
-        if ($0 == target) found=1
-        else found=0
-    }
-    found && /"browser_download_url":"/ {
-        gsub(/.*"browser_download_url":"/, "", $0)
-        gsub(/".*/, "", $0)
-        url = $0
-        found=0
-    }
-    END { print url }
-    ')
-
-if [ -z "$LATEST_RELEASE_URL" ]; then
-    echo "${RED}Could not find a precompiled binary for $PLATFORM-$ARCH (looking for: $BINARY_NAME)${NC}"
-    echo "This might indicate that no release exists for your platform or there was an issue parsing the release data."
+if [ -z "$DOWNLOAD_URL" ] || echo "$DOWNLOAD_URL" | grep -q "__.*_URL__"; then
+    echo "${RED}No download URL available for $PLATFORM-$ARCH${NC}"
+    echo "This might indicate that no release exists for your platform."
     echo "Please build from source:"
     echo "  git clone https://github.com/nexus-xyz/nexus-cli.git"
     echo "  cd nexus-cli/clients/cli"
@@ -183,8 +146,17 @@ if [ -z "$LATEST_RELEASE_URL" ]; then
 fi
 
 echo "Downloading latest release for ${GREEN}$PLATFORM-$ARCH${NC}..."
-echo "Downloading from: ${GREEN}$LATEST_RELEASE_URL${NC}"
-curl -L -o "$BIN_DIR/nexus-network" "$LATEST_RELEASE_URL"
+echo "Downloading from: ${GREEN}$DOWNLOAD_URL${NC}"
+
+if ! curl -L -o "$BIN_DIR/nexus-network" "$DOWNLOAD_URL"; then
+    echo "${RED}Failed to download binary from $DOWNLOAD_URL${NC}"
+    echo "Please try again or build from source:"
+    echo "  git clone https://github.com/nexus-xyz/nexus-cli.git"
+    echo "  cd nexus-cli/clients/cli"
+    echo "  cargo build --release"
+    exit 1
+fi
+
 chmod +x "$BIN_DIR/nexus-network"
 ln -s "$BIN_DIR/nexus-network" "$BIN_DIR/nexus-cli"
 chmod +x "$BIN_DIR/nexus-cli"

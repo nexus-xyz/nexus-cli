@@ -13,7 +13,51 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: echo Insert build script here
+
+      - name: Get latest release tag for preview
+        id: get_version
+        run: |
+          # For PR previews, use the latest release tag
+          VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.10.0")
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Using version for preview: ${VERSION}"
+
+      - name: Generate install script with release URLs
+        run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
+          BASE_URL="https://github.com/nexus-xyz/nexus-cli/releases/download/${VERSION}"
+
+          # Define the download URLs for each platform
+          LINUX_X86_64_URL="${BASE_URL}/nexus-network-linux-x86_64"
+          LINUX_ARM64_URL="${BASE_URL}/nexus-network-linux-arm64"
+          MACOS_X86_64_URL="${BASE_URL}/nexus-network-macos-x86_64"
+          MACOS_ARM64_URL="${BASE_URL}/nexus-network-macos-arm64"
+          WINDOWS_X86_64_URL="${BASE_URL}/nexus-network-windows-x86_64.exe"
+
+          # Replace placeholders in the template
+          sed -e "s|__LINUX_X86_64_URL__|${LINUX_X86_64_URL}|g" \
+              -e "s|__LINUX_ARM64_URL__|${LINUX_ARM64_URL}|g" \
+              -e "s|__MACOS_X86_64_URL__|${MACOS_X86_64_URL}|g" \
+              -e "s|__MACOS_ARM64_URL__|${MACOS_ARM64_URL}|g" \
+              -e "s|__WINDOWS_X86_64_URL__|${WINDOWS_X86_64_URL}|g" \
+              public/install.sh.template > public/install.sh
+
+          # Verify the substitution worked
+          echo "Generated install.sh for PR preview with URLs for ${VERSION}:"
+          echo "Linux x86_64: ${LINUX_X86_64_URL}"
+          echo "Linux ARM64: ${LINUX_ARM64_URL}"
+          echo "macOS x86_64: ${MACOS_X86_64_URL}"
+          echo "macOS ARM64: ${MACOS_ARM64_URL}"
+          echo "Windows x86_64: ${WINDOWS_X86_64_URL}"
+
+          # Double-check that no placeholders remain (excluding validation logic)
+          REMAINING_PLACEHOLDERS=$(grep "__.*_URL__" public/install.sh | grep -v "grep -q" || true)
+          if [ -n "$REMAINING_PLACEHOLDERS" ]; then
+            echo "Error: Placeholders still remain in install.sh"
+            echo "$REMAINING_PLACEHOLDERS"
+            exit 1
+          fi
+
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
