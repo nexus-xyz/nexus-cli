@@ -33,6 +33,7 @@ impl OrchestratorClient {
     pub fn new(environment: Environment) -> Self {
         Self {
             client: ClientBuilder::new()
+                .connect_timeout(Duration::from_secs(10))
                 .timeout(Duration::from_secs(10))
                 .build()
                 .expect("Failed to create HTTP client"),
