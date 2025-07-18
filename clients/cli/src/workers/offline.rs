@@ -98,7 +98,7 @@ pub fn start_workers(
                                     .await;
 
                                 // Track analytics for successful proof (non-blocking)
-                                track_authenticated_proof_analytics(&task, &environment, client_id.clone()).await;
+                                tokio::spawn(track_authenticated_proof_analytics(task.clone(), environment.clone(), client_id.clone()));
 
                                 let _ = results_sender.send((task, proof)).await;
                             }
@@ -163,7 +163,7 @@ pub async fn start_anonymous_workers(
                                     .send(Event::prover(worker_id, message, EventType::Success)).await;
 
                                 // Track analytics for successful anonymous proof (non-blocking)
-                                track_anonymous_proof_analytics(&environment, client_id.clone()).await;
+                                tokio::spawn(track_anonymous_proof_analytics(environment.clone(), client_id.clone()));
                             }
                             Err(e) => {
                                 let log_level = error_classifier.classify_worker_error(&e);
@@ -189,8 +189,8 @@ pub async fn start_anonymous_workers(
 
 /// Track analytics for authenticated proof (non-blocking)
 async fn track_authenticated_proof_analytics(
-    task: &Task,
-    environment: &Environment,
+    task: Task,
+    environment: Environment,
     client_id: String,
 ) {
     let analytics_data = match task.program_id.as_str() {
@@ -240,7 +240,7 @@ async fn track_authenticated_proof_analytics(
     let _ = track(
         vec!["cli_proof_node_v4".to_string(), "proof_node".to_string()],
         analytics_data,
-        environment,
+        &environment,
         client_id,
     )
     .await;
@@ -248,7 +248,7 @@ async fn track_authenticated_proof_analytics(
 }
 
 /// Track analytics for anonymous proof (non-blocking)
-async fn track_anonymous_proof_analytics(environment: &Environment, client_id: String) {
+async fn track_anonymous_proof_analytics(environment: Environment, client_id: String) {
     // Anonymous proofs use hardcoded input: (n=9, init_a=1, init_b=1)
     let public_input = (9, 1, 1);
 
@@ -260,7 +260,7 @@ async fn track_anonymous_proof_analytics(environment: &Environment, client_id: S
             "public_input_2": public_input.1,
             "public_input_3": public_input.2,
         }),
-        environment,
+        &environment,
         client_id,
     )
     .await;
