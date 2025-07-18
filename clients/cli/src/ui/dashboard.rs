@@ -43,6 +43,9 @@ pub struct DashboardState {
 
     /// The latest version string, if known.
     pub latest_version: Option<String>,
+
+    /// Whether to disable background colors
+    pub no_background_color: bool,
 }
 
 impl DashboardState {
@@ -52,11 +55,13 @@ impl DashboardState {
     /// * `node_id` - This node's unique identifier, if available.
     /// * `start_time` - The start time of the application, used for computing uptime.
     /// * `environment` - The environment in which the application is running.
+    /// * `no_background_color` - Whether to disable background colors
     pub fn new(
         node_id: Option<u64>,
         environment: Environment,
         start_time: Instant,
         events: &VecDeque<WorkerEvent>,
+        no_background_color: bool,
     ) -> Self {
         // Check for version update messages in recent events
         let (update_available, latest_version) = Self::check_for_version_updates(events);
@@ -72,6 +77,7 @@ impl DashboardState {
             events: events.clone(),
             update_available,
             latest_version,
+            no_background_color,
         }
     }
 
@@ -196,8 +202,11 @@ impl DashboardState {
 
 /// Render the dashboard screen.
 pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
-    let background_block = Block::default().style(Style::default().bg(Color::Rgb(18, 18, 24)));
-    f.render_widget(background_block, f.area());
+    // Only apply background color if no_background_color is false
+    if !state.no_background_color {
+        let background_block = Block::default().style(Style::default().bg(Color::Rgb(18, 18, 24)));
+        f.render_widget(background_block, f.area());
+    }
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)

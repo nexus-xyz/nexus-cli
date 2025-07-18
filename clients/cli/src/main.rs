@@ -66,6 +66,10 @@ enum Command {
         /// Custom orchestrator URL (overrides environment setting)
         #[arg(long = "orchestrator-url", value_name = "URL")]
         orchestrator_url: Option<String>,
+
+        /// Disable background colors in the dashboard
+        #[arg(long = "no-background-color", action = ArgAction::SetTrue)]
+        no_background_color: bool,
     },
     /// Register a new user
     RegisterUser {
@@ -99,6 +103,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             headless,
             max_threads,
             orchestrator_url,
+            no_background_color,
         } => {
             // If a custom orchestrator URL is provided, create a custom environment
             let final_environment = if let Some(url) = orchestrator_url {
@@ -114,6 +119,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 config_path,
                 headless,
                 max_threads,
+                no_background_color,
             )
             .await
         }
@@ -147,6 +153,7 @@ async fn start(
     config_path: std::path::PathBuf,
     headless: bool,
     max_threads: Option<u32>,
+    no_background_color: bool,
 ) -> Result<(), Box<dyn Error>> {
     let mut node_id = node_id;
     // If no node ID is provided, try to load it from the config file.
@@ -223,6 +230,7 @@ async fn start(
             orchestrator_client.environment().clone(),
             event_receiver,
             shutdown_sender,
+            no_background_color,
         );
         let res = ui::run(&mut terminal, app).await;
 

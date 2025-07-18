@@ -51,6 +51,9 @@ pub struct App {
 
     /// Broadcasts shutdown signal to worker threads.
     shutdown_sender: broadcast::Sender<()>,
+
+    /// Whether to disable background colors
+    no_background_color: bool,
 }
 
 impl App {
@@ -60,6 +63,7 @@ impl App {
         environment: Environment,
         event_receiver: mpsc::Receiver<WorkerEvent>,
         shutdown_sender: broadcast::Sender<()>,
+        no_background_color: bool,
     ) -> Self {
         Self {
             start_time: Instant::now(),
@@ -69,6 +73,7 @@ impl App {
             events: Default::default(),
             event_receiver,
             shutdown_sender,
+            no_background_color,
         }
     }
 
@@ -81,6 +86,7 @@ impl App {
             self.environment.clone(),
             self.start_time,
             &self.events,
+            self.no_background_color,
         );
         self.current_screen = Screen::Dashboard(state);
     }
@@ -111,6 +117,7 @@ pub async fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::i
                     app.environment.clone(),
                     app.start_time,
                     &app.events,
+                    app.no_background_color,
                 );
                 app.current_screen = Screen::Dashboard(state);
             }
@@ -125,6 +132,7 @@ pub async fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::i
                     app.environment.clone(),
                     app.start_time,
                     &app.events,
+                    app.no_background_color,
                 ));
                 continue;
             }
@@ -154,6 +162,7 @@ pub async fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::i
                                 app.environment.clone(),
                                 app.start_time,
                                 &app.events,
+                                app.no_background_color,
                             ));
                         }
                     }
