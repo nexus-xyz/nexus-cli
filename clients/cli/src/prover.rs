@@ -86,8 +86,12 @@ pub async fn authenticated_proving(
                     let error_msg =
                         format!("Failed to verify proof: {} for inputs: {:?}", e, input);
                     // Track analytics for verification failure (non-blocking)
-                    track_verification_failed(task, &error_msg, environment, client_id.to_string())
-                        .await;
+                    tokio::spawn(track_verification_failed(
+                        task.clone(),
+                        error_msg.clone(),
+                        environment.clone(),
+                        client_id.to_string(),
+                    ));
                     return Err(ProverError::Stwo(error_msg));
                 }
             }
@@ -118,8 +122,12 @@ pub async fn authenticated_proving(
                     let error_msg =
                         format!("Failed to verify proof: {} for inputs: {:?}", e, inputs);
                     // Track analytics for verification failure (non-blocking)
-                    track_verification_failed(task, &error_msg, environment, client_id.to_string())
-                        .await;
+                    tokio::spawn(track_verification_failed(
+                        task.clone(),
+                        error_msg.clone(),
+                        environment.clone(),
+                        client_id.to_string(),
+                    ));
                     return Err(ProverError::Stwo(error_msg));
                 }
             }
