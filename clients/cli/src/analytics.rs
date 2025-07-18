@@ -142,11 +142,7 @@ pub async fn track(
 }
 
 /// Track analytics for getting a task from orchestrator (non-blocking)
-pub async fn track_got_task(
-    task: &crate::task::Task,
-    environment: &Environment,
-    client_id: String,
-) {
+pub async fn track_got_task(task: crate::task::Task, environment: Environment, client_id: String) {
     let analytics_data = json!({
         "program_name": task.program_id,
         "task_id": task.task_id,
@@ -155,7 +151,7 @@ pub async fn track_got_task(
     let _ = track(
         vec!["cli_got_task".to_string(), "got_task".to_string()],
         analytics_data,
-        environment,
+        &environment,
         client_id,
     )
     .await;
@@ -164,9 +160,9 @@ pub async fn track_got_task(
 
 /// Track analytics for proof verification failure (non-blocking)
 pub async fn track_verification_failed(
-    task: &crate::task::Task,
-    error: &str,
-    environment: &Environment,
+    task: crate::task::Task,
+    error: String,
+    environment: Environment,
     client_id: String,
 ) {
     let analytics_data = json!({
@@ -181,7 +177,7 @@ pub async fn track_verification_failed(
             "local_verification_failed".to_string(),
         ],
         analytics_data,
-        environment,
+        &environment,
         client_id,
     )
     .await;
@@ -190,10 +186,10 @@ pub async fn track_verification_failed(
 
 /// Track analytics for proof submission error (non-blocking)
 pub async fn track_proof_submission_error(
-    task: &crate::task::Task,
-    error: &str,
+    task: crate::task::Task,
+    error: String,
     status_code: Option<u16>,
-    environment: &Environment,
+    environment: Environment,
     client_id: String,
 ) {
     let mut analytics_data = json!({
@@ -212,7 +208,7 @@ pub async fn track_proof_submission_error(
             "proof_submission_error".to_string(),
         ],
         analytics_data,
-        environment,
+        &environment,
         client_id,
     )
     .await;
@@ -221,8 +217,8 @@ pub async fn track_proof_submission_error(
 
 /// Track analytics for proof acceptance (non-blocking)
 pub async fn track_proof_accepted(
-    task: &crate::task::Task,
-    environment: &Environment,
+    task: crate::task::Task,
+    environment: Environment,
     client_id: String,
 ) {
     let analytics_data = json!({
@@ -236,7 +232,7 @@ pub async fn track_proof_accepted(
             "proof_accepted".to_string(),
         ],
         analytics_data,
-        environment,
+        &environment,
         client_id,
     )
     .await;
@@ -245,8 +241,8 @@ pub async fn track_proof_accepted(
 
 /// Track analytics for proof submission success (non-blocking)
 pub async fn track_proof_submission_success(
-    task: &crate::task::Task,
-    environment: &Environment,
+    task: crate::task::Task,
+    environment: Environment,
     client_id: String,
 ) {
     let analytics_data = json!({
@@ -260,7 +256,7 @@ pub async fn track_proof_submission_success(
             "proof_submission_success".to_string(),
         ],
         analytics_data,
-        environment,
+        &environment,
         client_id,
     )
     .await;
