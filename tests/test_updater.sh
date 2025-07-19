@@ -145,9 +145,9 @@ fi
 
 # If the new PID is the same as the original PID, the CLI was not restarted (same process)
 if [ "$NEW_PID" == "$ORIGINAL_PID" ]; then
-    echo -e "${ORANGE}[test-updater script] (12 / 18) ❌ CLI was not restarted \(PID unchanged\)${NC}"
-    echo -e "${ORANGE}[test-updater script] (13 / 18) Original version: $(git describe --tags $STARTING_COMMIT)${NC}. Expected version: $TEST_NEW_VERSION${NC}"
+    echo -e "${ORANGE}[test-updater script] (11 / 18) ❌ CLI was not restarted \(PID unchanged\)${NC}"
+    echo -e "${ORANGE}[test-updater script] (12 / 18) Original version: $(git describe --tags $STARTING_COMMIT)${NC}. Expected version: $TEST_NEW_VERSION${NC}"
     exit 1
 fi
 
-echo -e "${ORANGE}[test-updater script] (14 / 18) ✅ CLI auto-updated and restarted successfully${NC}"
+echo -e "${ORANGE}[test-updater script] (13 / 18) ✅ CLI auto-updated and restarted successfully${NC}"
