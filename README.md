@@ -140,18 +140,13 @@ following format:
 
 ---
 
-## Current Limitations
-
-- To submit programs to the network for proving, contact
-  [growth@nexus.xyz](mailto:growth@nexus.xyz).
-
----
-
 ## Get Help
 
 - [Network FAQ](https://docs.nexus.xyz/layer-1/network-devnet/faq)
 - [Discord Community](https://discord.gg/nexus-xyz)
 - Technical issues? [Open an issue](https://github.com/nexus-xyz/nexus-cli/issues)
+- To submit programs to the network for proving, contact
+  [growth@nexus.xyz](mailto:growth@nexus.xyz).
 
 ---
 
