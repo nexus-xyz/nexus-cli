@@ -149,7 +149,7 @@ following format:
 
 ## Get Help
 
-- [Network FAQ](https://docs.nexus.xyz/layer-1/network-devnet/faq)
+- [Network FAQ](https://docs.nexus.xyz/layer-1/testnet/faq)
 - [Discord Community](https://discord.gg/nexus-xyz)
 - Technical issues? [Open an issue](https://github.com/nexus-xyz/nexus-cli/issues)
 
