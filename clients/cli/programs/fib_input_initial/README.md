@@ -83,4 +83,4 @@ The CLI will automatically run this program with hardcoded test inputs and gener
 
 - [Nexus zkVM SDK Quick Start](https://docs.nexus.xyz/zkvm/proving/sdk) - Complete setup and usage guide
 - [Nexus zkVM Architecture](https://docs.nexus.xyz/zkvm/architecture) - Technical details about the zkVM
-- [Nexus zkVM Runtime](https://docs.nexus.xyz/zkvm/runtime) - Runtime features and APIs 
+- [Nexus zkVM Runtime](https://docs.nexus.xyz/zkvm/proving/runtime) - Runtime features and APIs 
