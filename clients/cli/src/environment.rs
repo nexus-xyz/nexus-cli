@@ -13,10 +13,10 @@ pub enum Environment {
 
 impl Environment {
     /// Returns the orchestrator service URL associated with the environment.
-    pub fn orchestrator_url(&self) -> String {
+    pub fn orchestrator_url(&self) -> &str {
         match self {
-            Environment::Production => "https://production.orchestrator.nexus.xyz".to_string(),
-            Environment::Custom { orchestrator_url } => orchestrator_url.clone(),
+            Environment::Production => "https://production.orchestrator.nexus.xyz",
+            Environment::Custom { orchestrator_url } => orchestrator_url,
         }
     }
 }
