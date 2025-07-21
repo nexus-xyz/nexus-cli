@@ -87,7 +87,7 @@ use tokio::time::{Instant, sleep};
 #[cfg(test)]
 use mockall::{automock, predicate::*};
 
-// Check for updates every 24 hours
+// Check for updates and constraints every 24 hours
 const VERSION_CHECK_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60);
 
 // GitHub API endpoint for the latest release
@@ -110,6 +110,13 @@ pub struct VersionInfo {
     pub update_available: bool,
     pub release_url: Option<String>,
     pub last_check: Option<Instant>,
+}
+
+#[derive(Debug, Clone)]
+pub struct VersionConstraintState {
+    pub last_constraint_check: Option<Instant>,
+    pub current_constraints: Option<VersionRequirements>,
+    pub last_violation: Option<VersionCheckResult>,
 }
 
 impl VersionInfo {
@@ -215,7 +222,7 @@ pub async fn version_checker_task(
     .await;
 }
 
-/// Background task that periodically checks for version updates with configurable interval
+/// Background task that periodically checks for version updates and constraints with configurable interval
 pub async fn version_checker_task_with_interval(
     version_checker: Box<dyn VersionCheckable>,
     event_sender: mpsc::Sender<Event>,
@@ -223,8 +230,40 @@ pub async fn version_checker_task_with_interval(
     check_interval: Duration,
 ) {
     let mut version_info = VersionInfo::new(version_checker.current_version().to_string());
+    let mut constraint_state = VersionConstraintState {
+        last_constraint_check: None,
+        current_constraints: None,
+        last_violation: None,
+    };
 
-    // Perform initial check immediately
+    // Perform initial checks immediately
+    perform_version_and_constraint_check(&version_checker, &mut version_info, &mut constraint_state, &event_sender).await;
+
+    // After initial check, wait for the interval then check periodically
+    let mut last_check = Instant::now();
+
+    loop {
+        tokio::select! {
+            _ = shutdown.recv() => break,
+            _ = sleep(Duration::from_secs(60)) => {
+                // Check if it's time for a check
+                if last_check.elapsed() >= check_interval {
+                    last_check = Instant::now();
+                    perform_version_and_constraint_check(&version_checker, &mut version_info, &mut constraint_state, &event_sender).await;
+                }
+            }
+        }
+    }
+}
+
+/// Perform both version update check and constraint check
+async fn perform_version_and_constraint_check(
+    version_checker: &Box<dyn VersionCheckable>,
+    version_info: &mut VersionInfo,
+    constraint_state: &mut VersionConstraintState,
+    event_sender: &mpsc::Sender<Event>,
+) {
+    // Check for version updates
     match version_checker.check_latest_version().await {
         Ok(release) => {
             version_info.update_from_release(release.clone());
