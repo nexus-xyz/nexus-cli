@@ -97,8 +97,8 @@ impl VersionRequirements {
                 }
             }
 
-                        let min_version = Version::parse(&constraint.version)?;
-            
+            let min_version = Version::parse(&constraint.version)?;
+
             if current < min_version {
                 // This constraint is violated
                 let message = self.format_message(

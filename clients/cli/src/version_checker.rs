@@ -448,16 +448,20 @@ mod tests {
 
     #[tokio::test]
     async fn test_version_checker_task_with_new_version_available() {
+        // Test with a version that should trigger an update notification
+        let current_version = "0.9.0";
+        let new_version = "0.9.1";
+
         // Create mock version checker
         let mut mock_checker = MockVersionCheckable::new();
         mock_checker
             .expect_current_version()
-            .return_const("0.9.0".to_string());
+            .return_const(current_version.to_string());
 
         // Mock returns a newer version
         mock_checker
             .expect_check_latest_version()
-            .returning(|| Ok(create_mock_release("v0.9.1")));
+            .returning(move || Ok(create_mock_release(&format!("v{}", new_version))));
 
         // Set up channels
         let (event_sender, mut event_receiver) = mpsc::channel(10);
@@ -484,7 +488,10 @@ mod tests {
         // Check that we received the update event
         let mut received_update_event = false;
         while let Ok(event) = event_receiver.try_recv() {
-            if event.msg.contains("🚀 New version v0.9.1 available!") {
+            if event
+                .msg
+                .contains(&format!("🚀 New version v{} available!", new_version))
+            {
                 received_update_event = true;
                 assert_eq!(event.event_type, EventType::Success);
                 break;
@@ -500,7 +507,7 @@ mod tests {
     async fn test_version_checker_task_with_no_update_needed() {
         // Test with a version that should not trigger any constraints
         let test_version = "0.9.1";
-        
+
         // Create mock version checker
         let mut mock_checker = MockVersionCheckable::new();
         mock_checker
@@ -539,14 +546,17 @@ mod tests {
         let mut event_count = 0;
         while let Ok(event) = event_receiver.try_recv() {
             event_count += 1;
-            if event.msg.contains(&format!("✅ Version {} is up to date", test_version)) {
+            if event
+                .msg
+                .contains(&format!("✅ Version {} is up to date", test_version))
+            {
                 received_up_to_date_event = true;
                 assert_eq!(event.event_type, EventType::Refresh);
                 assert_eq!(event.log_level, LogLevel::Debug);
                 break;
             }
         }
-        
+
         // With the new constraint system, we might not send an event if there's no status change
         // So we accept either an up-to-date event or no events at all
         assert!(
@@ -608,16 +618,20 @@ mod tests {
 
     #[tokio::test]
     async fn test_version_checker_only_notifies_once_for_same_update() {
+        // Test that multiple API calls only result in one notification
+        let current_version = "0.9.0";
+        let new_version = "0.9.1";
+
         // Create mock version checker
         let mut mock_checker = MockVersionCheckable::new();
         mock_checker
             .expect_current_version()
-            .return_const("0.9.0".to_string());
+            .return_const(current_version.to_string());
 
         // Mock always returns newer version - called multiple times but only first notification sent
         mock_checker
             .expect_check_latest_version()
-            .returning(|| Ok(create_mock_release("v0.9.1")))
+            .returning(move || Ok(create_mock_release(&format!("v{}", new_version))))
             .times(..); // Allow any number of calls
 
         // Set up channels
@@ -647,7 +661,10 @@ mod tests {
         let mut all_events = Vec::new();
         while let Ok(event) = event_receiver.try_recv() {
             all_events.push(event.msg.clone());
-            if event.msg.contains("🚀 New version v0.9.1 available!") {
+            if event
+                .msg
+                .contains(&format!("🚀 New version v{} available!", new_version))
+            {
                 update_event_count += 1;
             }
         }
