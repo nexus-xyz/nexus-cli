@@ -67,7 +67,8 @@ impl DashboardState {
         no_background_color: bool,
     ) -> Self {
         // Check for version update messages in recent events
-        let (update_available, latest_version, constraint_type) = Self::check_for_version_updates(events);
+        let (update_available, latest_version, constraint_type) =
+            Self::check_for_version_updates(events);
 
         Self {
             node_id,
@@ -86,7 +87,13 @@ impl DashboardState {
     }
 
     /// Check recent events for version update information
-    fn check_for_version_updates(events: &VecDeque<WorkerEvent>) -> (bool, Option<String>, Option<crate::version_requirements::ConstraintType>) {
+    fn check_for_version_updates(
+        events: &VecDeque<WorkerEvent>,
+    ) -> (
+        bool,
+        Option<String>,
+        Option<crate::version_requirements::ConstraintType>,
+    ) {
         // Look for the most recent version checker event
         for event in events.iter().rev() {
             if matches!(event.worker, Worker::VersionChecker) {
@@ -309,7 +316,7 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
             Some(crate::version_requirements::ConstraintType::Notice) => Color::Cyan,
             None => Color::LightYellow, // Default fallback
         };
-        
+
         if let Some(latest) = &state.latest_version {
             let version_text = format!("VERSION: {} → {}", version, latest);
             status_lines.push(Line::from(vec![Span::styled(

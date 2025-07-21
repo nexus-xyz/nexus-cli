@@ -76,7 +76,7 @@
 
 use crate::error_classifier::LogLevel;
 use crate::events::{Event, EventType};
-use crate::version_requirements::{VersionRequirements, VersionCheckResult, ConstraintType};
+use crate::version_requirements::{ConstraintType, VersionCheckResult, VersionRequirements};
 use reqwest::{Client, ClientBuilder};
 use semver::Version;
 use serde::{Deserialize, Serialize};
@@ -237,7 +237,13 @@ pub async fn version_checker_task_with_interval(
     };
 
     // Perform initial checks immediately
-    perform_version_and_constraint_check(&version_checker, &mut version_info, &mut constraint_state, &event_sender).await;
+    perform_version_and_constraint_check(
+        &version_checker,
+        &mut version_info,
+        &mut constraint_state,
+        &event_sender,
+    )
+    .await;
 
     // After initial check, wait for the interval then check periodically
     let mut last_check = Instant::now();
@@ -271,11 +277,18 @@ async fn perform_version_and_constraint_check(
             // Check version constraints to determine what message to show
             let constraint_result = match VersionRequirements::fetch().await {
                 Ok(requirements) => {
-                    requirements.check_version_constraints(
-                        &version_info.current_version,
-                        Some(&release.tag_name),
-                        Some(&release.html_url)
-                    ).ok().flatten()
+                    // Update constraint state
+                    constraint_state.current_constraints = Some(requirements.clone());
+                    constraint_state.last_constraint_check = Some(Instant::now());
+
+                    requirements
+                        .check_version_constraints(
+                            &version_info.current_version,
+                            Some(&release.tag_name),
+                            Some(&release.html_url),
+                        )
+                        .ok()
+                        .flatten()
                 }
                 Err(_) => {
                     // If we can't fetch requirements, default to the old behavior
@@ -293,33 +306,61 @@ async fn perform_version_and_constraint_check(
                 }
             };
 
-            if let Some(result) = constraint_result {
-                let event = match result.constraint_type {
-                    ConstraintType::Blocking => {
-                        Event::version_checker_with_level(result.message, EventType::Error, LogLevel::Error)
-                    }
-                    ConstraintType::Warning => {
-                        Event::version_checker_with_level(result.message, EventType::Error, LogLevel::Warn)
-                    }
-                    ConstraintType::Notice => {
-                        Event::version_checker_with_level(result.message, EventType::Success, LogLevel::Info)
-                    }
-                };
-
-                if (event_sender.send(event).await).is_err() {
-                    return;
+            // Only send event if constraint status has changed
+            let should_send_event = match (&constraint_state.last_violation, &constraint_result) {
+                (None, None) => false, // No change
+                (Some(old), Some(new)) => {
+                    // Check if constraint type or message has changed
+                    old.constraint_type != new.constraint_type || old.message != new.message
                 }
-            } else {
-                let message = format!(
-                    "✅ Version {} is up to date\n",
-                    version_info.current_version
-                );
+                _ => true, // One is Some, other is None - status changed
+            };
 
-                let event =
-                    Event::version_checker_with_level(message, EventType::Refresh, LogLevel::Debug);
+            if should_send_event {
+                if let Some(result) = constraint_result {
+                    let event = match result.constraint_type {
+                        ConstraintType::Blocking => Event::version_checker_with_level(
+                            result.message.clone(),
+                            EventType::Error,
+                            LogLevel::Error,
+                        ),
+                        ConstraintType::Warning => Event::version_checker_with_level(
+                            result.message.clone(),
+                            EventType::Error,
+                            LogLevel::Warn,
+                        ),
+                        ConstraintType::Notice => Event::version_checker_with_level(
+                            result.message.clone(),
+                            EventType::Success,
+                            LogLevel::Info,
+                        ),
+                    };
 
-                if (event_sender.send(event).await).is_err() {
-                    return;
+                    if (event_sender.send(event).await).is_err() {
+                        return;
+                    }
+
+                    // Update constraint state
+                    constraint_state.last_violation = Some(result);
+                } else {
+                    // No violation - send up-to-date message
+                    let message = format!(
+                        "✅ Version {} is up to date\n",
+                        version_info.current_version
+                    );
+
+                    let event = Event::version_checker_with_level(
+                        message,
+                        EventType::Refresh,
+                        LogLevel::Debug,
+                    );
+
+                    if (event_sender.send(event).await).is_err() {
+                        return;
+                    }
+
+                    // Clear constraint state
+                    constraint_state.last_violation = None;
                 }
             }
         }
@@ -330,85 +371,6 @@ async fn perform_version_and_constraint_check(
 
             if (event_sender.send(event).await).is_err() {
                 return;
-            }
-        }
-    }
-
-    // After initial check, wait for the interval then check periodically
-    let mut last_check = Instant::now();
-
-    loop {
-        tokio::select! {
-            _ = shutdown.recv() => break,
-            _ = sleep(Duration::from_secs(60)) => {
-                // Check if it's time for a version check
-                if last_check.elapsed() >= check_interval {
-                    last_check = Instant::now();
-
-                    match version_checker.check_latest_version().await {
-                        Ok(release) => {
-                            let was_update_available = version_info.update_available;
-                            version_info.update_from_release(release.clone());
-
-                            // Check version constraints to determine what message to show
-                            let constraint_result = match VersionRequirements::fetch().await {
-                                Ok(requirements) => {
-                                    requirements.check_version_constraints(
-                                        &version_info.current_version,
-                                        Some(&release.tag_name),
-                                        Some(&release.html_url)
-                                    ).ok().flatten()
-                                }
-                                Err(_) => {
-                                    // If we can't fetch requirements, default to the old behavior
-                                    if version_info.update_available && !was_update_available {
-                                        Some(VersionCheckResult {
-                                            constraint_type: ConstraintType::Notice,
-                                            message: format!(
-                                                "🚀 New version {} available! Current: {} → Release: {}",
-                                                release.tag_name, version_info.current_version, release.html_url
-                                            ),
-                                        })
-                                    } else {
-                                        None
-                                    }
-                                }
-                            };
-
-                            // Only send event if this is a new update detection
-                            if let Some(result) = constraint_result {
-                                let event = match result.constraint_type {
-                                    ConstraintType::Blocking => {
-                                        Event::version_checker_with_level(result.message, EventType::Error, LogLevel::Error)
-                                    }
-                                    ConstraintType::Warning => {
-                                        Event::version_checker_with_level(result.message, EventType::Error, LogLevel::Warn)
-                                    }
-                                    ConstraintType::Notice => {
-                                        Event::version_checker_with_level(result.message, EventType::Success, LogLevel::Info)
-                                    }
-                                };
-
-                                if (event_sender.send(event).await).is_err() {
-                                    break;
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            // Log error but don't spam (debug level)
-                            let message = format!("Failed to check for updates: {}", e);
-                            let event = Event::version_checker_with_level(
-                                message,
-                                EventType::Error,
-                                LogLevel::Debug,
-                            );
-
-                            if (event_sender.send(event).await).is_err() {
-                                break;
-                            }
-                        }
-                    }
-                }
             }
         }
     }

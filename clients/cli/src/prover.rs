@@ -31,7 +31,7 @@ async fn check_version_requirements() -> Result<(), ProverError> {
     match VersionRequirements::fetch().await {
         Ok(requirements) => {
             let current_version = env!("CARGO_PKG_VERSION");
-            
+
             // Check all version constraints
             match requirements.check_version_constraints(current_version, None, None) {
                 Ok(Some(violation)) => {
@@ -79,7 +79,7 @@ async fn check_version_requirements() -> Result<(), ProverError> {
 pub async fn prove_anonymously() -> Result<Proof, ProverError> {
     // Check version requirements before proving
     check_version_requirements().await?;
-    
+
     // Compute the 10th Fibonacci number using fib_input_initial
     // Input: (n=9, init_a=1, init_b=1)
     // This computes F(9) = 55 in the classic Fibonacci sequence starting with 1,1
@@ -119,7 +119,7 @@ pub async fn authenticated_proving(
 ) -> Result<Proof, ProverError> {
     // Check version requirements before proving
     check_version_requirements().await?;
-    
+
     let (view, proof, _) = match task.program_id.as_str() {
         "fast-fib" => {
             // fast-fib uses string inputs
@@ -268,7 +268,7 @@ pub fn get_initial_stwo_prover() -> Result<Stwo<Local>, ProverError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::version_requirements::{VersionRequirements, VersionConstraint, ConstraintType};
+    use crate::version_requirements::{ConstraintType, VersionConstraint, VersionRequirements};
 
     #[test]
     // The default Stwo prover should be created successfully.
@@ -294,7 +294,7 @@ mod tests {
         // Mock the version requirements to simulate a blocking scenario
         // This test verifies that the version checking logic works
         // In a real scenario, this would be fetched from the config server
-        
+
         // Create a mock config that requires a higher version than current
         let mock_config = VersionRequirements {
             version_constraints: vec![
@@ -315,8 +315,13 @@ mod tests {
 
         // Test that the version comparison logic works
         let current_version = env!("CARGO_PKG_VERSION");
-        let result = mock_config.check_version_constraints(current_version, None, None).unwrap();
+        let result = mock_config
+            .check_version_constraints(current_version, None, None)
+            .unwrap();
         assert!(result.is_some());
-        assert!(matches!(result.unwrap().constraint_type, ConstraintType::Blocking));
+        assert!(matches!(
+            result.unwrap().constraint_type,
+            ConstraintType::Blocking
+        ));
     }
 }
