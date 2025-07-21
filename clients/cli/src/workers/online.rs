@@ -318,7 +318,11 @@ async fn process_fetched_tasks(
         }
 
         // Track analytics for getting a task (non-blocking)
-        track_got_task(&task, environment, client_id.to_string()).await;
+        tokio::spawn(track_got_task(
+            task.clone(),
+            environment.clone(),
+            client_id.to_string(),
+        ));
 
         added_count += 1;
     }
@@ -700,7 +704,11 @@ async fn process_proof_submission(
     {
         Ok(_) => {
             // Track analytics for proof submission success (non-blocking)
-            track_proof_submission_success(&task, environment, client_id.to_string()).await;
+            tokio::spawn(track_proof_submission_success(
+                task.clone(),
+                environment.clone(),
+                client_id.to_string(),
+            ));
             handle_submission_success(
                 &task,
                 event_sender,
@@ -732,7 +740,11 @@ async fn handle_submission_success(
         task.task_id
     );
     // Track analytics for proof acceptance (non-blocking)
-    track_proof_accepted(task, environment, client_id.to_string()).await;
+    tokio::spawn(track_proof_accepted(
+        task.clone(),
+        environment.clone(),
+        client_id.to_string(),
+    ));
 
     let _ = event_sender
         .send(Event::proof_submitter_with_level(
@@ -766,7 +778,13 @@ async fn handle_submission_error(
     };
 
     // Track analytics for proof submission error (non-blocking)
-    track_proof_submission_error(task, &msg, status_code, environment, client_id.to_string()).await;
+    tokio::spawn(track_proof_submission_error(
+        task.clone(),
+        msg.clone(),
+        status_code,
+        environment.clone(),
+        client_id.to_string(),
+    ));
 
     let _ = event_sender
         .send(Event::proof_submitter(

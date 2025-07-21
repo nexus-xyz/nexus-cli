@@ -5,14 +5,13 @@
 //! - Proof computation (authenticated and anonymous)
 //! - Worker management
 
-use crate::analytics::track;
+use crate::analytics::{track_anonymous_proof_analytics, track_authenticated_proof_analytics};
 use crate::environment::Environment;
 use crate::error_classifier::ErrorClassifier;
 use crate::events::{Event, EventType};
 use crate::prover::authenticated_proving;
 use crate::task::Task;
 use nexus_sdk::stwo::seq::Proof;
-use serde_json::json;
 use std::time::Duration;
 use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;
@@ -98,7 +97,7 @@ pub fn start_workers(
                                     .await;
 
                                 // Track analytics for successful proof (non-blocking)
-                                track_authenticated_proof_analytics(&task, &environment, client_id.clone()).await;
+                                tokio::spawn(track_authenticated_proof_analytics(task.clone(), environment.clone(), client_id.clone()));
 
                                 let _ = results_sender.send((task, proof)).await;
                             }
@@ -163,7 +162,7 @@ pub async fn start_anonymous_workers(
                                     .send(Event::prover(worker_id, message, EventType::Success)).await;
 
                                 // Track analytics for successful anonymous proof (non-blocking)
-                                track_anonymous_proof_analytics(&environment, client_id.clone()).await;
+                                tokio::spawn(track_anonymous_proof_analytics(environment.clone(), client_id.clone()));
                             }
                             Err(e) => {
                                 let log_level = error_classifier.classify_worker_error(&e);
@@ -185,84 +184,4 @@ pub async fn start_anonymous_workers(
     }
 
     (event_receiver, join_handles)
-}
-
-/// Track analytics for authenticated proof (non-blocking)
-async fn track_authenticated_proof_analytics(
-    task: &Task,
-    environment: &Environment,
-    client_id: String,
-) {
-    let analytics_data = match task.program_id.as_str() {
-        "fast-fib" => {
-            // For fast-fib, extract the input from task public_inputs
-            let input = if !task.public_inputs.is_empty() {
-                task.public_inputs[0] as u32
-            } else {
-                0
-            };
-            json!({
-                "program_name": "fast-fib",
-                "public_input": input,
-                "task_id": task.task_id,
-            })
-        }
-        "fib_input_initial" => {
-            // For fib_input_initial, extract the triple inputs
-            let inputs = if task.public_inputs.len() >= 12 {
-                let mut bytes = [0u8; 4];
-                bytes.copy_from_slice(&task.public_inputs[0..4]);
-                let n = u32::from_le_bytes(bytes);
-                bytes.copy_from_slice(&task.public_inputs[4..8]);
-                let init_a = u32::from_le_bytes(bytes);
-                bytes.copy_from_slice(&task.public_inputs[8..12]);
-                let init_b = u32::from_le_bytes(bytes);
-                (n, init_a, init_b)
-            } else {
-                (0, 0, 0)
-            };
-            json!({
-                "program_name": "fib_input_initial",
-                "public_input": inputs.0,
-                "public_input_2": inputs.1,
-                "public_input_3": inputs.2,
-                "task_id": task.task_id,
-            })
-        }
-        _ => {
-            json!({
-                "program_name": task.program_id,
-                "task_id": task.task_id,
-            })
-        }
-    };
-
-    let _ = track(
-        vec!["cli_proof_node_v4".to_string(), "proof_node".to_string()],
-        analytics_data,
-        environment,
-        client_id,
-    )
-    .await;
-    // TODO: Catch errors and log them
-}
-
-/// Track analytics for anonymous proof (non-blocking)
-async fn track_anonymous_proof_analytics(environment: &Environment, client_id: String) {
-    // Anonymous proofs use hardcoded input: (n=9, init_a=1, init_b=1)
-    let public_input = (9, 1, 1);
-
-    let _ = track(
-        vec!["cli_proof_anon_v3".to_string()],
-        json!({
-            "program_name": "fib_input_initial",
-            "public_input": public_input.0,
-            "public_input_2": public_input.1,
-            "public_input_3": public_input.2,
-        }),
-        environment,
-        client_id,
-    )
-    .await;
-    // TODO: Catch errors and log them
 }
