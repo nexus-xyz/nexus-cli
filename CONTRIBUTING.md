@@ -165,7 +165,7 @@ tag in the commits.
 
 [rust-coc]: https://github.com/rust-lang/rust/blob/master/CODE_OF_CONDUCT.md
 
-[gh]: https://github.com/nexus-xyz/network-api
+[gh]: https://github.com/nexus-xyz/nexus-cli
 
 [discord]: https://discord.com/invite/nexus-xyz
 

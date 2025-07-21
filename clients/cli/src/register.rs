@@ -184,6 +184,7 @@ mod tests {
                 Err(OrchestratorError::Http {
                     status: 404,
                     message: "User not found".to_string(),
+                    headers: std::collections::HashMap::new(),
                 })
             });
 
