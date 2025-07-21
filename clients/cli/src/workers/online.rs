@@ -41,7 +41,7 @@ impl TaskFetchState {
         Self {
             last_fetch_time: std::time::Instant::now()
                 - Duration::from_millis(BACKOFF_DURATION + 1000), // Allow immediate first fetch
-            backoff_duration: Duration::from_millis(BACKOFF_DURATION), // Start with 30 second backoff
+            backoff_duration: Duration::from_millis(BACKOFF_DURATION), // Start with 120 second backoff
             last_queue_log_time: std::time::Instant::now(),
             queue_log_interval: Duration::from_millis(QUEUE_LOG_INTERVAL), // Log queue status every 30 seconds
             error_classifier: ErrorClassifier::new(),
@@ -69,11 +69,10 @@ impl TaskFetchState {
         self.backoff_duration = Duration::from_millis(BACKOFF_DURATION);
     }
 
-    pub fn increase_backoff_for_rate_limit(&mut self) {
-        self.backoff_duration = std::cmp::min(
-            self.backoff_duration * 2,
-            Duration::from_millis(BACKOFF_DURATION * 2),
-        );
+    /// Set backoff duration from server's Retry-After header (in seconds)
+    pub fn set_backoff_from_server(&mut self, retry_after_seconds: u32) {
+        // Use the server's exact retry time
+        self.backoff_duration = Duration::from_secs(retry_after_seconds as u64);
     }
 
     pub fn increase_backoff_for_error(&mut self) {
@@ -283,9 +282,11 @@ async fn handle_empty_task_response(
         ))
         .await;
 
-    // IMPORTANT: Reset backoff even when no tasks are available
-    // Otherwise we get stuck in backoff loop when server has no tasks
-    state.reset_backoff();
+    // Only reset backoff if it's at or below default level
+    // If backoff is higher, it's likely from a server retry-after header
+    if state.backoff_duration <= Duration::from_millis(BACKOFF_DURATION) {
+        state.reset_backoff();
+    }
 }
 
 /// Process fetched tasks and handle duplicates
@@ -340,7 +341,7 @@ async fn log_fetch_results(
 ) {
     if added_count > 0 {
         log_successful_fetch(added_count, sender, event_sender).await;
-        state.reset_backoff();
+        state.reset_backoff(); // Reset to default 120s backoff
     } else if duplicate_count > 0 {
         handle_all_duplicates(duplicate_count, event_sender, state).await;
     }
@@ -415,32 +416,57 @@ async fn handle_fetch_error(
     event_sender: &mpsc::Sender<Event>,
     state: &mut TaskFetchState,
 ) {
-    if matches!(error, OrchestratorError::Http { status: 429, .. }) {
-        state.increase_backoff_for_rate_limit();
-        let _ = event_sender
-            .send(Event::task_fetcher_with_level(
+    match error {
+        OrchestratorError::Http {
+            status: 429,
+            ref headers,
+            ..
+        } => {
+            // Debug: print headers for 429 responses
+            let _ = event_sender
+                .send(Event::task_fetcher_with_level(
+                    format!("429 Rate limit retry-after: {:?}", headers["retry-after"]),
+                    crate::events::EventType::Refresh,
+                    LogLevel::Debug,
+                ))
+                .await;
+
+            if let Some(retry_after_seconds) = error.get_retry_after_seconds() {
+                state.set_backoff_from_server(retry_after_seconds);
+                let _ = event_sender
+                    .send(Event::task_fetcher_with_level(
+                        format!("Rate limited - retrying in {}s", retry_after_seconds),
+                        crate::events::EventType::Error,
+                        LogLevel::Warn,
+                    ))
+                    .await;
+            } else {
+                // This shouldn't happen with a properly configured server
+                state.increase_backoff_for_error();
+                let _ = event_sender
+                    .send(Event::task_fetcher_with_level(
+                        "Rate limited - no retry time specified".to_string(),
+                        crate::events::EventType::Error,
+                        LogLevel::Error,
+                    ))
+                    .await;
+            }
+        }
+        _ => {
+            state.increase_backoff_for_error();
+            let log_level = state.error_classifier.classify_fetch_error(&error);
+            let event = Event::task_fetcher_with_level(
                 format!(
-                    "Rate limited - retrying in {}s",
+                    "Failed to fetch tasks: {}, retrying in {} seconds",
+                    error,
                     state.backoff_duration.as_secs()
                 ),
                 crate::events::EventType::Error,
-                LogLevel::Warn,
-            ))
-            .await;
-    } else {
-        state.increase_backoff_for_error();
-        let log_level = state.error_classifier.classify_fetch_error(&error);
-        let event = Event::task_fetcher_with_level(
-            format!(
-                "Failed to fetch tasks: {}, retrying in {} seconds",
-                error,
-                state.backoff_duration.as_secs()
-            ),
-            crate::events::EventType::Error,
-            log_level,
-        );
-        if event.should_display() {
-            let _ = event_sender.send(event).await;
+                log_level,
+            );
+            if event.should_display() {
+                let _ = event_sender.send(event).await;
+            }
         }
     }
 }
@@ -513,7 +539,12 @@ async fn fetch_new_tasks_batch(
                 new_tasks.push(task);
                 consecutive_404s = 0; // Reset counter on success
             }
-            Err(OrchestratorError::Http { status: 429, .. }) => {
+            Err(OrchestratorError::Http {
+                status: 429,
+                message,
+                ref headers,
+            }) => {
+                // Debug: print headers for 429 responses
                 let _ = event_sender
                     .send(Event::task_fetcher_with_level(
                         "Every node in the Prover Network is rate limited to 3 tasks per 3 minutes"
@@ -522,8 +553,13 @@ async fn fetch_new_tasks_batch(
                         LogLevel::Debug,
                     ))
                     .await;
-                // Rate limited, return what we have
-                break;
+
+                // Don't handle 429 here - propagate it back to main error handler
+                return Err(OrchestratorError::Http {
+                    status: 429,
+                    message,
+                    headers: headers.clone(),
+                });
             }
             Err(OrchestratorError::Http { status: 404, .. }) => {
                 consecutive_404s += 1;
@@ -792,4 +828,48 @@ async fn handle_submission_error(
             crate::events::EventType::Error,
         ))
         .await;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+
+    #[test]
+    fn test_set_backoff_from_server() {
+        let mut state = TaskFetchState::new();
+
+        // Test setting a reasonable retry time
+        state.set_backoff_from_server(60);
+        assert_eq!(state.backoff_duration, Duration::from_secs(60));
+
+        // Test that longer retry times are respected (no capping)
+        state.set_backoff_from_server(300); // 5 minutes
+        assert_eq!(state.backoff_duration, Duration::from_secs(300));
+
+        // Test zero retry time
+        state.set_backoff_from_server(0);
+        assert_eq!(state.backoff_duration, Duration::from_secs(0));
+    }
+
+    #[test]
+    fn test_server_retry_times_respected() {
+        let mut state = TaskFetchState::new();
+
+        // Test that very long retry times are respected
+        state.set_backoff_from_server(3600); // 1 hour
+        assert_eq!(state.backoff_duration, Duration::from_secs(3600));
+    }
+
+    #[test]
+    fn test_reset_backoff() {
+        let mut state = TaskFetchState::new();
+
+        // Test that reset sets backoff to default 120s
+        state.reset_backoff();
+        assert_eq!(
+            state.backoff_duration,
+            Duration::from_millis(BACKOFF_DURATION)
+        );
+    }
 }
