@@ -299,13 +299,13 @@ mod tests {
         let mock_config = VersionRequirements {
             version_constraints: vec![
                 VersionConstraint {
-                    min_version: "999.0.0".to_string(),
+                    version: "999.0.0".to_string(),
                     constraint_type: ConstraintType::Blocking,
                     message: "Test blocking message".to_string(),
                     start_date: None,
                 },
                 VersionConstraint {
-                    min_version: "999.0.0".to_string(),
+                    version: "999.0.0".to_string(),
                     constraint_type: ConstraintType::Warning,
                     message: "Test warning message".to_string(),
                     start_date: None,

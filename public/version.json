@@ -1,0 +1,14 @@
+{
+  "version_constraints": [
+    {
+      "version": "0.9.0",
+      "type": "blocking",
+      "message": "Your version {current} does not meet the minimum required version {version}. Please upgrade to continue proving. Visit https://github.com/nexus-xyz/nexus-cli/releases for the latest version."
+    },
+    {
+      "version": "0.10.0",
+      "type": "warning",
+      "message": "Your version {current} is older than the recommended version {version}. Consider upgrading for the best experience."
+    }
+  ]
+} 

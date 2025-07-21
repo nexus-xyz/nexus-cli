@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use thiserror::Error;
 
-const CONFIG_URL: &str = "https://cli.nexus.xyz/config.json";
+const CONFIG_URL: &str = "https://cli.nexus.xyz/version.json";
 const CONFIG_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Error, Debug)]
@@ -26,7 +26,7 @@ pub struct VersionRequirements {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct VersionConstraint {
-    pub min_version: String,
+    pub version: String,
     pub constraint_type: ConstraintType,
     pub message: String,
     #[serde(default)]
@@ -97,14 +97,14 @@ impl VersionRequirements {
                 }
             }
 
-            let min_version = Version::parse(&constraint.min_version)?;
-
+                        let min_version = Version::parse(&constraint.version)?;
+            
             if current < min_version {
                 // This constraint is violated
                 let message = self.format_message(
                     &constraint.message,
                     current_version,
-                    &constraint.min_version,
+                    &constraint.version,
                     latest_version,
                     release_url,
                 );
@@ -145,13 +145,13 @@ impl VersionRequirements {
         &self,
         template: &str,
         current_version: &str,
-        min_version: &str,
+        version: &str,
         latest_version: Option<&str>,
         release_url: Option<&str>,
     ) -> String {
         template
             .replace("{current}", current_version)
-            .replace("{min_version}", min_version)
+            .replace("{version}", version)
             .replace("{latest}", latest_version.unwrap_or("unknown"))
             .replace(
                 "{release_url}",
@@ -169,15 +169,15 @@ mod tests {
         let config = VersionRequirements {
             version_constraints: vec![
                 VersionConstraint {
-                    min_version: "0.9.0".to_string(),
+                    version: "0.9.0".to_string(),
                     constraint_type: ConstraintType::Warning,
-                    message: "Warning: {current} < {min_version}".to_string(),
+                    message: "Warning: {current} < {version}".to_string(),
                     start_date: None,
                 },
                 VersionConstraint {
-                    min_version: "0.8.0".to_string(),
+                    version: "0.8.0".to_string(),
                     constraint_type: ConstraintType::Blocking,
-                    message: "Blocking: {current} < {min_version}".to_string(),
+                    message: "Blocking: {current} < {version}".to_string(),
                     start_date: None,
                 },
             ],
@@ -213,15 +213,15 @@ mod tests {
         let config = VersionRequirements {
             version_constraints: vec![
                 VersionConstraint {
-                    min_version: "1.0.0".to_string(),
+                    version: "1.0.0".to_string(),
                     constraint_type: ConstraintType::Warning,
-                    message: "Warning: {current} < {min_version}".to_string(),
+                    message: "Warning: {current} < {version}".to_string(),
                     start_date: None,
                 },
                 VersionConstraint {
-                    min_version: "0.1.0".to_string(),
+                    version: "0.1.0".to_string(),
                     constraint_type: ConstraintType::Blocking,
-                    message: "Blocking: {current} < {min_version}".to_string(),
+                    message: "Blocking: {current} < {version}".to_string(),
                     start_date: None,
                 },
             ],
@@ -239,21 +239,21 @@ mod tests {
         let config = VersionRequirements {
             version_constraints: vec![
                 VersionConstraint {
-                    min_version: "0.9.0".to_string(),
+                    version: "0.9.0".to_string(),
                     constraint_type: ConstraintType::Notice,
-                    message: "Notice: {current} < {min_version}".to_string(),
+                    message: "Notice: {current} < {version}".to_string(),
                     start_date: None,
                 },
                 VersionConstraint {
-                    min_version: "0.8.0".to_string(),
+                    version: "0.8.0".to_string(),
                     constraint_type: ConstraintType::Warning,
-                    message: "Warning: {current} < {min_version}".to_string(),
+                    message: "Warning: {current} < {version}".to_string(),
                     start_date: None,
                 },
                 VersionConstraint {
-                    min_version: "0.7.0".to_string(),
+                    version: "0.7.0".to_string(),
                     constraint_type: ConstraintType::Blocking,
-                    message: "Blocking: {current} < {min_version}".to_string(),
+                    message: "Blocking: {current} < {version}".to_string(),
                     start_date: None,
                 },
             ],
@@ -274,9 +274,9 @@ mod tests {
     fn test_message_formatting() {
         let config = VersionRequirements {
             version_constraints: vec![VersionConstraint {
-                min_version: "1.0.0".to_string(),
+                version: "1.0.0".to_string(),
                 constraint_type: ConstraintType::Notice,
-                message: "Version {current} < {min_version}. Latest: {latest}. URL: {release_url}"
+                message: "Version {current} < {version}. Latest: {latest}. URL: {release_url}"
                     .to_string(),
                 start_date: None,
             }],

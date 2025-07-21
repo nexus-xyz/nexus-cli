@@ -3,8 +3,8 @@
     "public": "public",
     "rewrites": [
       {
-        "source": "/config.json",
-        "destination": "/config.json"
+        "source": "/version.json",
+        "destination": "/version.json"
       },
       {
         "source": "**",
