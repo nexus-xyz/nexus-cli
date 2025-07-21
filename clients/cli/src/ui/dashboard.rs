@@ -44,6 +44,9 @@ pub struct DashboardState {
     /// The latest version string, if known.
     pub latest_version: Option<String>,
 
+    /// The type of version constraint violation, if any.
+    pub version_constraint_type: Option<crate::version_requirements::ConstraintType>,
+
     /// Whether to disable background colors
     pub no_background_color: bool,
 }
@@ -64,7 +67,7 @@ impl DashboardState {
         no_background_color: bool,
     ) -> Self {
         // Check for version update messages in recent events
-        let (update_available, latest_version) = Self::check_for_version_updates(events);
+        let (update_available, latest_version, constraint_type) = Self::check_for_version_updates(events);
 
         Self {
             node_id,
@@ -77,24 +80,36 @@ impl DashboardState {
             events: events.clone(),
             update_available,
             latest_version,
+            version_constraint_type: constraint_type,
             no_background_color,
         }
     }
 
     /// Check recent events for version update information
-    fn check_for_version_updates(events: &VecDeque<WorkerEvent>) -> (bool, Option<String>) {
-        // Look for the most recent version checker success event
+    fn check_for_version_updates(events: &VecDeque<WorkerEvent>) -> (bool, Option<String>, Option<crate::version_requirements::ConstraintType>) {
+        // Look for the most recent version checker event
         for event in events.iter().rev() {
-            if matches!(event.worker, Worker::VersionChecker)
-                && event.event_type == EventType::Success
-            {
+            if matches!(event.worker, Worker::VersionChecker) {
                 // Parse the version from the message
                 if let Some(version) = Self::extract_version_from_message(&event.msg) {
-                    return (true, Some(version));
+                    // Determine constraint type based on event type and log level
+                    let constraint_type = match (event.event_type, event.log_level) {
+                        (EventType::Error, crate::error_classifier::LogLevel::Error) => {
+                            Some(crate::version_requirements::ConstraintType::Blocking)
+                        }
+                        (EventType::Error, crate::error_classifier::LogLevel::Warn) => {
+                            Some(crate::version_requirements::ConstraintType::Warning)
+                        }
+                        (EventType::Success, _) => {
+                            Some(crate::version_requirements::ConstraintType::Notice)
+                        }
+                        _ => None,
+                    };
+                    return (true, Some(version), constraint_type);
                 }
             }
         }
-        (false, None)
+        (false, None, None)
     }
 
     /// Extract version number from version checker message
@@ -236,7 +251,12 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
     };
 
     let title_color = if state.update_available {
-        Color::LightYellow // Highlight when update is available
+        match state.version_constraint_type {
+            Some(crate::version_requirements::ConstraintType::Blocking) => Color::Red,
+            Some(crate::version_requirements::ConstraintType::Warning) => Color::LightYellow,
+            Some(crate::version_requirements::ConstraintType::Notice) => Color::Cyan,
+            None => Color::LightYellow, // Default fallback
+        }
     } else {
         Color::Cyan
     };
@@ -283,16 +303,23 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
 
     // Version status
     if state.update_available {
+        let version_color = match state.version_constraint_type {
+            Some(crate::version_requirements::ConstraintType::Blocking) => Color::Red,
+            Some(crate::version_requirements::ConstraintType::Warning) => Color::LightYellow,
+            Some(crate::version_requirements::ConstraintType::Notice) => Color::Cyan,
+            None => Color::LightYellow, // Default fallback
+        };
+        
         if let Some(latest) = &state.latest_version {
             let version_text = format!("VERSION: {} → {}", version, latest);
             status_lines.push(Line::from(vec![Span::styled(
                 version_text,
-                Style::default().fg(Color::LightYellow),
+                Style::default().fg(version_color),
             )]));
         } else {
             status_lines.push(Line::from(vec![Span::styled(
                 "VERSION: Update Available",
-                Style::default().fg(Color::LightYellow),
+                Style::default().fg(version_color),
             )]));
         }
     } else {

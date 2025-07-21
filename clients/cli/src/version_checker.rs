@@ -76,6 +76,7 @@
 
 use crate::error_classifier::LogLevel;
 use crate::events::{Event, EventType};
+use crate::version_requirements::{VersionRequirements, VersionCheckResult, ConstraintType};
 use reqwest::{Client, ClientBuilder};
 use semver::Version;
 use serde::{Deserialize, Serialize};
@@ -228,14 +229,43 @@ pub async fn version_checker_task_with_interval(
         Ok(release) => {
             version_info.update_from_release(release.clone());
 
-            if version_info.update_available {
-                let message = format!(
-                    "🚀 New version {} available! Current: {} → Release: {}",
-                    release.tag_name, version_info.current_version, release.html_url
-                );
+            // Check version constraints to determine what message to show
+            let constraint_result = match VersionRequirements::fetch().await {
+                Ok(requirements) => {
+                    requirements.check_version_constraints(
+                        &version_info.current_version,
+                        Some(&release.tag_name),
+                        Some(&release.html_url)
+                    ).ok().flatten()
+                }
+                Err(_) => {
+                    // If we can't fetch requirements, default to the old behavior
+                    if version_info.update_available {
+                        Some(VersionCheckResult {
+                            constraint_type: ConstraintType::Notice,
+                            message: format!(
+                                "🚀 New version {} available! Current: {} → Release: {}",
+                                release.tag_name, version_info.current_version, release.html_url
+                            ),
+                        })
+                    } else {
+                        None
+                    }
+                }
+            };
 
-                let event =
-                    Event::version_checker_with_level(message, EventType::Success, LogLevel::Info);
+            if let Some(result) = constraint_result {
+                let event = match result.constraint_type {
+                    ConstraintType::Blocking => {
+                        Event::version_checker_with_level(result.message, EventType::Error, LogLevel::Error)
+                    }
+                    ConstraintType::Warning => {
+                        Event::version_checker_with_level(result.message, EventType::Error, LogLevel::Warn)
+                    }
+                    ConstraintType::Notice => {
+                        Event::version_checker_with_level(result.message, EventType::Success, LogLevel::Info)
+                    }
+                };
 
                 if (event_sender.send(event).await).is_err() {
                     return;
@@ -281,20 +311,44 @@ pub async fn version_checker_task_with_interval(
                             let was_update_available = version_info.update_available;
                             version_info.update_from_release(release.clone());
 
-                            // Only send event if this is a new update detection
-                            if version_info.update_available && !was_update_available {
-                                let message = format!(
-                                    "🚀 New version {} available! Current: {} → Release: {}",
-                                    release.tag_name,
-                                    version_info.current_version,
-                                    release.html_url
-                                );
+                            // Check version constraints to determine what message to show
+                            let constraint_result = match VersionRequirements::fetch().await {
+                                Ok(requirements) => {
+                                    requirements.check_version_constraints(
+                                        &version_info.current_version,
+                                        Some(&release.tag_name),
+                                        Some(&release.html_url)
+                                    ).ok().flatten()
+                                }
+                                Err(_) => {
+                                    // If we can't fetch requirements, default to the old behavior
+                                    if version_info.update_available && !was_update_available {
+                                        Some(VersionCheckResult {
+                                            constraint_type: ConstraintType::Notice,
+                                            message: format!(
+                                                "🚀 New version {} available! Current: {} → Release: {}",
+                                                release.tag_name, version_info.current_version, release.html_url
+                                            ),
+                                        })
+                                    } else {
+                                        None
+                                    }
+                                }
+                            };
 
-                                let event = Event::version_checker_with_level(
-                                    message,
-                                    EventType::Success,
-                                    LogLevel::Info,
-                                );
+                            // Only send event if this is a new update detection
+                            if let Some(result) = constraint_result {
+                                let event = match result.constraint_type {
+                                    ConstraintType::Blocking => {
+                                        Event::version_checker_with_level(result.message, EventType::Error, LogLevel::Error)
+                                    }
+                                    ConstraintType::Warning => {
+                                        Event::version_checker_with_level(result.message, EventType::Error, LogLevel::Warn)
+                                    }
+                                    ConstraintType::Notice => {
+                                        Event::version_checker_with_level(result.message, EventType::Success, LogLevel::Info)
+                                    }
+                                };
 
                                 if (event_sender.send(event).await).is_err() {
                                     break;
