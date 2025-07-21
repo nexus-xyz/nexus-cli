@@ -25,6 +25,10 @@ pub enum OrchestratorError {
     /// An error occurred while processing the request.
     #[error("HTTP error with status {status}: {message}")]
     Http { status: u16, message: String },
+
+    /// Rate limited by the server
+    #[error("Rate limited: retry after {retry_after} seconds")]
+    RateLimited { retry_after: u64 },
 }
 
 impl OrchestratorError {

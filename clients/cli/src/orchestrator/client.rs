@@ -59,6 +59,30 @@ impl OrchestratorClient {
 
     async fn handle_response_status(response: Response) -> Result<Response, OrchestratorError> {
         if !response.status().is_success() {
+            // Handle rate limiting (429 status) specially
+            if response.status().as_u16() == 429 {
+                let retry_after_header = response.headers().get("Retry-After");
+                let mut retry_after_seconds = 0; // Default to 0 seconds if no header
+
+                if let Some(retry_after_value) = retry_after_header {
+                    if let Ok(retry_after_str) = retry_after_value.to_str() {
+                        if let Ok(retry_after_float) = retry_after_str.parse::<f64>() {
+                            if retry_after_float > 0.0 {
+                                retry_after_seconds = retry_after_float as u64;
+                            }
+                        }
+                    }
+                }
+
+                // Store the rate limit information
+                crate::rate_limit::store_rate_limit(retry_after_seconds);
+                log::debug!("Rate limited, retry after: {} seconds", retry_after_seconds);
+
+                return Err(OrchestratorError::RateLimited {
+                    retry_after: retry_after_seconds,
+                });
+            }
+
             return Err(OrchestratorError::from_response(response).await);
         }
         Ok(response)

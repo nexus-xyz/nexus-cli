@@ -14,6 +14,7 @@ mod orchestrator;
 mod pretty;
 mod prover;
 mod prover_runtime;
+mod rate_limit;
 mod register;
 pub mod system;
 mod task;

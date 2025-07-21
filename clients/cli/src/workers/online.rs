@@ -18,6 +18,7 @@ use crate::error_classifier::{ErrorClassifier, LogLevel};
 use crate::events::Event;
 use crate::orchestrator::Orchestrator;
 use crate::orchestrator::error::OrchestratorError;
+use crate::rate_limit::{get_remaining_time, is_rate_limited};
 use crate::task::Task;
 use crate::task_cache::TaskCache;
 use ed25519_dalek::{SigningKey, VerifyingKey};
@@ -148,6 +149,25 @@ async fn attempt_task_fetch(
     environment: &Environment,
     client_id: &str,
 ) -> Result<(), bool> {
+    // Check if we're currently rate limited
+    if is_rate_limited() {
+        if let Some(remaining_time) = get_remaining_time() {
+            let _ = event_sender
+                .send(Event::task_fetcher_with_level(
+                    format!(
+                        "Rate limited: retry after {} seconds",
+                        remaining_time.as_secs()
+                    ),
+                    crate::events::EventType::Refresh,
+                    LogLevel::Debug,
+                ))
+                .await;
+            // Increase backoff for rate limit
+            state.increase_backoff_for_rate_limit();
+            return Ok(());
+        }
+    }
+
     let _ = event_sender
         .send(Event::task_fetcher_with_level(
             "[Task step 1 of 3] Fetching tasks...Note: CLI tasks are harder to solve, so they receive 10 times more points than web provers".to_string(),
@@ -415,32 +435,50 @@ async fn handle_fetch_error(
     event_sender: &mpsc::Sender<Event>,
     state: &mut TaskFetchState,
 ) {
-    if matches!(error, OrchestratorError::Http { status: 429, .. }) {
-        state.increase_backoff_for_rate_limit();
-        let _ = event_sender
-            .send(Event::task_fetcher_with_level(
+    match error {
+        OrchestratorError::RateLimited { retry_after } => {
+            state.increase_backoff_for_rate_limit();
+            let _ = event_sender
+                .send(Event::task_fetcher_with_level(
+                    format!(
+                        "Rate limited - retry after {} seconds, backing off for {}s",
+                        retry_after,
+                        state.backoff_duration.as_secs()
+                    ),
+                    crate::events::EventType::Error,
+                    LogLevel::Warn,
+                ))
+                .await;
+        }
+        OrchestratorError::Http { status: 429, .. } => {
+            // Legacy 429 handling (should not happen with new implementation)
+            state.increase_backoff_for_rate_limit();
+            let _ = event_sender
+                .send(Event::task_fetcher_with_level(
+                    format!(
+                        "Rate limited - retrying in {}s",
+                        state.backoff_duration.as_secs()
+                    ),
+                    crate::events::EventType::Error,
+                    LogLevel::Warn,
+                ))
+                .await;
+        }
+        _ => {
+            state.increase_backoff_for_error();
+            let log_level = state.error_classifier.classify_fetch_error(&error);
+            let event = Event::task_fetcher_with_level(
                 format!(
-                    "Rate limited - retrying in {}s",
+                    "Failed to fetch tasks: {}, retrying in {} seconds",
+                    error,
                     state.backoff_duration.as_secs()
                 ),
                 crate::events::EventType::Error,
-                LogLevel::Warn,
-            ))
-            .await;
-    } else {
-        state.increase_backoff_for_error();
-        let log_level = state.error_classifier.classify_fetch_error(&error);
-        let event = Event::task_fetcher_with_level(
-            format!(
-                "Failed to fetch tasks: {}, retrying in {} seconds",
-                error,
-                state.backoff_duration.as_secs()
-            ),
-            crate::events::EventType::Error,
-            log_level,
-        );
-        if event.should_display() {
-            let _ = event_sender.send(event).await;
+                log_level,
+            );
+            if event.should_display() {
+                let _ = event_sender.send(event).await;
+            }
         }
     }
 }
@@ -513,7 +551,19 @@ async fn fetch_new_tasks_batch(
                 new_tasks.push(task);
                 consecutive_404s = 0; // Reset counter on success
             }
+            Err(OrchestratorError::RateLimited { retry_after }) => {
+                let _ = event_sender
+                    .send(Event::task_fetcher_with_level(
+                        format!("Rate limited: retry after {} seconds", retry_after),
+                        crate::events::EventType::Refresh,
+                        LogLevel::Debug,
+                    ))
+                    .await;
+                // Rate limited, return what we have
+                break;
+            }
             Err(OrchestratorError::Http { status: 429, .. }) => {
+                // Legacy 429 handling (should not happen with new implementation)
                 let _ = event_sender
                     .send(Event::task_fetcher_with_level(
                         "Every node in the Prover Network is rate limited to 3 tasks per 3 minutes"
