@@ -33,10 +33,16 @@ pub struct Task {
     pub task_id: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub program_id: ::prost::alloc::string::String,
+    #[deprecated]
     #[prost(bytes = "vec", tag = "3")]
     pub public_inputs: ::prost::alloc::vec::Vec<u8>,
     #[prost(message, optional, tag = "4")]
     pub created_at: ::core::option::Option<::prost_types::Timestamp>,
+    #[prost(bytes = "vec", repeated, tag = "5")]
+    pub public_inputs_list: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
+    /// The type of task (proof required or only hash)
+    #[prost(enumeration = "TaskType", tag = "6")]
+    pub task_type: i32,
 }
 /// Get outstanding tasks for a node.
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -66,6 +72,9 @@ pub struct GetProofTaskRequest {
     /// The client's Ed25519 public key for proof authentication.Add commentMore actions
     #[prost(bytes = "vec", tag = "3")]
     pub ed25519_public_key: ::prost::alloc::vec::Vec<u8>,
+    /// The maximum difficulty level the client wants to handle
+    #[prost(enumeration = "TaskDifficulty", tag = "4")]
+    pub max_difficulty: i32,
 }
 /// A Prover task.
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -182,6 +191,66 @@ impl NodeType {
         match value {
             "WEB_PROVER" => Some(Self::WebProver),
             "CLI_PROVER" => Some(Self::CliProver),
+            _ => None,
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum TaskDifficulty {
+    /// Small difficulty bucket
+    Small = 0,
+    /// Medium difficulty bucket
+    Medium = 5,
+    /// Large difficulty bucket
+    Large = 10,
+}
+impl TaskDifficulty {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Small => "SMALL",
+            Self::Medium => "MEDIUM",
+            Self::Large => "LARGE",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "SMALL" => Some(Self::Small),
+            "MEDIUM" => Some(Self::Medium),
+            "LARGE" => Some(Self::Large),
+            _ => None,
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum TaskType {
+    /// Task requires a proof to be submitted
+    ProofRequired = 0,
+    /// Task does not require a proof to be submitted
+    ProofHash = 1,
+}
+impl TaskType {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::ProofRequired => "PROOF_REQUIRED",
+            Self::ProofHash => "PROOF_HASH",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "PROOF_REQUIRED" => Some(Self::ProofRequired),
+            "PROOF_HASH" => Some(Self::ProofHash),
             _ => None,
         }
     }

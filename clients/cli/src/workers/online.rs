@@ -735,6 +735,7 @@ async fn process_proof_submission(
             proof_bytes,
             signing_key.clone(),
             num_workers,
+            task.task_type,
         )
         .await
     {

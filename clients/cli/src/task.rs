@@ -16,6 +16,9 @@ pub struct Task {
 
     /// Public inputs for the task,
     pub public_inputs: Vec<u8>,
+
+    /// The type of task (proof required or only hash)
+    pub task_type: Option<crate::nexus_orchestrator::TaskType>,
 }
 
 impl Task {
@@ -26,6 +29,7 @@ impl Task {
             task_id,
             program_id,
             public_inputs,
+            task_type: None,
         }
     }
 }
@@ -47,7 +51,9 @@ impl From<&crate::nexus_orchestrator::Task> for Task {
         Task {
             task_id: task.task_id.clone(),
             program_id: task.program_id.clone(),
+            #[allow(deprecated)]
             public_inputs: task.public_inputs.clone(),
+            task_type: Some(crate::nexus_orchestrator::TaskType::try_from(task.task_type).unwrap_or(crate::nexus_orchestrator::TaskType::ProofRequired)),
         }
     }
 }
@@ -59,6 +65,7 @@ impl From<&crate::nexus_orchestrator::GetProofTaskResponse> for Task {
             task_id: response.task_id.clone(),
             program_id: response.program_id.clone(),
             public_inputs: response.public_inputs.clone(),
+            task_type: None, // GetProofTaskResponse doesn't include task_type
         }
     }
 }
