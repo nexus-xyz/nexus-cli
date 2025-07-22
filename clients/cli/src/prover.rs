@@ -57,17 +57,26 @@ async fn check_version_requirements() -> Result<(), ProverError> {
                 }
                 Err(e) => {
                     // For parsing errors, treat as blocking error and refuse to run
-                    Err(ProverError::VersionRequirement(format!("Failed to parse version requirements: {}", e)))
+                    Err(ProverError::VersionRequirement(format!(
+                        "Failed to parse version requirements: {}",
+                        e
+                    )))
                 }
             }
         }
         Err(VersionRequirementsError::Fetch(e)) => {
             // If we can't fetch requirements, treat as blocking error
-            Err(ProverError::VersionRequirement(format!("Failed to fetch version requirements: {}", e)))
+            Err(ProverError::VersionRequirement(format!(
+                "Failed to fetch version requirements: {}",
+                e
+            )))
         }
         Err(e) => {
             // For other errors, treat as blocking error
-            Err(ProverError::VersionRequirement(format!("Failed to check version requirements: {}", e)))
+            Err(ProverError::VersionRequirement(format!(
+                "Failed to check version requirements: {}",
+                e
+            )))
         }
     }
 }
@@ -336,13 +345,13 @@ mod tests {
     async fn test_parsing_failures_are_blocking() {
         // This test verifies that when version.json fails to parse,
         // it's treated as a blocking error and the CLI refuses to run
-        
+
         // We can't easily mock the HTTP request in this test, but we can verify
         // that the error handling logic is in place by checking the error types
-        
+
         // The actual blocking behavior is tested in the main test_prove_anonymously
         // which now expects VersionRequirement errors in test environments
-        
+
         // This test serves as documentation that parsing failures are blocking
         assert!(true); // Placeholder assertion
     }
