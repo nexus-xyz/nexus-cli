@@ -5,6 +5,8 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use thiserror::Error;
 
 const CONFIG_URL: &str = "https://cli.nexus.xyz/version.json";
+// For testing error messages, uncomment the line below:
+// const CONFIG_URL: &str = "https://cli.nexus.xyz/nonexistent.json";
 const CONFIG_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Error, Debug)]
@@ -27,6 +29,7 @@ pub struct VersionRequirements {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct VersionConstraint {
     pub version: String,
+    #[serde(rename = "type")]
     pub constraint_type: ConstraintType,
     pub message: String,
     #[serde(default)]
@@ -67,10 +70,15 @@ impl VersionRequirements {
             return Err(VersionRequirementsError::Fetch(error_msg));
         }
 
-        let config: VersionRequirements = response
-            .json()
+        // Get the response body as text first for debugging
+        let response_text = response
+            .text()
             .await
-            .map_err(|e| VersionRequirementsError::Fetch(e.to_string()))?;
+            .map_err(|e| VersionRequirementsError::Fetch(format!("Failed to read response body: {}", e)))?;
+
+        // Try to parse the JSON
+        let config: VersionRequirements = serde_json::from_str(&response_text)
+            .map_err(|e| VersionRequirementsError::Parse(e))?;
         Ok(config)
     }
 
