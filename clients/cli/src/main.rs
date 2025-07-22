@@ -167,7 +167,6 @@ async fn start(
                     match violation.constraint_type {
                         crate::version_requirements::ConstraintType::Blocking => {
                             eprintln!("❌ Version requirement not met: {}", violation.message);
-                            eprintln!("Please upgrade to continue using Nexus CLI");
                             std::process::exit(1);
                         }
                         crate::version_requirements::ConstraintType::Warning => {

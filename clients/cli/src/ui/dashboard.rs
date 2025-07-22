@@ -44,8 +44,7 @@ pub struct DashboardState {
     /// The latest version string, if known.
     pub latest_version: Option<String>,
 
-    /// The type of version constraint violation, if any.
-    pub version_constraint_type: Option<crate::version_requirements::ConstraintType>,
+
 
     /// Whether to disable background colors
     pub no_background_color: bool,
@@ -67,7 +66,7 @@ impl DashboardState {
         no_background_color: bool,
     ) -> Self {
         // Check for version update messages in recent events
-        let (update_available, latest_version, constraint_type) =
+        let (update_available, latest_version, _) =
             Self::check_for_version_updates(events);
 
         Self {
@@ -81,7 +80,6 @@ impl DashboardState {
             events: events.clone(),
             update_available,
             latest_version,
-            version_constraint_type: constraint_type,
             no_background_color,
         }
     }
@@ -97,41 +95,13 @@ impl DashboardState {
         // Look for the most recent version checker event
         for event in events.iter().rev() {
             if matches!(event.worker, Worker::VersionChecker) {
-                // Parse the version from the message
-                if let Some(version) = Self::extract_version_from_message(&event.msg) {
-                    // Determine constraint type based on event type and log level
-                    let constraint_type = match (event.event_type, event.log_level) {
-                        (EventType::Error, crate::error_classifier::LogLevel::Error) => {
-                            Some(crate::version_requirements::ConstraintType::Blocking)
-                        }
-                        (EventType::Error, crate::error_classifier::LogLevel::Warn) => {
-                            Some(crate::version_requirements::ConstraintType::Warning)
-                        }
-                        (EventType::Success, _) => {
-                            Some(crate::version_requirements::ConstraintType::Notice)
-                        }
-                        _ => None,
-                    };
-                    return (true, Some(version), constraint_type);
-                }
+                // Show all version checker events (not just success events)
+                // This includes blocking, warning, and notice constraints
+                return (true, None, None);
             }
         }
-
-
         
         (false, None, None)
-    }
-
-    /// Extract version number from version checker message
-    fn extract_version_from_message(message: &str) -> Option<String> {
-        // Look for pattern like "New version v0.9.1 available!"
-        if let Some(start) = message.find("version ") {
-            let after_version = &message[start + 8..];
-            if let Some(end) = after_version.find(" available") {
-                return Some(after_version[..end].to_string());
-            }
-        }
-        None
     }
 
 
@@ -263,12 +233,20 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
     };
 
     let title_color = if state.update_available {
-        match state.version_constraint_type {
-            Some(crate::version_requirements::ConstraintType::Blocking) => Color::Red,
-            Some(crate::version_requirements::ConstraintType::Warning) => Color::LightYellow,
-            Some(crate::version_requirements::ConstraintType::Notice) => Color::Cyan,
-            None => Color::LightYellow, // Default fallback
+        // Look for the most recent version checker event to determine color
+        let mut version_color = Color::LightYellow; // Default fallback
+        for event in state.events.iter().rev() {
+            if matches!(event.worker, Worker::VersionChecker) {
+                version_color = match (event.event_type, event.log_level) {
+                    (EventType::Error, crate::error_classifier::LogLevel::Error) => Color::Red,
+                    (EventType::Error, crate::error_classifier::LogLevel::Warn) => Color::LightYellow,
+                    (EventType::Success, _) => Color::Cyan,
+                    _ => Color::LightYellow,
+                };
+                break;
+            }
         }
+        version_color
     } else {
         Color::Cyan
     };
@@ -315,12 +293,19 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
 
     // Version status
     if state.update_available {
-        let version_color = match state.version_constraint_type {
-            Some(crate::version_requirements::ConstraintType::Blocking) => Color::Red,
-            Some(crate::version_requirements::ConstraintType::Warning) => Color::LightYellow,
-            Some(crate::version_requirements::ConstraintType::Notice) => Color::Cyan,
-            None => Color::LightYellow, // Default fallback
-        };
+        // Look for the most recent version checker event to determine color
+        let mut version_color = Color::LightYellow; // Default fallback
+        for event in state.events.iter().rev() {
+            if matches!(event.worker, Worker::VersionChecker) {
+                version_color = match (event.event_type, event.log_level) {
+                    (EventType::Error, crate::error_classifier::LogLevel::Error) => Color::Red,
+                    (EventType::Error, crate::error_classifier::LogLevel::Warn) => Color::LightYellow,
+                    (EventType::Success, _) => Color::Cyan,
+                    _ => Color::LightYellow,
+                };
+                break;
+            }
+        }
 
         if let Some(latest) = &state.latest_version {
             let version_text = format!("VERSION: {} → {}", version, latest);
@@ -381,11 +366,13 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
         .filter(|event| event.should_display())
         .rev() // newest first
         .map(|event| {
-            let main_icon = match event.event_type {
-                EventType::Success => "✅",
-                EventType::Error => "❌",
-                EventType::Refresh => "🔄",
-                EventType::Shutdown => "🔴",
+            let main_icon = match (event.event_type, event.log_level) {
+                (EventType::Success, _) => "✅",
+                (EventType::Error, crate::error_classifier::LogLevel::Error) => "❌",
+                (EventType::Error, crate::error_classifier::LogLevel::Warn) => "⚠️",
+                (EventType::Error, _) => "❌",
+                (EventType::Refresh, _) => "🔄",
+                (EventType::Shutdown, _) => "🔴",
             };
 
             let worker_type = match event.worker {
@@ -400,6 +387,18 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
 
             // Clean HTTP error messages
             let cleaned_msg = DashboardState::clean_http_error_message(&event.msg);
+
+            // For version checker events, use appropriate color based on log level
+            let message_color = if matches!(event.worker, Worker::VersionChecker) {
+                match (event.event_type, event.log_level) {
+                    (EventType::Error, crate::error_classifier::LogLevel::Error) => Color::Red,
+                    (EventType::Error, crate::error_classifier::LogLevel::Warn) => Color::LightYellow,
+                    (EventType::Success, _) => Color::Cyan,
+                    _ => worker_color,
+                }
+            } else {
+                worker_color
+            };
 
             // Create a structured line with colored spans
             Line::from(vec![
@@ -417,8 +416,8 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
                         .fg(worker_color)
                         .add_modifier(Modifier::BOLD),
                 ),
-                // Cleaned message in worker color
-                Span::styled(cleaned_msg, Style::default().fg(worker_color)),
+                // Cleaned message with appropriate color
+                Span::styled(cleaned_msg, Style::default().fg(message_color)),
             ])
         })
         .collect();
