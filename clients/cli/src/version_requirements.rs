@@ -77,7 +77,7 @@ impl VersionRequirements {
 
         // Try to parse the JSON
         let config: VersionRequirements =
-            serde_json::from_str(&response_text).map_err(|e| VersionRequirementsError::Parse(e))?;
+            serde_json::from_str(&response_text).map_err(VersionRequirementsError::Parse)?;
         Ok(config)
     }
 
