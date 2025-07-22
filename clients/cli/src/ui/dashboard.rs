@@ -44,8 +44,6 @@ pub struct DashboardState {
     /// The latest version string, if known.
     pub latest_version: Option<String>,
 
-
-
     /// Whether to disable background colors
     pub no_background_color: bool,
 }
@@ -66,8 +64,7 @@ impl DashboardState {
         no_background_color: bool,
     ) -> Self {
         // Check for version update messages in recent events
-        let (update_available, latest_version, _) =
-            Self::check_for_version_updates(events);
+        let (update_available, latest_version, _) = Self::check_for_version_updates(events);
 
         Self {
             node_id,
@@ -100,11 +97,9 @@ impl DashboardState {
                 return (true, None, None);
             }
         }
-        
+
         (false, None, None)
     }
-
-
 
     /// Get a ratatui color for a worker based on its type and ID
     fn get_worker_color(worker: &Worker) -> Color {
@@ -239,7 +234,9 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
             if matches!(event.worker, Worker::VersionChecker) {
                 version_color = match (event.event_type, event.log_level) {
                     (EventType::Error, crate::error_classifier::LogLevel::Error) => Color::Red,
-                    (EventType::Error, crate::error_classifier::LogLevel::Warn) => Color::LightYellow,
+                    (EventType::Error, crate::error_classifier::LogLevel::Warn) => {
+                        Color::LightYellow
+                    }
                     (EventType::Success, _) => Color::Cyan,
                     _ => Color::LightYellow,
                 };
@@ -299,7 +296,9 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
             if matches!(event.worker, Worker::VersionChecker) {
                 version_color = match (event.event_type, event.log_level) {
                     (EventType::Error, crate::error_classifier::LogLevel::Error) => Color::Red,
-                    (EventType::Error, crate::error_classifier::LogLevel::Warn) => Color::LightYellow,
+                    (EventType::Error, crate::error_classifier::LogLevel::Warn) => {
+                        Color::LightYellow
+                    }
                     (EventType::Success, _) => Color::Cyan,
                     _ => Color::LightYellow,
                 };
@@ -392,7 +391,9 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
             let message_color = if matches!(event.worker, Worker::VersionChecker) {
                 match (event.event_type, event.log_level) {
                     (EventType::Error, crate::error_classifier::LogLevel::Error) => Color::Red,
-                    (EventType::Error, crate::error_classifier::LogLevel::Warn) => Color::LightYellow,
+                    (EventType::Error, crate::error_classifier::LogLevel::Warn) => {
+                        Color::LightYellow
+                    }
                     (EventType::Success, _) => Color::Cyan,
                     _ => worker_color,
                 }
@@ -459,5 +460,4 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
 }
 
 #[cfg(test)]
-mod tests {
-}
+mod tests {}

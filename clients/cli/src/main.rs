@@ -163,38 +163,42 @@ async fn start(
         Ok(requirements) => {
             let current_version = env!("CARGO_PKG_VERSION");
             match requirements.check_version_constraints(current_version, None, None) {
-                Ok(Some(violation)) => {
-                    match violation.constraint_type {
-                        crate::version_requirements::ConstraintType::Blocking => {
-                            eprintln!("❌ Version requirement not met: {}", violation.message);
-                            std::process::exit(1);
-                        }
-                        crate::version_requirements::ConstraintType::Warning => {
-                            eprintln!("⚠️  {}", violation.message);
-                        }
-                        crate::version_requirements::ConstraintType::Notice => {
-                            eprintln!("ℹ️  {}", violation.message);
-                        }
+                Ok(Some(violation)) => match violation.constraint_type {
+                    crate::version_requirements::ConstraintType::Blocking => {
+                        eprintln!("❌ Version requirement not met: {}", violation.message);
+                        std::process::exit(1);
                     }
-                }
+                    crate::version_requirements::ConstraintType::Warning => {
+                        eprintln!("⚠️  {}", violation.message);
+                    }
+                    crate::version_requirements::ConstraintType::Notice => {
+                        eprintln!("ℹ️  {}", violation.message);
+                    }
+                },
                 Ok(None) => {
                     // No violations found, continue
                 }
                 Err(e) => {
                     eprintln!("❌ Failed to parse version requirements: {}", e);
-                    eprintln!("If this issue persists, please file a bug report at: https://github.com/nexus-xyz/nexus-cli/issues");
+                    eprintln!(
+                        "If this issue persists, please file a bug report at: https://github.com/nexus-xyz/nexus-cli/issues"
+                    );
                     std::process::exit(1);
                 }
             }
         }
         Err(VersionRequirementsError::Fetch(e)) => {
             eprintln!("❌ Failed to fetch version requirements: {}", e);
-            eprintln!("If this issue persists, please file a bug report at: https://github.com/nexus-xyz/nexus-cli/issues");
+            eprintln!(
+                "If this issue persists, please file a bug report at: https://github.com/nexus-xyz/nexus-cli/issues"
+            );
             std::process::exit(1);
         }
         Err(e) => {
             eprintln!("❌ Failed to check version requirements: {}", e);
-            eprintln!("If this issue persists, please file a bug report at: https://github.com/nexus-xyz/nexus-cli/issues");
+            eprintln!(
+                "If this issue persists, please file a bug report at: https://github.com/nexus-xyz/nexus-cli/issues"
+            );
             std::process::exit(1);
         }
     }

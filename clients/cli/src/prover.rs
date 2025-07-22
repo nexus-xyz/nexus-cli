@@ -22,11 +22,8 @@ pub enum ProverError {
     GuestProgram(String),
 }
 
-
-
 /// Proves a program locally with hardcoded inputs.
 pub async fn prove_anonymously() -> Result<Proof, ProverError> {
-
     // Compute the 10th Fibonacci number using fib_input_initial
     // Input: (n=9, init_a=1, init_b=1)
     // This computes F(9) = 55 in the classic Fibonacci sequence starting with 1,1
@@ -64,7 +61,6 @@ pub async fn authenticated_proving(
     environment: &Environment,
     client_id: &str,
 ) -> Result<Proof, ProverError> {
-
     let (view, proof, _) = match task.program_id.as_str() {
         "fast-fib" => {
             // fast-fib uses string inputs
@@ -236,6 +232,4 @@ mod tests {
             }
         }
     }
-
-
 }

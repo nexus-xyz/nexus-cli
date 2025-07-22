@@ -71,14 +71,13 @@ impl VersionRequirements {
         }
 
         // Get the response body as text first for debugging
-        let response_text = response
-            .text()
-            .await
-            .map_err(|e| VersionRequirementsError::Fetch(format!("Failed to read response body: {}", e)))?;
+        let response_text = response.text().await.map_err(|e| {
+            VersionRequirementsError::Fetch(format!("Failed to read response body: {}", e))
+        })?;
 
         // Try to parse the JSON
-        let config: VersionRequirements = serde_json::from_str(&response_text)
-            .map_err(|e| VersionRequirementsError::Parse(e))?;
+        let config: VersionRequirements =
+            serde_json::from_str(&response_text).map_err(|e| VersionRequirementsError::Parse(e))?;
         Ok(config)
     }
 
