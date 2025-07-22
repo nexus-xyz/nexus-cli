@@ -21,7 +21,7 @@ pub async fn register_user(
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Check if the wallet address is valid.
     if !keys::is_valid_eth_address(wallet_address) {
-        print_cmd_error!("Invalid Ethereum wallet address.");
+        print_cmd_error!("❌ Invalid Ethereum wallet address.");
         let err_msg = format!(
             "Invalid Ethereum wallet address: {}. It should be a 42-character hex string starting with '0x'.",
             wallet_address
@@ -40,6 +40,12 @@ pub async fn register_user(
                     "User ID: {}, Wallet Address: {}",
                     config.user_id,
                     config.wallet_address
+                );
+
+                // Guide user to next step
+                print_cmd_info!(
+                    "✅ User registration complete!",
+                    "Next step - register a node: nexus-cli register-node"
                 );
                 return Ok(());
             }
@@ -64,6 +70,12 @@ pub async fn register_user(
         config
             .save(config_path)
             .map_err(|e| handle_cmd_error!(e, "Failed to save config."))?;
+
+        // Guide user to next step
+        print_cmd_info!(
+            "✅ User registration complete!",
+            "Next step - register a node: nexus-cli register-node"
+        );
 
         return Ok(());
     }
@@ -94,6 +106,13 @@ pub async fn register_user(
     config
         .save(config_path)
         .map_err(|e| handle_cmd_error!(e, "Failed to save config."))?;
+
+    // Guide user to next step
+    print_cmd_info!(
+        "✅ User registration complete!",
+        "Next step - register a node: nexus-cli register-node"
+    );
+
     Ok(())
 }
 
@@ -115,7 +134,7 @@ pub async fn register_node(
     let mut config = Config::load_from_file(config_path)
         .map_err(|e| handle_cmd_error!(e, "Failed to load config, please register a user first"))?;
     if config.user_id.is_empty() {
-        print_cmd_error!("No user registered. Please register a user first.");
+        print_cmd_error!("❌ No user registered. Please register a user first.");
         return Err(Box::from(
             "No user registered. Please register a user first.",
         ));
@@ -127,7 +146,14 @@ pub async fn register_node(
         config
             .save(config_path)
             .map_err(|e| handle_cmd_error!(e, "Failed to save updated config."))?;
-        println!("Successfully registered node with ID: {}", node_id);
+
+        // Guide user to next step
+        print_cmd_info!(
+            "✅ Node registration complete!",
+            "Successfully registered node with ID: {}. Next step - start proving: nexus-cli start",
+            node_id
+        );
+
         Ok(())
     } else {
         println!(
@@ -136,13 +162,20 @@ pub async fn register_node(
         );
         match orchestrator.register_node(&config.user_id).await {
             Ok(node_id) => {
-                println!("Node registered successfully with ID: {}", node_id);
                 // Update the config with the new node ID
                 let mut updated_config = config;
-                updated_config.node_id = node_id;
+                updated_config.node_id = node_id.clone();
                 updated_config
                     .save(config_path)
                     .map_err(|e| handle_cmd_error!(e, "Failed to save updated config."))?;
+
+                // Guide user to next step
+                print_cmd_info!(
+                    "✅ Node registration complete!",
+                    "Successfully registered node with ID: {}. Next step - start proving: nexus-cli start",
+                    node_id
+                );
+
                 Ok(())
             }
             Err(e) => {

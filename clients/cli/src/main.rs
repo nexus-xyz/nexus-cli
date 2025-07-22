@@ -25,6 +25,7 @@ mod workers;
 use crate::config::{Config, get_config_path};
 use crate::environment::Environment;
 use crate::orchestrator::{Orchestrator, OrchestratorClient};
+use crate::pretty::print_cmd_info;
 use crate::prover_runtime::{start_anonymous_workers, start_authenticated_workers};
 use crate::register::{register_node, register_user};
 use clap::{ArgAction, Parser, Subcommand};
@@ -124,11 +125,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .await
         }
         Command::Logout => {
-            println!("Logging out and clearing node configuration file...");
+            print_cmd_info!("Logging out", "Clearing node configuration file...");
             Config::clear_node_config(&config_path).map_err(Into::into)
         }
         Command::RegisterUser { wallet_address } => {
-            println!("Registering user with wallet address: {}", wallet_address);
+            print_cmd_info!("Registering user", "Wallet address: {}", wallet_address);
             let orchestrator = Box::new(OrchestratorClient::new(environment));
             register_user(&wallet_address, &config_path, orchestrator).await
         }
@@ -156,19 +157,51 @@ async fn start(
     no_background_color: bool,
 ) -> Result<(), Box<dyn Error>> {
     let mut node_id = node_id;
+
     // If no node ID is provided, try to load it from the config file.
     if node_id.is_none() && config_path.exists() {
         let config = Config::load_from_file(&config_path)?;
-        node_id = Some(config.node_id.parse::<u64>().map_err(|e| {
-            std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                format!(
-                    "Failed to parse node_id {:?} from the config file as a u64: {}",
-                    config.node_id, e
-                ),
-            )
-        })?);
-        println!("Read Node ID: {} from config file\n", node_id.unwrap());
+
+        // Check if user is registered but node_id is missing or invalid
+        if !config.user_id.is_empty() {
+            if config.node_id.is_empty() {
+                print_cmd_info!(
+                    "✅ User registered, but no node found.",
+                    "Please register a node to continue: nexus-cli register-node"
+                );
+                return Err(
+                    "Node registration required. Please run 'nexus-cli register-node' first."
+                        .into(),
+                );
+            }
+
+            match config.node_id.parse::<u64>() {
+                Ok(id) => {
+                    node_id = Some(id);
+                    print_cmd_info!("✅ Found Node ID from config file", "Node ID: {}", id);
+                }
+                Err(_) => {
+                    print_cmd_info!(
+                        "❌ Invalid node ID in config file.",
+                        "Please register a new node: nexus-cli register-node"
+                    );
+                    return Err("Invalid node ID in config. Please run 'nexus-cli register-node' to fix this.".into());
+                }
+            }
+        } else {
+            print_cmd_info!(
+                "❌ No user registration found.",
+                "Please register your wallet address first: nexus-cli register-user --wallet-address <your-wallet-address>"
+            );
+            return Err("User registration required. Please run 'nexus-cli register-user --wallet-address <your-wallet-address>' first.".into());
+        }
+    } else if node_id.is_none() {
+        // No config file exists at all
+        print_cmd_info!(
+            "Welcome to Nexus CLI!",
+            "Please register your wallet address to get started: nexus-cli register-user --wallet-address <your-wallet-address>"
+        );
+        return Err("User registration required. Please run 'nexus-cli register-user --wallet-address <your-wallet-address>' first.".into());
     }
 
     // Create a signing key for the prover.
