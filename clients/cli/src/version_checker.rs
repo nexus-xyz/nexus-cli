@@ -486,7 +486,11 @@ mod tests {
             if matches!(event.worker, Worker::VersionChecker) {
                 received_event = true;
                 // With current version 0.9.0, we expect a warning constraint message
-                assert!(event.msg.contains("Consider upgrading for the best experience"));
+                assert!(
+                    event
+                        .msg
+                        .contains("Consider upgrading for the best experience")
+                );
                 break;
             }
         }
