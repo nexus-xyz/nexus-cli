@@ -64,7 +64,7 @@ impl ErrorClassifier {
             ProverError::Stwo(_) => LogLevel::Warn,
 
             // Version requirement errors are critical - user needs to upgrade
-            ProverError::VersionRequirement(_) => LogLevel::Error,
+
         }
     }
 }

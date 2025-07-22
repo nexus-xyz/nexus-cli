@@ -116,6 +116,9 @@ impl DashboardState {
                 }
             }
         }
+
+
+        
         (false, None, None)
     }
 
@@ -130,6 +133,8 @@ impl DashboardState {
         }
         None
     }
+
+
 
     /// Get a ratatui color for a worker based on its type and ID
     fn get_worker_color(worker: &Worker) -> Color {
@@ -452,4 +457,8 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
         )
         .block(Block::default().borders(Borders::TOP));
     f.render_widget(footer, chunks[2]);
+}
+
+#[cfg(test)]
+mod tests {
 }

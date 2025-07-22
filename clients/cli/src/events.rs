@@ -107,6 +107,8 @@ impl Event {
         Self::new_with_level(Worker::VersionChecker, msg, event_type, log_level)
     }
 
+
+
     pub fn should_display(&self) -> bool {
         // Always show success events and info level events
         if self.event_type == EventType::Success || self.log_level >= LogLevel::Info {
