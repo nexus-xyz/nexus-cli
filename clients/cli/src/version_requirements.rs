@@ -10,13 +10,13 @@ const CONFIG_TIMEOUT: Duration = Duration::from_secs(10);
 #[derive(Error, Debug)]
 pub enum VersionRequirementsError {
     #[error("Failed to fetch config: {0}")]
-    FetchError(String),
+    Fetch(String),
 
     #[error("Failed to parse config JSON: {0}")]
-    ParseError(#[from] serde_json::Error),
+    Parse(#[from] serde_json::Error),
 
     #[error("Failed to parse version: {0}")]
-    VersionParseError(#[from] semver::Error),
+    VersionParse(#[from] semver::Error),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -60,17 +60,17 @@ impl VersionRequirements {
             .get(CONFIG_URL)
             .send()
             .await
-            .map_err(|e| VersionRequirementsError::FetchError(e.to_string()))?;
+            .map_err(|e| VersionRequirementsError::Fetch(e.to_string()))?;
 
         if !response.status().is_success() {
             let error_msg = format!("HTTP {}: {}", response.status(), response.status().as_str());
-            return Err(VersionRequirementsError::FetchError(error_msg));
+            return Err(VersionRequirementsError::Fetch(error_msg));
         }
 
         let config: VersionRequirements = response
             .json()
             .await
-            .map_err(|e| VersionRequirementsError::FetchError(e.to_string()))?;
+            .map_err(|e| VersionRequirementsError::Fetch(e.to_string()))?;
         Ok(config)
     }
 

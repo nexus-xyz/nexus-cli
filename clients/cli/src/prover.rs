@@ -37,7 +37,7 @@ async fn check_version_requirements() -> Result<(), ProverError> {
                 Ok(Some(violation)) => {
                     match violation.constraint_type {
                         crate::version_requirements::ConstraintType::Blocking => {
-                            return Err(ProverError::VersionRequirement(violation.message));
+                            Err(ProverError::VersionRequirement(violation.message))
                         }
                         crate::version_requirements::ConstraintType::Warning => {
                             // Log warning but continue
@@ -62,7 +62,7 @@ async fn check_version_requirements() -> Result<(), ProverError> {
                 }
             }
         }
-        Err(VersionRequirementsError::FetchError(_)) => {
+        Err(VersionRequirementsError::Fetch(_)) => {
             // If we can't fetch requirements, allow proving to continue
             // This prevents blocking users when the config server is down
             Ok(())

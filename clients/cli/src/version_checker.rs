@@ -238,7 +238,7 @@ pub async fn version_checker_task_with_interval(
 
     // Perform initial checks immediately
     perform_version_and_constraint_check(
-        &version_checker,
+        &*version_checker,
         &mut version_info,
         &mut constraint_state,
         &event_sender,
@@ -255,7 +255,7 @@ pub async fn version_checker_task_with_interval(
                 // Check if it's time for a check
                 if last_check.elapsed() >= check_interval {
                     last_check = Instant::now();
-                    perform_version_and_constraint_check(&version_checker, &mut version_info, &mut constraint_state, &event_sender).await;
+                    perform_version_and_constraint_check(&*version_checker, &mut version_info, &mut constraint_state, &event_sender).await;
                 }
             }
         }
@@ -264,7 +264,7 @@ pub async fn version_checker_task_with_interval(
 
 /// Perform both version update check and constraint check
 async fn perform_version_and_constraint_check(
-    version_checker: &Box<dyn VersionCheckable>,
+    version_checker: &dyn VersionCheckable,
     version_info: &mut VersionInfo,
     constraint_state: &mut VersionConstraintState,
     event_sender: &mpsc::Sender<Event>,
@@ -336,9 +336,7 @@ async fn perform_version_and_constraint_check(
                         ),
                     };
 
-                    if (event_sender.send(event).await).is_err() {
-                        return;
-                    }
+                    let _ = event_sender.send(event).await;
 
                     // Update constraint state
                     constraint_state.last_violation = Some(result);
@@ -355,9 +353,7 @@ async fn perform_version_and_constraint_check(
                         LogLevel::Debug,
                     );
 
-                    if (event_sender.send(event).await).is_err() {
-                        return;
-                    }
+                    let _ = event_sender.send(event).await;
 
                     // Clear constraint state
                     constraint_state.last_violation = None;
@@ -369,9 +365,7 @@ async fn perform_version_and_constraint_check(
             let event =
                 Event::version_checker_with_level(message, EventType::Error, LogLevel::Debug);
 
-            if (event_sender.send(event).await).is_err() {
-                return;
-            }
+            let _ = event_sender.send(event).await;
         }
     }
 }
