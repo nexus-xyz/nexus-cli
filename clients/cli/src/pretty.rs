@@ -24,9 +24,7 @@ macro_rules! handle_cmd_error {
 macro_rules! print_cmd_info {
     ($tt:tt, $($tts:tt)*) => {
         println!("\x1b[1;33m[INFO!!!] {}\x1b[0m", $tt);
-        println!("\x1b[1;33m[INFO!!!]\x1b[0m Start details...");
         println!("{}", core::format_args!($($tts)*));
-        println!("\x1b[1;31m[INFO!!!]\x1b[0m End details.\n");
     }
 }
 
