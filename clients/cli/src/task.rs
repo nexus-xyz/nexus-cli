@@ -53,7 +53,10 @@ impl From<&crate::nexus_orchestrator::Task> for Task {
             program_id: task.program_id.clone(),
             #[allow(deprecated)]
             public_inputs: task.public_inputs.clone(),
-            task_type: Some(crate::nexus_orchestrator::TaskType::try_from(task.task_type).unwrap_or(crate::nexus_orchestrator::TaskType::ProofRequired)),
+            task_type: Some(
+                crate::nexus_orchestrator::TaskType::try_from(task.task_type)
+                    .unwrap_or(crate::nexus_orchestrator::TaskType::ProofRequired),
+            ),
         }
     }
 }
