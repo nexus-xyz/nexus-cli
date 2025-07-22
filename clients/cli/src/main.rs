@@ -201,7 +201,6 @@ async fn start(
             "Welcome to Nexus CLI!",
             "Please register your wallet address to get started: nexus-cli register-user --wallet-address <your-wallet-address>"
         );
-        return Err("User registration required. Please run 'nexus-cli register-user --wallet-address <your-wallet-address>' first.".into());
     }
 
     // Create a signing key for the prover.
