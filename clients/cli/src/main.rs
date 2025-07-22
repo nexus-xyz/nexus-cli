@@ -167,13 +167,14 @@ async fn start(
                     match violation.constraint_type {
                         crate::version_requirements::ConstraintType::Blocking => {
                             eprintln!("❌ Version requirement not met: {}", violation.message);
+                            eprintln!("Please upgrade to continue using Nexus CLI");
                             std::process::exit(1);
                         }
                         crate::version_requirements::ConstraintType::Warning => {
-                            eprintln!("⚠️  Version warning: {}", violation.message);
+                            eprintln!("⚠️  {}", violation.message);
                         }
                         crate::version_requirements::ConstraintType::Notice => {
-                            eprintln!("ℹ️  Version notice: {}", violation.message);
+                            eprintln!("ℹ️  {}", violation.message);
                         }
                     }
                 }
@@ -182,16 +183,19 @@ async fn start(
                 }
                 Err(e) => {
                     eprintln!("❌ Failed to parse version requirements: {}", e);
+                    eprintln!("If this issue persists, please file a bug report at: https://github.com/nexus-xyz/nexus-cli/issues");
                     std::process::exit(1);
                 }
             }
         }
         Err(VersionRequirementsError::Fetch(e)) => {
             eprintln!("❌ Failed to fetch version requirements: {}", e);
+            eprintln!("If this issue persists, please file a bug report at: https://github.com/nexus-xyz/nexus-cli/issues");
             std::process::exit(1);
         }
         Err(e) => {
             eprintln!("❌ Failed to check version requirements: {}", e);
+            eprintln!("If this issue persists, please file a bug report at: https://github.com/nexus-xyz/nexus-cli/issues");
             std::process::exit(1);
         }
     }
