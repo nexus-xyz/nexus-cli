@@ -17,6 +17,9 @@ use reqwest::{Client, ClientBuilder, Response};
 use std::sync::OnceLock;
 use std::time::Duration;
 
+// Build timestamp in milliseconds since epoch
+const BUILD_TIMESTAMP: &str = env!("BUILD_TIMESTAMP", "Build timestamp not available");
+
 // Privacy-preserving country detection for network optimization.
 // Only stores 2-letter country codes (e.g., "US", "CA", "GB") to help route
 // requests to the nearest Nexus network servers for better performance.
@@ -69,7 +72,12 @@ impl OrchestratorClient {
         endpoint: &str,
     ) -> Result<T, OrchestratorError> {
         let url = self.build_url(endpoint);
-        let response = self.client.get(&url).send().await?;
+        let response = self
+            .client
+            .get(&url)
+            .header("X-Build-Timestamp", BUILD_TIMESTAMP)
+            .send()
+            .await?;
 
         let response = Self::handle_response_status(response).await?;
         let response_bytes = response.bytes().await?;
@@ -86,6 +94,7 @@ impl OrchestratorClient {
             .client
             .post(&url)
             .header("Content-Type", "application/octet-stream")
+            .header("X-Build-Timestamp", BUILD_TIMESTAMP)
             .body(body)
             .send()
             .await?;
@@ -105,6 +114,7 @@ impl OrchestratorClient {
             .client
             .post(&url)
             .header("Content-Type", "application/octet-stream")
+            .header("X-Build-Timestamp", BUILD_TIMESTAMP)
             .body(body)
             .send()
             .await?;
