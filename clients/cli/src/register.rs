@@ -53,32 +53,52 @@ pub async fn register_user(
     }
 
     // Check if the wallet address is already registered with the orchestrator.
+
     if let Ok(user_id) = orchestrator.get_user(wallet_address).await {
-        print_cmd_info!(
-            "Wallet address is already registered with user ID.",
-            "User ID: {}, Wallet Address: {}",
-            wallet_address,
-            user_id
-        );
-        let config = Config::new(
-            user_id,
-            wallet_address.to_string(),
-            String::new(), // node_id is empty for now
-            orchestrator.environment().clone(),
-        );
-        // Save the configuration file with the user ID and wallet address.
-        config
-            .save(config_path)
-            .map_err(|e| handle_cmd_error!(e, "Failed to save config."))?;
-
-        // Guide user to next step
-        print_cmd_info!(
-            "✅ User registration complete!",
-            "Next step - register a node: nexus-cli register-node"
-        );
-
-        return Ok(());
+    
+    if !user_id.is_empty() && uuid::Uuid::parse_str(&user_id).is_err() {
+        print_cmd_error!("❌ Invalid user ID returned by orchestrator.");
+        return Err(Box::from("Invalid user ID format returned by orchestrator."));
     }
+
+    
+    let wallet_address = wallet_address.to_lowercase();
+
+    
+    if config_path.exists() {
+        let existing_config = Config::load_from_file(config_path)
+            .map_err(|e| handle_cmd_error!(e, "Failed to load existing config."))?;
+        if existing_config.user_id != user_id || existing_config.wallet_address.to_lowercase() != wallet_address {
+            print_cmd_error!("❌ Config file exists with different user details.");
+            return Err(Box::from("Config file contains conflicting user details."));
+        }
+    }
+
+    print_cmd_info!(
+        "Wallet address is already registered with user ID.",
+        "User ID: {}, Wallet Address: {}",
+        user_id,
+        wallet_address
+    );
+    let config = Config::new(
+        user_id,
+        wallet_address,
+        String::new(), // node_id is empty for now
+        orchestrator.environment().clone(),
+    );
+    // Save the configuration file with the user ID and wallet address.
+    config
+        .save(config_path)
+        .map_err(|e| handle_cmd_error!(e, "Failed to save config."))?;
+
+    // Guide user to next step
+    print_cmd_info!(
+        "✅ User registration complete!",
+        "Next step - register a node: nexus-cli register-node"
+    );
+
+    return Ok(());
+}
 
     // Otherwise, register the user with the orchestrator.
     let uuid = uuid::Uuid::new_v4().to_string();
