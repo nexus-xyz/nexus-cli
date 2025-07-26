@@ -20,15 +20,18 @@ The program uses an iterative approach to compute the Fibonacci sequence:
 
 ```rust
 fn fib_iter(n: u32, init_a: u32, init_b: u32) -> u32 {
+    if n == 0 {
+        return init_a;
+    }
+    if n == 1 {
+        return init_b;
+    }
     let mut a = init_a;
     let mut b = init_b;
-
-    for i in 0..n + 1 {
-        if i > 1 {
-            let c = a + b;
-            a = b;
-            b = c;
-        }
+    for _ in 2..=n {
+        let c = a + b;
+        a = b;
+        b = c;
     }
     b
 }
@@ -36,9 +39,9 @@ fn fib_iter(n: u32, init_a: u32, init_b: u32) -> u32 {
 
 ## Examples
 
-- `fib_iter(5, 0, 1)` → Returns the 5th Fibonacci number in the standard sequence (0, 1, 1, 2, 3, 5) = **5**
-- `fib_iter(3, 2, 3)` → Returns the 3rd Fibonacci number in the sequence (2, 3, 5, 8) = **8**
-- `fib_iter(0, 10, 20)` → Returns the 0th number in the sequence (10, 20) = **20**
+- `fib_iter(3, 2, 3)` → Returns the 3rd number in the sequence (2, 3, 5, 8) = **8**
+- `fib_iter(0, 10, 20)` → Returns the 0th number in the sequence = **10**
+- `fib_iter(1, 10, 20)` → Returns the 1st number in the sequence = **20**
 
 ## Building
 
