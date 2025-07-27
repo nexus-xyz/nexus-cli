@@ -219,3 +219,7 @@ addition to creating release.
 
 **WARNING**: Creating a release through the GitHub UI creates a new release but does **NOT** trigger
 the workflow. This leads to a release without a Docker image or binaries, which breaks the installation script.
+
+## License
+
+This project  is released under the terms of the Apache 2.0 License - see [LICENSE](./LICENSE-APACHE)  for details.
