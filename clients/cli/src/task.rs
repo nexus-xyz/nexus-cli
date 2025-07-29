@@ -141,12 +141,12 @@ mod tests {
             "test_program".to_string(),
             vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
         );
-        
+
         // Test all_inputs
         let all_inputs = task.all_inputs();
         assert_eq!(all_inputs.len(), 1);
         assert_eq!(all_inputs[0], vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-        
+
         // Test first input
         let first_input = all_inputs.first().unwrap();
         assert_eq!(first_input, &vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
@@ -160,18 +160,26 @@ mod tests {
             "test_program".to_string(),
             vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
         );
-        
+
         // Add additional inputs
-        task.public_inputs_list.push(vec![13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]);
-        task.public_inputs_list.push(vec![25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36]);
-        
+        task.public_inputs_list
+            .push(vec![13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]);
+        task.public_inputs_list
+            .push(vec![25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36]);
+
         // Test all_inputs
         let all_inputs = task.all_inputs();
         assert_eq!(all_inputs.len(), 3);
         assert_eq!(all_inputs[0], vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-        assert_eq!(all_inputs[1], vec![13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]);
-        assert_eq!(all_inputs[2], vec![25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36]);
-        
+        assert_eq!(
+            all_inputs[1],
+            vec![13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]
+        );
+        assert_eq!(
+            all_inputs[2],
+            vec![25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36]
+        );
+
         // Test first input
         let first_input = all_inputs.first().unwrap();
         assert_eq!(first_input, &vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);

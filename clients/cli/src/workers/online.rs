@@ -732,8 +732,8 @@ async fn process_proof_submission(
     }
 
     // Use combined hash if provided, otherwise generate from proof
-    let proof_hash = if let Some(hash) = combined_hash {
-        hash
+    let proof_hash = if !combined_hash.is_empty() {
+        combined_hash
     } else {
         // Serialize proof and generate hash
         let proof_bytes = postcard::to_allocvec(&proof).expect("Failed to serialize proof");

@@ -78,18 +78,18 @@ pub async fn authenticated_proving(
         "fib_input_initial" => {
             // Handle multiple inputs if present
             let all_inputs = task.all_inputs();
-            
+
             // Ensure we have at least one input
             if all_inputs.is_empty() {
                 return Err(ProverError::MalformedTask(
                     "No inputs provided for task".to_string(),
                 ));
             }
-            
+
             let mut proof_hashes = Vec::new();
             let mut final_proof = None;
             let mut final_view = None;
-            
+
             // Process each input set
             for (input_index, input_data) in all_inputs.iter().enumerate() {
                 let inputs = parse_triple_public_input(input_data)?;
@@ -103,7 +103,7 @@ pub async fn authenticated_proving(
                             input_index, e
                         ))
                     })?;
-                
+
                 // Verify the proof
                 match proof.verify_expected::<(u32, u32, u32), ()>(
                     &inputs,
@@ -130,17 +130,17 @@ pub async fn authenticated_proving(
                         return Err(ProverError::Stwo(error_msg));
                     }
                 }
-                
+
                 // Generate proof hash for this input
                 let proof_bytes = postcard::to_allocvec(&proof).expect("Failed to serialize proof");
                 let proof_hash = format!("{:x}", Keccak256::digest(&proof_bytes));
                 proof_hashes.push(proof_hash);
-                
+
                 // Store the proof and view for return (we'll use the last one, but the hash will be combined)
                 final_proof = Some(proof);
                 final_view = Some(view);
             }
-            
+
             // If we have multiple inputs, combine the proof hashes
             let final_proof_hash = if proof_hashes.len() > 1 {
                 Task::combine_proof_hashes(&proof_hashes)
@@ -148,9 +148,11 @@ pub async fn authenticated_proving(
                 // For single input, no combined hash needed
                 String::new()
             };
-            
+
             // Check if this is a ProofHash task type - if so, discard the proof
-            let task_type = task.task_type.unwrap_or(crate::nexus_orchestrator::TaskType::ProofRequired);
+            let task_type = task
+                .task_type
+                .unwrap_or(crate::nexus_orchestrator::TaskType::ProofRequired);
             if task_type == crate::nexus_orchestrator::TaskType::ProofHash {
                 // For ProofHash tasks, we still return the proof but the submission logic
                 // should only use the hash and discard the proof
@@ -250,17 +252,17 @@ mod tests {
             // First input: n=2, init_a=1, init_b=1 (computes F(2) = 2)
             vec![2, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
         );
-        
+
         // Add a second input: n=3, init_a=1, init_b=1 (computes F(3) = 3)
         task.public_inputs_list
             .push(vec![3, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]);
-        
+
         // Set task type to ProofRequired
         task.task_type = Some(crate::nexus_orchestrator::TaskType::ProofRequired);
-        
+
         let environment = Environment::Production;
         let client_id = "test_client".to_string();
-        
+
         match authenticated_proving(&task, &environment, &client_id).await {
             Ok(_) => panic!("Expected error for multiple inputs with proof_required task type"),
             Err(e) => {
@@ -280,25 +282,56 @@ mod tests {
             // First input: n=3, init_a=1, init_b=1 (computes F(3) = 3)
             vec![3, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
         );
-        
+
         // Add a second input: n=4, init_a=1, init_b=1 (computes F(4) = 5)
         task.public_inputs_list
             .push(vec![4, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]);
-        
+
         // Set task type to ProofHash (or None, which should work)
         task.task_type = None;
-        
+
         let environment = Environment::Production;
         let client_id = "test_client".to_string();
-        
+
         match authenticated_proving(&task, &environment, &client_id).await {
             Ok((_proof, combined_hash)) => {
                 // Should have a combined hash for multiple inputs
-                assert!(!combined_hash.is_empty(), "Expected combined hash for multiple inputs");
+                assert!(
+                    !combined_hash.is_empty(),
+                    "Expected combined hash for multiple inputs"
+                );
                 println!("Combined hash: {}", combined_hash);
             }
             Err(e) => {
                 panic!("Expected success for multiple inputs: {}", e);
+            }
+        }
+    }
+
+    #[tokio::test]
+    // Should return empty combined hash for single input.
+    async fn test_single_input_no_combined_hash() {
+        let task = Task::new(
+            "test_task".to_string(),
+            "fib_input_initial".to_string(),
+            // Single input: n=2, init_a=1, init_b=1 (computes F(2) = 2)
+            vec![2, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+        );
+
+        let environment = Environment::Production;
+        let client_id = "test_client".to_string();
+
+        match authenticated_proving(&task, &environment, &client_id).await {
+            Ok((_proof, combined_hash)) => {
+                // Should have empty combined hash for single input
+                assert!(
+                    combined_hash.is_empty(),
+                    "Expected empty combined hash for single input"
+                );
+                println!("Single input - no combined hash needed");
+            }
+            Err(e) => {
+                panic!("Expected success for single input: {}", e);
             }
         }
     }
