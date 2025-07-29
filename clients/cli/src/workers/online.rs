@@ -149,9 +149,9 @@ async fn attempt_task_fetch(
 ) -> Result<(), bool> {
     let _ = event_sender
         .send(Event::task_fetcher_with_level(
-            "[Task step 1 of 3] Fetching tasks...Note: CLI tasks are harder to solve, so they receive 10 times more points than web provers".to_string(),
+            "[Task step 1 of 3] Fetching tasks... Note: CLI tasks are harder to solve, so they receive 10 times more points than web provers".to_string(),
             crate::events::EventType::Refresh,
-            LogLevel::Debug,
+            LogLevel::Info,
         ))
         .await;
 
