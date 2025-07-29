@@ -3,6 +3,7 @@
 //! Main orchestrator for authenticated and anonymous proving modes.
 //! Coordinates online workers (network I/O) and offline workers (computation).
 
+use crate::analytics::track_verification_failed;
 use crate::consts::prover::{EVENT_QUEUE_SIZE, RESULT_QUEUE_SIZE, TASK_QUEUE_SIZE};
 use crate::environment::Environment;
 use crate::events::Event;
@@ -10,6 +11,7 @@ use crate::orchestrator::OrchestratorClient;
 use crate::task::Task;
 use crate::task_cache::TaskCache;
 use crate::version_checker::start_version_checker_task;
+use crate::workers::online::ProofResult;
 use crate::workers::{offline, online};
 use ed25519_dalek::SigningKey;
 use nexus_sdk::stwo::seq::Proof;
@@ -75,7 +77,7 @@ pub async fn start_authenticated_workers(
     join_handles.push(fetch_prover_tasks_handle);
 
     // Workers
-    let (result_sender, result_receiver) = mpsc::channel::<(Task, Proof)>(RESULT_QUEUE_SIZE);
+    let (result_sender, result_receiver) = mpsc::channel::<(Task, ProofResult)>(RESULT_QUEUE_SIZE);
 
     let (worker_senders, worker_handles) = offline::start_workers(
         num_workers,

@@ -5,6 +5,7 @@ use log::error;
 use nexus_sdk::Verifiable;
 use nexus_sdk::stwo::seq::Proof;
 use nexus_sdk::{KnownExitCodes, Local, Prover, Viewable, stwo::seq::Stwo};
+use sha3::{Digest, Keccak256};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -60,78 +61,97 @@ pub async fn authenticated_proving(
     task: &Task,
     environment: &Environment,
     client_id: &str,
-) -> Result<Proof, ProverError> {
-    let (view, proof, _) = match task.program_id.as_str() {
-        "fast-fib" => {
-            // fast-fib uses string inputs
-            let input = get_string_public_input(task)?;
-            let stwo_prover = get_default_stwo_prover()?;
-            let elf = stwo_prover.elf.clone();
-            let (view, proof) = stwo_prover
-                .prove_with_input::<(), u32>(&(), &input)
-                .map_err(|e| ProverError::Stwo(format!("Failed to run fast-fib prover: {}", e)))?;
-            // We should verify the proof before returning it to the server
-            // otherwise, the orchestrator can punish the worker for returning an invalid proof
-            match proof.verify_expected(
-                &input,
-                nexus_sdk::KnownExitCodes::ExitSuccess as u32,
-                &(),
-                &elf,
-                &[],
-            ) {
-                Ok(_) => {
-                    // Track analytics for proof validation success (non-blocking)
-                }
-                Err(e) => {
-                    let error_msg =
-                        format!("Failed to verify proof: {} for inputs: {:?}", e, input);
-                    // Track analytics for verification failure (non-blocking)
-                    tokio::spawn(track_verification_failed(
-                        task.clone(),
-                        error_msg.clone(),
-                        environment.clone(),
-                        client_id.to_string(),
-                    ));
-                    return Err(ProverError::Stwo(error_msg));
-                }
+) -> Result<(Proof, Option<String>), ProverError> {
+    // Check for multiple inputs with proof_required task type (not supported yet)
+    if task.all_inputs().len() > 1 {
+        if let Some(task_type) = task.task_type {
+            if task_type == crate::nexus_orchestrator::TaskType::ProofRequired {
+                return Err(ProverError::MalformedTask(
+                    "Multiple inputs with proof_required task type is not supported yet"
+                        .to_string(),
+                ));
             }
-            (view, proof, input)
         }
+    }
+
+    let (view, proof, combined_hash) = match task.program_id.as_str() {
         "fib_input_initial" => {
-            let inputs = get_triple_public_input(task)?;
+            // Handle multiple inputs if present
+            let all_inputs = task.all_inputs();
+
+            // Ensure we have at least one input
+            if all_inputs.is_empty() {
+                return Err(ProverError::MalformedTask(
+                    "No inputs provided for task".to_string(),
+                ));
+            }
+
+            let mut proof_hashes = Vec::new();
+
+            // Process each input set
+            for (input_index, input_data) in all_inputs.iter().enumerate() {
+                let inputs = parse_triple_public_input(input_data)?;
+                let stwo_prover = get_initial_stwo_prover()?;
+                let elf = stwo_prover.elf.clone();
+                let (view, proof) = stwo_prover
+                    .prove_with_input::<(), (u32, u32, u32)>(&(), &inputs)
+                    .map_err(|e| {
+                        ProverError::Stwo(format!(
+                            "Failed to run fib_input_initial prover for input {}: {}",
+                            input_index, e
+                        ))
+                    })?;
+
+                // Verify the proof
+                match proof.verify_expected::<(u32, u32, u32), ()>(
+                    &inputs,
+                    nexus_sdk::KnownExitCodes::ExitSuccess as u32,
+                    &(),
+                    &elf,
+                    &[],
+                ) {
+                    Ok(_) => {
+                        // Track analytics for proof validation success (non-blocking)
+                    }
+                    Err(e) => {
+                        let error_msg = format!(
+                            "Failed to verify proof for input {}: {} for inputs: {:?}",
+                            input_index, e, inputs
+                        );
+                        // Track analytics for verification failure (non-blocking)
+                        tokio::spawn(track_verification_failed(
+                            task.clone(),
+                            error_msg.clone(),
+                            environment.clone(),
+                            client_id.to_string(),
+                        ));
+                        return Err(ProverError::Stwo(error_msg));
+                    }
+                }
+
+                // Generate proof hash for this input
+                let proof_bytes = postcard::to_allocvec(&proof).expect("Failed to serialize proof");
+                let proof_hash = format!("{:x}", Keccak256::digest(&proof_bytes));
+                proof_hashes.push(proof_hash);
+            }
+
+            // If we have multiple inputs, combine the proof hashes
+            let final_proof_hash = if proof_hashes.len() > 1 {
+                Some(Task::combine_proof_hashes(&proof_hashes))
+            } else {
+                None
+            };
+
+            // For now, return the last proof (in a real implementation, you might want to handle this differently)
+            let last_inputs = parse_triple_public_input(all_inputs.last().unwrap())?;
             let stwo_prover = get_initial_stwo_prover()?;
-            let elf = stwo_prover.elf.clone();
             let (view, proof) = stwo_prover
-                .prove_with_input::<(), (u32, u32, u32)>(&(), &inputs)
+                .prove_with_input::<(), (u32, u32, u32)>(&(), &last_inputs)
                 .map_err(|e| {
                     ProverError::Stwo(format!("Failed to run fib_input_initial prover: {}", e))
                 })?;
-            // We should verify the proof before returning it to the server
-            // otherwise, the orchestrator can punish the worker for returning an invalid proof
-            match proof.verify_expected::<(u32, u32, u32), ()>(
-                &inputs, // three u32 inputs
-                nexus_sdk::KnownExitCodes::ExitSuccess as u32,
-                &(),  // no public output
-                &elf, // expected elf (program binary)
-                &[],  // no associated data,
-            ) {
-                Ok(_) => {
-                    // Track analytics for proof validation success (non-blocking)
-                }
-                Err(e) => {
-                    let error_msg =
-                        format!("Failed to verify proof: {} for inputs: {:?}", e, inputs);
-                    // Track analytics for verification failure (non-blocking)
-                    tokio::spawn(track_verification_failed(
-                        task.clone(),
-                        error_msg.clone(),
-                        environment.clone(),
-                        client_id.to_string(),
-                    ));
-                    return Err(ProverError::Stwo(error_msg));
-                }
-            }
-            (view, proof, inputs.0)
+
+            (view, proof, final_proof_hash)
         }
         _ => {
             return Err(ProverError::MalformedTask(format!(
@@ -152,21 +172,11 @@ pub async fn authenticated_proving(
         )));
     }
 
-    Ok(proof)
+    Ok((proof, combined_hash))
 }
 
-fn get_string_public_input(task: &Task) -> Result<u32, ProverError> {
-    // For fast-fib, just take the first byte as a u32 (how it worked before)
-    if task.public_inputs.is_empty() {
-        return Err(ProverError::MalformedTask(
-            "Task public inputs are empty".to_string(),
-        ));
-    }
-    Ok(task.public_inputs[0] as u32)
-}
-
-fn get_triple_public_input(task: &Task) -> Result<(u32, u32, u32), ProverError> {
-    if task.public_inputs.len() < 12 {
+fn parse_triple_public_input(input_data: &[u8]) -> Result<(u32, u32, u32), ProverError> {
+    if input_data.len() < 12 {
         return Err(ProverError::MalformedTask(
             "Public inputs buffer too small, expected at least 12 bytes for three u32 values"
                 .to_string(),
@@ -176,25 +186,16 @@ fn get_triple_public_input(task: &Task) -> Result<(u32, u32, u32), ProverError> 
     // Read all three u32 values (little-endian) from the buffer
     let mut bytes = [0u8; 4];
 
-    bytes.copy_from_slice(&task.public_inputs[0..4]);
+    bytes.copy_from_slice(&input_data[0..4]);
     let n = u32::from_le_bytes(bytes);
 
-    bytes.copy_from_slice(&task.public_inputs[4..8]);
+    bytes.copy_from_slice(&input_data[4..8]);
     let init_a = u32::from_le_bytes(bytes);
 
-    bytes.copy_from_slice(&task.public_inputs[8..12]);
+    bytes.copy_from_slice(&input_data[8..12]);
     let init_b = u32::from_le_bytes(bytes);
 
     Ok((n, init_a, init_b))
-}
-
-/// Create a Stwo prover for the default program.
-pub fn get_default_stwo_prover() -> Result<Stwo<Local>, ProverError> {
-    let elf_bytes = include_bytes!("../assets/fib_input");
-    Stwo::<Local>::new_from_bytes(elf_bytes).map_err(|e| {
-        let msg = format!("Failed to load fib_input guest program: {}", e);
-        ProverError::Stwo(msg)
-    })
 }
 
 /// Create a Stwo prover for the initial program.
@@ -211,9 +212,9 @@ mod tests {
     use super::*;
 
     #[test]
-    // The default Stwo prover should be created successfully.
-    fn test_get_default_stwo_prover() {
-        let prover = get_default_stwo_prover();
+    // The initial Stwo prover should be created successfully.
+    fn test_get_initial_stwo_prover() {
+        let prover = get_initial_stwo_prover();
         match prover {
             Ok(_) => println!("Prover initialized successfully."),
             Err(e) => panic!("Failed to initialize prover: {}", e),
@@ -229,6 +230,35 @@ mod tests {
             }
             Err(e) => {
                 panic!("Failed to prove anonymously: {}", e);
+            }
+        }
+    }
+
+    #[tokio::test]
+    // Should return error for multiple inputs with proof_required task type.
+    async fn test_multiple_inputs_proof_required_error() {
+        let mut task = Task::new(
+            "test_task".to_string(),
+            "fib_input_initial".to_string(),
+            vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+        );
+
+        // Add a second input
+        task.public_inputs_list
+            .push(vec![13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]);
+
+        // Set task type to ProofRequired
+        task.task_type = Some(crate::nexus_orchestrator::TaskType::ProofRequired);
+
+        let environment = Environment::Production;
+        let client_id = "test_client".to_string();
+
+        match authenticated_proving(&task, &environment, &client_id).await {
+            Ok(_) => panic!("Expected error for multiple inputs with proof_required task type"),
+            Err(e) => {
+                assert!(e.to_string().contains(
+                    "Multiple inputs with proof_required task type is not supported yet"
+                ));
             }
         }
     }

@@ -27,6 +27,12 @@ use std::time::Duration;
 use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;
 
+/// Result of a proof generation, including optional combined hash for multiple inputs
+pub struct ProofResult {
+    pub proof: Proof,
+    pub combined_hash: Option<String>,
+}
+
 /// State for managing task fetching behavior
 pub struct TaskFetchState {
     last_fetch_time: std::time::Instant,
@@ -612,7 +618,7 @@ pub async fn submit_proofs(
     signing_key: SigningKey,
     orchestrator: Box<dyn Orchestrator>,
     num_workers: usize,
-    mut results: mpsc::Receiver<(Task, Proof)>,
+    mut results: mpsc::Receiver<(Task, ProofResult)>,
     event_sender: mpsc::Sender<Event>,
     mut shutdown: broadcast::Receiver<()>,
     successful_tasks: TaskCache,
@@ -628,10 +634,11 @@ pub async fn submit_proofs(
             tokio::select! {
                 maybe_item = results.recv() => {
                     match maybe_item {
-                        Some((task, proof)) => {
+                        Some((task, proof_result)) => {
                             if let Some(success) = process_proof_submission(
                                 task,
-                                proof,
+                                proof_result.proof,
+                                proof_result.combined_hash,
                                 &*orchestrator,
                                 &signing_key,
                                 num_workers,
@@ -703,6 +710,7 @@ async fn report_performance_stats(
 async fn process_proof_submission(
     task: Task,
     proof: Proof,
+    combined_hash: Option<String>,
     orchestrator: &dyn Orchestrator,
     signing_key: &SigningKey,
     num_workers: usize,
@@ -723,9 +731,17 @@ async fn process_proof_submission(
         return None; // Skip this task
     }
 
-    // Serialize proof
+    // Use combined hash if provided, otherwise generate from proof
+    let proof_hash = if let Some(hash) = combined_hash {
+        hash
+    } else {
+        // Serialize proof and generate hash
+        let proof_bytes = postcard::to_allocvec(&proof).expect("Failed to serialize proof");
+        format!("{:x}", Keccak256::digest(&proof_bytes))
+    };
+
+    // Serialize proof for submission
     let proof_bytes = postcard::to_allocvec(&proof).expect("Failed to serialize proof");
-    let proof_hash = format!("{:x}", Keccak256::digest(&proof_bytes));
 
     // Submit to orchestrator
     match orchestrator
