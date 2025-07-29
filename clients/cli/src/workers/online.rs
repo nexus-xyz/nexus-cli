@@ -27,10 +27,10 @@ use std::time::Duration;
 use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;
 
-/// Result of a proof generation, including optional combined hash for multiple inputs
+/// Result of a proof generation, including combined hash for multiple inputs
 pub struct ProofResult {
     pub proof: Proof,
-    pub combined_hash: Option<String>,
+    pub combined_hash: String,
 }
 
 /// State for managing task fetching behavior
@@ -710,7 +710,7 @@ async fn report_performance_stats(
 async fn process_proof_submission(
     task: Task,
     proof: Proof,
-    combined_hash: Option<String>,
+    combined_hash: String,
     orchestrator: &dyn Orchestrator,
     signing_key: &SigningKey,
     num_workers: usize,

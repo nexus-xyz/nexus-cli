@@ -61,7 +61,7 @@ pub async fn authenticated_proving(
     task: &Task,
     environment: &Environment,
     client_id: &str,
-) -> Result<(Proof, Option<String>), ProverError> {
+) -> Result<(Proof, String), ProverError> {
     // Check for multiple inputs with proof_required task type (not supported yet)
     if task.all_inputs().len() > 1 {
         if let Some(task_type) = task.task_type {
@@ -143,9 +143,10 @@ pub async fn authenticated_proving(
             
             // If we have multiple inputs, combine the proof hashes
             let final_proof_hash = if proof_hashes.len() > 1 {
-                Some(Task::combine_proof_hashes(&proof_hashes))
+                Task::combine_proof_hashes(&proof_hashes)
             } else {
-                None
+                // For single input, no combined hash needed
+                String::new()
             };
             
             // Check if this is a ProofHash task type - if so, discard the proof
@@ -293,8 +294,8 @@ mod tests {
         match authenticated_proving(&task, &environment, &client_id).await {
             Ok((_proof, combined_hash)) => {
                 // Should have a combined hash for multiple inputs
-                assert!(combined_hash.is_some(), "Expected combined hash for multiple inputs");
-                println!("Combined hash: {}", combined_hash.unwrap());
+                assert!(!combined_hash.is_empty(), "Expected combined hash for multiple inputs");
+                println!("Combined hash: {}", combined_hash);
             }
             Err(e) => {
                 panic!("Expected success for multiple inputs: {}", e);
