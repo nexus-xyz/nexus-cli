@@ -246,12 +246,13 @@ mod tests {
         let mut task = Task::new(
             "test_task".to_string(),
             "fib_input_initial".to_string(),
-            vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+            // First input: n=2, init_a=1, init_b=1 (computes F(2) = 2)
+            vec![2, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
         );
         
-        // Add a second input
+        // Add a second input: n=3, init_a=1, init_b=1 (computes F(3) = 3)
         task.public_inputs_list
-            .push(vec![13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]);
+            .push(vec![3, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]);
         
         // Set task type to ProofRequired
         task.task_type = Some(crate::nexus_orchestrator::TaskType::ProofRequired);
@@ -275,12 +276,13 @@ mod tests {
         let mut task = Task::new(
             "test_task".to_string(),
             "fib_input_initial".to_string(),
-            vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+            // First input: n=3, init_a=1, init_b=1 (computes F(3) = 3)
+            vec![3, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
         );
         
-        // Add a second input
+        // Add a second input: n=4, init_a=1, init_b=1 (computes F(4) = 5)
         task.public_inputs_list
-            .push(vec![13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]);
+            .push(vec![4, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]);
         
         // Set task type to ProofHash (or None, which should work)
         task.task_type = None;
