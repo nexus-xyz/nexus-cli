@@ -6,6 +6,14 @@ use std::{env, path::Path};
 
 /// Compiles the protobuf files into Rust code using prost-build.
 fn main() -> Result<(), Box<dyn Error>> {
+    // Set build timestamp in milliseconds since epoch
+    let build_timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis()
+        .to_string();
+    println!("cargo:rustc-env=BUILD_TIMESTAMP={}", build_timestamp);
+
     // Skip proto compilation unless build_proto feature is enabled.
     if !cfg!(feature = "build_proto") {
         println!(
