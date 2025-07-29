@@ -222,4 +222,4 @@ the workflow. This leads to a release without a Docker image or binaries, which 
 
 ## License
 
-This project  is released under the terms of the Apache 2.0 License - see [LICENSE](./LICENSE-APACHE)  for details.
+Nexus CLI is distributed under the terms of both the [MIT License](./LICENSE-MIT) and the [Apache License (Version 2.0)](./LICENSE-APACHE).
