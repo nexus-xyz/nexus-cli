@@ -181,7 +181,7 @@ async fn start(
                 Err(e) => {
                     eprintln!("❌ Failed to parse version requirements: {}", e);
                     eprintln!(
-                        "If this issue persists, please file a bug report at: https://github.com/nexus-xyz/nexus-cli/issues"
+                        "If this issue persists, please file a bug report at: https://github.com/nexus-xyz/nexus-cli/issues/new/choose"
                     );
                     std::process::exit(1);
                 }
@@ -190,14 +190,14 @@ async fn start(
         Err(VersionRequirementsError::Fetch(e)) => {
             eprintln!("❌ Failed to fetch version requirements: {}", e);
             eprintln!(
-                "If this issue persists, please file a bug report at: https://github.com/nexus-xyz/nexus-cli/issues"
+                "If this issue persists, please file a bug report at: https://github.com/nexus-xyz/nexus-cli/issues/new/choose"
             );
             std::process::exit(1);
         }
         Err(e) => {
             eprintln!("❌ Failed to check version requirements: {}", e);
             eprintln!(
-                "If this issue persists, please file a bug report at: https://github.com/nexus-xyz/nexus-cli/issues"
+                "If this issue persists, please file a bug report at: https://github.com/nexus-xyz/nexus-cli/issues/new/choose"
             );
             std::process::exit(1);
         }
