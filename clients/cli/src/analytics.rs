@@ -274,7 +274,11 @@ pub async fn track_authenticated_proof_analytics(
         "fib_input_initial" => {
             // For fib_input_initial, extract the triple inputs from the first input
             let all_inputs = task.all_inputs();
-            let input_data = all_inputs.first().unwrap_or(&vec![]);
+            let input_data = if all_inputs.is_empty() {
+                &vec![]
+            } else {
+                &all_inputs[0]
+            };
             let inputs = if input_data.len() >= 12 {
                 let mut bytes = [0u8; 4];
                 bytes.copy_from_slice(&input_data[0..4]);

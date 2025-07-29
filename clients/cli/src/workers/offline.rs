@@ -13,7 +13,6 @@ use crate::events::{Event, EventType};
 use crate::prover::authenticated_proving;
 use crate::task::Task;
 use crate::workers::online::ProofResult;
-use nexus_sdk::stwo::seq::Proof;
 use std::time::Duration;
 use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;

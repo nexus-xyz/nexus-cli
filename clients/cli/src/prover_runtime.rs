@@ -3,8 +3,7 @@
 //! Main orchestrator for authenticated and anonymous proving modes.
 //! Coordinates online workers (network I/O) and offline workers (computation).
 
-use crate::analytics::track_verification_failed;
-use crate::consts::prover::{EVENT_QUEUE_SIZE, RESULT_QUEUE_SIZE, TASK_QUEUE_SIZE};
+use crate::analytics::track_authenticated_proof_analytics;
 use crate::environment::Environment;
 use crate::events::Event;
 use crate::orchestrator::OrchestratorClient;
@@ -14,7 +13,6 @@ use crate::version_checker::start_version_checker_task;
 use crate::workers::online::ProofResult;
 use crate::workers::{offline, online};
 use ed25519_dalek::SigningKey;
-use nexus_sdk::stwo::seq::Proof;
 use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;
 
@@ -33,7 +31,7 @@ pub async fn start_authenticated_workers(
 ) -> (mpsc::Receiver<Event>, Vec<JoinHandle<()>>) {
     let mut join_handles = Vec::new();
     // Worker events
-    let (event_sender, event_receiver) = mpsc::channel::<Event>(EVENT_QUEUE_SIZE);
+    let (event_sender, event_receiver) = mpsc::channel::<Event>(crate::consts::prover::EVENT_QUEUE_SIZE);
 
     // Start version checker
     let version_checker_handle = {
@@ -50,7 +48,7 @@ pub async fn start_authenticated_workers(
     let enqueued_tasks = TaskCache::new(MAX_COMPLETED_TASKS);
 
     // Task fetching
-    let (task_sender, task_receiver) = mpsc::channel::<Task>(TASK_QUEUE_SIZE);
+    let (task_sender, task_receiver) = mpsc::channel::<Task>(crate::consts::prover::TASK_QUEUE_SIZE);
     let verifying_key = signing_key.verifying_key();
     let fetch_prover_tasks_handle = {
         let orchestrator = orchestrator.clone();
@@ -77,7 +75,7 @@ pub async fn start_authenticated_workers(
     join_handles.push(fetch_prover_tasks_handle);
 
     // Workers
-    let (result_sender, result_receiver) = mpsc::channel::<(Task, ProofResult)>(RESULT_QUEUE_SIZE);
+    let (result_sender, result_receiver) = mpsc::channel::<(Task, ProofResult)>(crate::consts::prover::RESULT_QUEUE_SIZE);
 
     let (worker_senders, worker_handles) = offline::start_workers(
         num_workers,
@@ -124,7 +122,7 @@ pub async fn start_anonymous_workers(
 ) -> (mpsc::Receiver<Event>, Vec<JoinHandle<()>>) {
     let mut join_handles = Vec::new();
     // Worker events
-    let (event_sender, event_receiver) = mpsc::channel::<Event>(EVENT_QUEUE_SIZE);
+    let (event_sender, event_receiver) = mpsc::channel::<Event>(crate::consts::prover::EVENT_QUEUE_SIZE);
 
     // Start version checker
     let version_checker_handle = {
