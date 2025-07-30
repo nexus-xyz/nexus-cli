@@ -62,10 +62,6 @@ impl Event {
         }
     }
 
-    pub fn task_fetcher(msg: String, event_type: EventType) -> Self {
-        Self::new(Worker::TaskFetcher, msg, event_type)
-    }
-
     pub fn task_fetcher_with_level(
         msg: String,
         event_type: EventType,
@@ -85,10 +81,6 @@ impl Event {
         log_level: LogLevel,
     ) -> Self {
         Self::new_with_level(Worker::Prover(worker_id), msg, event_type, log_level)
-    }
-
-    pub fn proof_submitter(msg: String, event_type: EventType) -> Self {
-        Self::new(Worker::ProofSubmitter, msg, event_type)
     }
 
     pub fn proof_submitter_with_level(

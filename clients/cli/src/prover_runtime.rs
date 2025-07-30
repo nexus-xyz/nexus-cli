@@ -3,6 +3,7 @@
 //! Main orchestrator for authenticated and anonymous proving modes.
 //! Coordinates online workers (network I/O) and offline workers (computation).
 
+use crate::consts::prover::MAX_COMPLETED_TASKS;
 use crate::environment::Environment;
 use crate::events::Event;
 use crate::orchestrator::OrchestratorClient;
@@ -14,9 +15,6 @@ use crate::workers::{offline, online};
 use ed25519_dalek::SigningKey;
 use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;
-
-/// Maximum number of completed tasks to keep in memory. Chosen to be larger than the task queue size.
-const MAX_COMPLETED_TASKS: usize = 500;
 
 /// Starts authenticated workers that fetch tasks from the orchestrator and process them.
 pub async fn start_authenticated_workers(
@@ -95,7 +93,7 @@ pub async fn start_authenticated_workers(
     join_handles.push(dispatcher_handle);
 
     // A bounded list of recently completed task IDs (prevents duplicate proof submissions)
-    let successful_tasks = TaskCache::new(MAX_COMPLETED_TASKS);
+    let completed_tasks = TaskCache::new(MAX_COMPLETED_TASKS);
 
     // Send proofs to the orchestrator
     let submit_proofs_handle = online::submit_proofs(
@@ -105,7 +103,7 @@ pub async fn start_authenticated_workers(
         result_receiver,
         event_sender.clone(),
         shutdown.resubscribe(),
-        successful_tasks.clone(),
+        completed_tasks.clone(),
         environment,
         client_id,
     )
@@ -194,7 +192,7 @@ mod tests {
         let (shutdown_sender, _) = broadcast::channel(1); // Only one shutdown signal needed
         let (event_sender, _event_receiver) = mpsc::channel::<Event>(100);
         let shutdown_receiver = shutdown_sender.subscribe();
-        let successful_tasks = TaskCache::new(MAX_COMPLETED_TASKS);
+        let submitted_tasks = TaskCache::new(MAX_COMPLETED_TASKS);
 
         let task_master_handle = tokio::spawn(async move {
             fetch_prover_tasks(
@@ -204,7 +202,7 @@ mod tests {
                 task_sender,
                 event_sender,
                 shutdown_receiver,
-                successful_tasks,
+                submitted_tasks,
                 crate::environment::Environment::Production,
                 "test-client-id".to_string(),
             )
