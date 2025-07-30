@@ -15,7 +15,10 @@ pub struct Task {
     /// ID of the program to be executed
     pub program_id: String,
 
-    /// Multiple public inputs for the task
+    /// Public inputs for the task (legacy field for backward compatibility)
+    pub public_inputs: Vec<u8>,
+
+    /// Multiple public inputs for the task (new field)
     pub public_inputs_list: Vec<Vec<u8>>,
 
     /// The type of task (proof required or only hash)
@@ -29,6 +32,7 @@ impl Task {
         Task {
             task_id,
             program_id,
+            public_inputs: public_inputs.clone(),
             public_inputs_list: vec![public_inputs],
             task_type: None,
         }
@@ -53,6 +57,11 @@ impl Task {
     pub fn all_inputs(&self) -> &[Vec<u8>] {
         &self.public_inputs_list
     }
+
+    /// Get the primary input (legacy compatibility)
+    pub fn primary_input(&self) -> &[u8] {
+        &self.public_inputs
+    }
 }
 
 // Display
@@ -74,6 +83,7 @@ impl From<&crate::nexus_orchestrator::Task> for Task {
         Task {
             task_id: task.task_id.clone(),
             program_id: task.program_id.clone(),
+            public_inputs: task.public_inputs.clone(),
             public_inputs_list: task.public_inputs_list.clone(),
             task_type: Some(
                 crate::nexus_orchestrator::TaskType::try_from(task.task_type)
@@ -89,6 +99,7 @@ impl From<&crate::nexus_orchestrator::GetProofTaskResponse> for Task {
         Task {
             task_id: response.task_id.clone(),
             program_id: response.program_id.clone(),
+            public_inputs: response.public_inputs.clone(),
             public_inputs_list: vec![response.public_inputs.clone()],
             task_type: None, // GetProofTaskResponse doesn't include task_type
         }
@@ -183,5 +194,21 @@ mod tests {
         // Test first input
         let first_input = all_inputs.first().unwrap();
         assert_eq!(first_input, &vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+    }
+
+    #[test]
+    fn test_backward_compatibility() {
+        let task = Task::new(
+            "test_task".to_string(),
+            "fib_input_initial".to_string(),
+            vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+        );
+
+        // Test that both legacy and new fields work
+        assert_eq!(task.primary_input(), &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+        assert_eq!(task.all_inputs().len(), 1);
+        assert_eq!(task.all_inputs()[0], &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+        
+        println!("Backward compatibility test passed");
     }
 }

@@ -7,8 +7,6 @@ use thiserror::Error;
 const CONFIG_URL: &str = "https://cli.nexus.xyz/version.json";
 const FALLBACK_CONFIG_URL: &str =
     "https://raw.githubusercontent.com/nexus-xyz/nexus-cli/refs/heads/main/public/version.json";
-#[cfg(test)]
-const TEST_ERROR_URL: &str = "https://cli.nexus.xyz/nonexistent.json";
 const CONFIG_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Error, Debug)]

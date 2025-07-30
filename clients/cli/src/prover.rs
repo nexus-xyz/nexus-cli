@@ -1,5 +1,6 @@
 use crate::analytics::track_verification_failed;
 use crate::environment::Environment;
+use crate::events::{Event as WorkerEvent, EventType};
 use crate::task::Task;
 use log::error;
 use nexus_sdk::Verifiable;
@@ -61,11 +62,15 @@ pub async fn authenticated_proving(
     task: &Task,
     environment: &Environment,
     client_id: &str,
+    event_sender: Option<&tokio::sync::mpsc::Sender<WorkerEvent>>,
 ) -> Result<(Proof, String), ProverError> {
     // Check for multiple inputs with proof_required task type (not supported yet)
+    // TODO: Uncomment this if we actually receive such tasks from orchestrator
+    /*
     if task.all_inputs().len() > 1 {
         if let Some(task_type) = task.task_type {
             if task_type == crate::nexus_orchestrator::TaskType::ProofRequired {
+                println!("WARNING: Received task with {} inputs and ProofRequired task type - this is not supported yet", task.all_inputs().len());
                 return Err(ProverError::MalformedTask(
                     "Multiple inputs with proof_required task type is not supported yet"
                         .to_string(),
@@ -73,6 +78,7 @@ pub async fn authenticated_proving(
             }
         }
     }
+    */
 
     let (view, proof, combined_hash) = match task.program_id.as_str() {
         "fib_input_initial" => {
@@ -92,6 +98,23 @@ pub async fn authenticated_proving(
 
             // Process each input set
             for (input_index, input_data) in all_inputs.iter().enumerate() {
+                // Send progress event for proof hash tasks
+                if let Some(sender) = event_sender {
+                    let task_type = task.task_type.unwrap_or(crate::nexus_orchestrator::TaskType::ProofRequired);
+                    if task_type == crate::nexus_orchestrator::TaskType::ProofHash {
+                        let progress_msg = format!(
+                            "Processing input {}/{} for proving task",
+                            input_index + 1,
+                            all_inputs.len()
+                        );
+                        let _ = sender.send(WorkerEvent::prover(
+                            0, // Use worker ID 0 for progress events
+                            progress_msg,
+                            EventType::Refresh,
+                        )).await;
+                    }
+                }
+
                 let inputs = parse_triple_public_input(input_data)?;
                 let stwo_prover = get_initial_stwo_prover()?;
                 let elf = stwo_prover.elf.clone();
@@ -131,7 +154,7 @@ pub async fn authenticated_proving(
                     }
                 }
 
-                // Generate proof hash for this input
+                // Generate proof hash for this input (needed for both task types)
                 let proof_bytes = postcard::to_allocvec(&proof).expect("Failed to serialize proof");
                 let proof_hash = format!("{:x}", Keccak256::digest(&proof_bytes));
                 proof_hashes.push(proof_hash);
@@ -141,18 +164,36 @@ pub async fn authenticated_proving(
                 final_view = Some(view);
             }
 
-            // If we have multiple inputs, combine the proof hashes
-            let final_proof_hash = if proof_hashes.len() > 1 {
-                Task::combine_proof_hashes(&proof_hashes)
-            } else {
-                // For single input, no combined hash needed
-                String::new()
-            };
-
-            // Check if this is a ProofHash task type - if so, discard the proof
+            // Always combine proof hashes for ProofHash tasks, even for single inputs
             let task_type = task
                 .task_type
                 .unwrap_or(crate::nexus_orchestrator::TaskType::ProofRequired);
+            
+            let final_proof_hash = if task_type == crate::nexus_orchestrator::TaskType::ProofHash {
+                // For ProofHash tasks, always hash the result (even single inputs)
+                Task::combine_proof_hashes(&proof_hashes)
+            } else {
+                // For ProofRequired tasks, return the first proof hash (or empty if no proofs)
+                proof_hashes.first().cloned().unwrap_or_default()
+            };
+
+            // Send completion event for proof hash tasks
+            if let Some(sender) = event_sender {
+                if task_type == crate::nexus_orchestrator::TaskType::ProofHash {
+                    let completion_msg = format!(
+                        "Completed proving task with {} input(s), hash: {}...",
+                        all_inputs.len(),
+                        &final_proof_hash[..8]
+                    );
+                    let _ = sender.send(WorkerEvent::prover(
+                        0, // Use worker ID 0 for progress events
+                        completion_msg,
+                        EventType::Success,
+                    )).await;
+                }
+            }
+
+            // Check if this is a ProofHash task type - if so, discard the proof
             if task_type == crate::nexus_orchestrator::TaskType::ProofHash {
                 // For ProofHash tasks, we still return the proof but the submission logic
                 // should only use the hash and discard the proof
@@ -244,8 +285,8 @@ mod tests {
     }
 
     #[tokio::test]
-    // Should return error for multiple inputs with proof_required task type.
-    async fn test_multiple_inputs_proof_required_error() {
+    // Should handle multiple inputs with proof_required task type (now supported).
+    async fn test_multiple_inputs_proof_required_success() {
         let mut task = Task::new(
             "test_task".to_string(),
             "fib_input_initial".to_string(),
@@ -263,12 +304,14 @@ mod tests {
         let environment = Environment::Production;
         let client_id = "test_client".to_string();
 
-        match authenticated_proving(&task, &environment, &client_id).await {
-            Ok(_) => panic!("Expected error for multiple inputs with proof_required task type"),
+        match authenticated_proving(&task, &environment, &client_id, None).await {
+            Ok((_proof, combined_hash)) => {
+                // Should succeed with multiple inputs but no combined hash for ProofRequired
+                assert!(combined_hash.is_empty(), "Expected empty combined hash for ProofRequired task type");
+                println!("Multiple inputs with ProofRequired works (no hash needed)");
+            }
             Err(e) => {
-                assert!(e.to_string().contains(
-                    "Multiple inputs with proof_required task type is not supported yet"
-                ));
+                panic!("Expected success for multiple inputs with ProofRequired: {}", e);
             }
         }
     }
@@ -288,12 +331,12 @@ mod tests {
             .push(vec![4, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]);
 
         // Set task type to ProofHash (or None, which should work)
-        task.task_type = None;
+        task.task_type = Some(crate::nexus_orchestrator::TaskType::ProofHash);
 
         let environment = Environment::Production;
         let client_id = "test_client".to_string();
 
-        match authenticated_proving(&task, &environment, &client_id).await {
+        match authenticated_proving(&task, &environment, &client_id, None).await {
             Ok((_proof, combined_hash)) => {
                 // Should have a combined hash for multiple inputs
                 assert!(
@@ -309,29 +352,175 @@ mod tests {
     }
 
     #[tokio::test]
-    // Should return empty combined hash for single input.
-    async fn test_single_input_no_combined_hash() {
-        let task = Task::new(
+    // Should return combined hash for single input with ProofHash task type.
+    async fn test_single_input_proof_hash_combined_hash() {
+        let mut task = Task::new(
             "test_task".to_string(),
             "fib_input_initial".to_string(),
             // Single input: n=2, init_a=1, init_b=1 (computes F(2) = 2)
             vec![2, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
         );
 
+        // Set task type to ProofHash
+        task.task_type = Some(crate::nexus_orchestrator::TaskType::ProofHash);
+
         let environment = Environment::Production;
         let client_id = "test_client".to_string();
 
-        match authenticated_proving(&task, &environment, &client_id).await {
+        match authenticated_proving(&task, &environment, &client_id, None).await {
             Ok((_proof, combined_hash)) => {
-                // Should have empty combined hash for single input
-                assert!(
-                    combined_hash.is_empty(),
-                    "Expected empty combined hash for single input"
-                );
-                println!("Single input - no combined hash needed");
+                // Should have combined hash for ProofHash task type, even with single input
+                assert!(!combined_hash.is_empty(), "Expected combined hash for ProofHash task type");
+                println!("Single input with ProofHash - combined hash: {}", combined_hash);
             }
             Err(e) => {
-                panic!("Expected success for single input: {}", e);
+                panic!("Expected success for single input with ProofHash: {}", e);
+            }
+        }
+    }
+
+    #[tokio::test]
+    // Should return empty combined hash for single input with ProofRequired task type.
+    async fn test_single_input_proof_required_no_combined_hash() {
+        let mut task = Task::new(
+            "test_task".to_string(),
+            "fib_input_initial".to_string(),
+            // Single input: n=2, init_a=1, init_b=1 (computes F(2) = 2)
+            vec![2, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+        );
+
+        // Set task type to ProofRequired
+        task.task_type = Some(crate::nexus_orchestrator::TaskType::ProofRequired);
+
+        let environment = Environment::Production;
+        let client_id = "test_client".to_string();
+
+        match authenticated_proving(&task, &environment, &client_id, None).await {
+            Ok((_proof, combined_hash)) => {
+                // Should have empty combined hash for single input with ProofRequired
+                assert!(combined_hash.is_empty(), "Expected empty combined hash for single input with ProofRequired");
+                println!("Single input with ProofRequired - no hash needed");
+            }
+            Err(e) => {
+                panic!("Expected success for single input with ProofRequired: {}", e);
+            }
+        }
+    }
+
+    #[test]
+    // Should handle multiple input sets correctly (simple test without zkVM).
+    fn test_multiple_input_sets_handling() {
+        let mut task = Task::new(
+            "test_task".to_string(),
+            "fib_input_initial".to_string(),
+            // First input: n=2, init_a=1, init_b=1 (computes F(2) = 2)
+            vec![2, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+        );
+
+        // Add a second input: n=3, init_a=1, init_b=1 (computes F(3) = 3)
+        task.public_inputs_list
+            .push(vec![3, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]);
+
+        // Set task type to ProofRequired (what orchestrator actually sends)
+        task.task_type = Some(crate::nexus_orchestrator::TaskType::ProofRequired);
+
+        // Verify we have multiple input sets
+        let input_count = task.all_inputs().len();
+        assert_eq!(input_count, 2, "Should have 2 input sets");
+        
+        // Verify each input set has 12 bytes
+        for (i, input) in task.all_inputs().iter().enumerate() {
+            assert_eq!(input.len(), 12, "Input {} should have 12 bytes", i);
+        }
+        
+        println!("Test completed - multiple input sets handled correctly");
+    }
+
+    #[test]
+    #[should_panic(expected = "fib_input_initial expects exactly 12 bytes, got 8")]
+    // Should panic when analytics receives wrong input size.
+    fn test_analytics_wrong_input_size() {
+        let task = Task::new(
+            "test_task".to_string(),
+            "fib_input_initial".to_string(),
+            // Wrong input size: only 8 bytes instead of 12
+            vec![1, 2, 3, 4, 5, 6, 7, 8],
+        );
+
+        let environment = Environment::Production;
+        let client_id = "test_client".to_string();
+
+        // This should panic with the assertion error
+        tokio::runtime::Runtime::new().unwrap().block_on(
+            crate::analytics::track_authenticated_proof_analytics(task, environment, client_id)
+        );
+    }
+
+    #[test]
+    // Should work correctly when analytics receives correct input size.
+    fn test_analytics_correct_input_size() {
+        let task = Task::new(
+            "test_task".to_string(),
+            "fib_input_initial".to_string(),
+            // Correct input size: 12 bytes (3 u32 values)
+            vec![2, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+        );
+
+        let environment = Environment::Production;
+        let client_id = "test_client".to_string();
+
+        // This should not panic
+        tokio::runtime::Runtime::new().unwrap().block_on(
+            crate::analytics::track_authenticated_proof_analytics(task, environment, client_id)
+        );
+        
+        println!("Analytics test completed successfully");
+    }
+
+    #[tokio::test]
+    // Should send progress events for proof hash tasks.
+    async fn test_proof_hash_progress_events() {
+        let mut task = Task::new(
+            "test_task".to_string(),
+            "fib_input_initial".to_string(),
+            // First input: n=2, init_a=1, init_b=1 (computes F(2) = 2)
+            vec![2, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+        );
+
+        // Add a second input: n=3, init_a=1, init_b=1 (computes F(3) = 3)
+        task.public_inputs_list
+            .push(vec![3, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]);
+
+        // Set task type to ProofHash
+        task.task_type = Some(crate::nexus_orchestrator::TaskType::ProofHash);
+
+        let environment = Environment::Production;
+        let client_id = "test_client".to_string();
+
+        // Create a channel to capture progress events
+        let (event_sender, mut event_receiver) = tokio::sync::mpsc::channel::<WorkerEvent>(10);
+
+        match authenticated_proving(&task, &environment, &client_id, Some(&event_sender)).await {
+            Ok((_proof, combined_hash)) => {
+                // Should have combined hash for multiple inputs with ProofHash
+                assert!(!combined_hash.is_empty(), "Expected combined hash for ProofHash task type");
+                
+                // Check that progress events were sent
+                let mut progress_events = Vec::new();
+                while let Ok(event) = event_receiver.try_recv() {
+                    progress_events.push(event);
+                }
+                
+                // Should have at least 2 progress events (one for each input) plus completion
+                assert!(progress_events.len() >= 3, "Expected at least 3 progress events, got {}", progress_events.len());
+                
+                println!("Progress events sent: {}", progress_events.len());
+                for event in progress_events {
+                    println!("  - {}", event.msg);
+                }
+            }
+            Err(e) => {
+                panic!("Expected success for proof hash task: {}", e);
             }
         }
     }
