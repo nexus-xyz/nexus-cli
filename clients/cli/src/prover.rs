@@ -100,18 +100,22 @@ pub async fn authenticated_proving(
             for (input_index, input_data) in all_inputs.iter().enumerate() {
                 // Send progress event for proof hash tasks
                 if let Some(sender) = event_sender {
-                    let task_type = task.task_type.unwrap_or(crate::nexus_orchestrator::TaskType::ProofRequired);
+                    let task_type = task
+                        .task_type
+                        .unwrap_or(crate::nexus_orchestrator::TaskType::ProofRequired);
                     if task_type == crate::nexus_orchestrator::TaskType::ProofHash {
                         let progress_msg = format!(
                             "Processing input {}/{} for proving task",
                             input_index + 1,
                             all_inputs.len()
                         );
-                        let _ = sender.send(WorkerEvent::prover(
-                            0, // Use worker ID 0 for progress events
-                            progress_msg,
-                            EventType::Refresh,
-                        )).await;
+                        let _ = sender
+                            .send(WorkerEvent::prover(
+                                0, // Use worker ID 0 for progress events
+                                progress_msg,
+                                EventType::Refresh,
+                            ))
+                            .await;
                     }
                 }
 
@@ -168,7 +172,7 @@ pub async fn authenticated_proving(
             let task_type = task
                 .task_type
                 .unwrap_or(crate::nexus_orchestrator::TaskType::ProofRequired);
-            
+
             let final_proof_hash = if task_type == crate::nexus_orchestrator::TaskType::ProofHash {
                 // For ProofHash tasks, always hash the result (even single inputs)
                 Task::combine_proof_hashes(&proof_hashes)
@@ -185,11 +189,13 @@ pub async fn authenticated_proving(
                         all_inputs.len(),
                         &final_proof_hash[..8]
                     );
-                    let _ = sender.send(WorkerEvent::prover(
-                        0, // Use worker ID 0 for progress events
-                        completion_msg,
-                        EventType::Success,
-                    )).await;
+                    let _ = sender
+                        .send(WorkerEvent::prover(
+                            0, // Use worker ID 0 for progress events
+                            completion_msg,
+                            EventType::Success,
+                        ))
+                        .await;
                 }
             }
 
@@ -307,11 +313,20 @@ mod tests {
         match authenticated_proving(&task, &environment, &client_id, None).await {
             Ok((_proof, combined_hash)) => {
                 // Should succeed with multiple inputs and return the first proof hash for ProofRequired
-                assert!(!combined_hash.is_empty(), "Expected proof hash for ProofRequired task type");
-                println!("Multiple inputs with ProofRequired works (returns first proof hash): {}", combined_hash);
+                assert!(
+                    !combined_hash.is_empty(),
+                    "Expected proof hash for ProofRequired task type"
+                );
+                println!(
+                    "Multiple inputs with ProofRequired works (returns first proof hash): {}",
+                    combined_hash
+                );
             }
             Err(e) => {
-                panic!("Expected success for multiple inputs with ProofRequired: {}", e);
+                panic!(
+                    "Expected success for multiple inputs with ProofRequired: {}",
+                    e
+                );
             }
         }
     }
@@ -370,8 +385,14 @@ mod tests {
         match authenticated_proving(&task, &environment, &client_id, None).await {
             Ok((_proof, combined_hash)) => {
                 // Should have combined hash for ProofHash task type, even with single input
-                assert!(!combined_hash.is_empty(), "Expected combined hash for ProofHash task type");
-                println!("Single input with ProofHash - combined hash: {}", combined_hash);
+                assert!(
+                    !combined_hash.is_empty(),
+                    "Expected combined hash for ProofHash task type"
+                );
+                println!(
+                    "Single input with ProofHash - combined hash: {}",
+                    combined_hash
+                );
             }
             Err(e) => {
                 panic!("Expected success for single input with ProofHash: {}", e);
@@ -398,11 +419,20 @@ mod tests {
         match authenticated_proving(&task, &environment, &client_id, None).await {
             Ok((_proof, combined_hash)) => {
                 // Should have proof hash for single input with ProofRequired
-                assert!(!combined_hash.is_empty(), "Expected proof hash for single input with ProofRequired");
-                println!("Single input with ProofRequired - returns proof hash: {}", combined_hash);
+                assert!(
+                    !combined_hash.is_empty(),
+                    "Expected proof hash for single input with ProofRequired"
+                );
+                println!(
+                    "Single input with ProofRequired - returns proof hash: {}",
+                    combined_hash
+                );
             }
             Err(e) => {
-                panic!("Expected success for single input with ProofRequired: {}", e);
+                panic!(
+                    "Expected success for single input with ProofRequired: {}",
+                    e
+                );
             }
         }
     }
@@ -427,12 +457,12 @@ mod tests {
         // Verify we have multiple input sets
         let input_count = task.all_inputs().len();
         assert_eq!(input_count, 2, "Should have 2 input sets");
-        
+
         // Verify each input set has 12 bytes
         for (i, input) in task.all_inputs().iter().enumerate() {
             assert_eq!(input.len(), 12, "Input {} should have 12 bytes", i);
         }
-        
+
         println!("Test completed - multiple input sets handled correctly");
     }
 
@@ -452,7 +482,7 @@ mod tests {
 
         // This should panic with the assertion error
         tokio::runtime::Runtime::new().unwrap().block_on(
-            crate::analytics::track_authenticated_proof_analytics(task, environment, client_id)
+            crate::analytics::track_authenticated_proof_analytics(task, environment, client_id),
         );
     }
 
@@ -471,9 +501,9 @@ mod tests {
 
         // This should not panic
         tokio::runtime::Runtime::new().unwrap().block_on(
-            crate::analytics::track_authenticated_proof_analytics(task, environment, client_id)
+            crate::analytics::track_authenticated_proof_analytics(task, environment, client_id),
         );
-        
+
         println!("Analytics test completed successfully");
     }
 
@@ -503,17 +533,24 @@ mod tests {
         match authenticated_proving(&task, &environment, &client_id, Some(&event_sender)).await {
             Ok((_proof, combined_hash)) => {
                 // Should have combined hash for multiple inputs with ProofHash
-                assert!(!combined_hash.is_empty(), "Expected combined hash for ProofHash task type");
-                
+                assert!(
+                    !combined_hash.is_empty(),
+                    "Expected combined hash for ProofHash task type"
+                );
+
                 // Check that progress events were sent
                 let mut progress_events = Vec::new();
                 while let Ok(event) = event_receiver.try_recv() {
                     progress_events.push(event);
                 }
-                
+
                 // Should have at least 2 progress events (one for each input) plus completion
-                assert!(progress_events.len() >= 3, "Expected at least 3 progress events, got {}", progress_events.len());
-                
+                assert!(
+                    progress_events.len() >= 3,
+                    "Expected at least 3 progress events, got {}",
+                    progress_events.len()
+                );
+
                 println!("Progress events sent: {}", progress_events.len());
                 for event in progress_events {
                     println!("  - {}", event.msg);

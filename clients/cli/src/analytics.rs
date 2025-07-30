@@ -282,16 +282,16 @@ pub async fn track_authenticated_proof_analytics(
             } else {
                 &all_inputs[0]
             };
-            
+
             // Assert that we have exactly the expected number of bytes for fib_input_initial
             assert_eq!(
-                input_data.len(), 
-                FIB_INPUT_INITIAL_BYTES, 
-                "fib_input_initial expects exactly {} bytes, got {}", 
-                FIB_INPUT_INITIAL_BYTES, 
+                input_data.len(),
+                FIB_INPUT_INITIAL_BYTES,
+                "fib_input_initial expects exactly {} bytes, got {}",
+                FIB_INPUT_INITIAL_BYTES,
                 input_data.len()
             );
-            
+
             let mut bytes = [0u8; 4];
             bytes.copy_from_slice(&input_data[0..4]);
             let n = u32::from_le_bytes(bytes);
@@ -300,7 +300,7 @@ pub async fn track_authenticated_proof_analytics(
             bytes.copy_from_slice(&input_data[8..12]);
             let init_b = u32::from_le_bytes(bytes);
             let inputs = (n, init_a, init_b);
-            
+
             json!({
                 "program_name": "fib_input_initial",
                 "public_input": inputs.0,

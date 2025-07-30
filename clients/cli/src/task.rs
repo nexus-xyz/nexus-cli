@@ -53,14 +53,9 @@ impl Task {
         format!("{:x}", hash)
     }
 
-    /// Get all inputs as a list
+    /// Get all inputs for the task
     pub fn all_inputs(&self) -> &[Vec<u8>] {
         &self.public_inputs_list
-    }
-
-    /// Get the primary input (legacy compatibility)
-    pub fn primary_input(&self) -> &[u8] {
-        &self.public_inputs
     }
 }
 
@@ -83,7 +78,7 @@ impl From<&crate::nexus_orchestrator::Task> for Task {
         Task {
             task_id: task.task_id.clone(),
             program_id: task.program_id.clone(),
-            public_inputs: task.public_inputs.clone(),
+            public_inputs: task.public_inputs_list.first().cloned().unwrap_or_default(),
             public_inputs_list: task.public_inputs_list.clone(),
             task_type: Some(
                 crate::nexus_orchestrator::TaskType::try_from(task.task_type)
@@ -205,10 +200,12 @@ mod tests {
         );
 
         // Test that both legacy and new fields work
-        assert_eq!(task.primary_input(), &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
         assert_eq!(task.all_inputs().len(), 1);
-        assert_eq!(task.all_inputs()[0], &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-        
+        assert_eq!(
+            task.all_inputs()[0],
+            &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        );
+
         println!("Backward compatibility test passed");
     }
 }
