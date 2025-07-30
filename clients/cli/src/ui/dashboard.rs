@@ -375,9 +375,9 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
             };
 
             let worker_type = match event.worker {
-                Worker::TaskFetcher => "Fetcher".to_string(),
+                Worker::TaskFetcher => "".to_string(),
                 Worker::Prover(worker_id) => format!("P{}", worker_id),
-                Worker::ProofSubmitter => "Submitter".to_string(),
+                Worker::ProofSubmitter => "".to_string(),
                 Worker::VersionChecker => "Version".to_string(),
             };
 
@@ -402,7 +402,7 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
             };
 
             // Create a structured line with colored spans
-            Line::from(vec![
+            let mut spans = vec![
                 // Main status icon
                 Span::raw(format!("{} ", main_icon)),
                 // Compact timestamp in muted color
@@ -410,16 +410,25 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
                     format!("{} ", compact_time),
                     Style::default().fg(Color::DarkGray),
                 ),
-                // Worker type in bold with worker color
-                Span::styled(
+            ];
+
+            // Worker type in bold with worker color (only if not empty)
+            if !worker_type.is_empty() {
+                spans.push(Span::styled(
                     format!("[{}] ", worker_type),
                     Style::default()
                         .fg(worker_color)
                         .add_modifier(Modifier::BOLD),
-                ),
-                // Cleaned message with appropriate color
-                Span::styled(cleaned_msg, Style::default().fg(message_color)),
-            ])
+                ));
+            }
+
+            // Cleaned message with appropriate color
+            spans.push(Span::styled(
+                cleaned_msg,
+                Style::default().fg(message_color),
+            ));
+
+            Line::from(spans)
         })
         .collect();
 
