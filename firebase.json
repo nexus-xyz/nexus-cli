@@ -1,10 +1,16 @@
 {
   "hosting": {
     "public": "public",
-    "rewrites": [ {
-      "source": "**",
-      "destination": "/install.sh"
-    } ],
+    "rewrites": [
+      {
+        "source": "/version.json",
+        "destination": "/version.json"
+      },
+      {
+        "source": "**",
+        "destination": "/install.sh"
+      }
+    ],
     "ignore": [
       "firebase.json",
       "**/.*",

@@ -10,8 +10,7 @@ use crate::analytics::{
     track_proof_submission_success,
 };
 use crate::consts::prover::{
-    BACKOFF_DURATION, BATCH_SIZE, LOW_WATER_MARK, MAX_404S_BEFORE_GIVING_UP, QUEUE_LOG_INTERVAL,
-    TASK_QUEUE_SIZE,
+    BACKOFF_DURATION, LOW_WATER_MARK, QUEUE_LOG_INTERVAL, TASK_QUEUE_SIZE,
 };
 use crate::environment::Environment;
 use crate::error_classifier::{ErrorClassifier, LogLevel};
@@ -27,13 +26,51 @@ use std::time::Duration;
 use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;
 
-/// State for managing task fetching behavior
+/// Result of a proof generation, including combined hash for multiple inputs
+pub struct ProofResult {
+    pub proof: Proof,
+    pub combined_hash: String,
+}
+
+/// Helper to send events with consistent error handling
+async fn send_event(
+    event_sender: &mpsc::Sender<Event>,
+    message: String,
+    event_type: crate::events::EventType,
+    log_level: LogLevel,
+) {
+    let _ = event_sender
+        .send(Event::task_fetcher_with_level(
+            message, event_type, log_level,
+        ))
+        .await;
+}
+
+/// Helper to send proof submission events with consistent error handling
+async fn send_proof_event(
+    event_sender: &mpsc::Sender<Event>,
+    message: String,
+    event_type: crate::events::EventType,
+    log_level: LogLevel,
+) {
+    let _ = event_sender
+        .send(Event::proof_submitter_with_level(
+            message, event_type, log_level,
+        ))
+        .await;
+}
+
+// =============================================================================
+// TASK FETCH STATE
+// =============================================================================
+
+/// State for managing task fetching behavior with smart backoff and timing
 pub struct TaskFetchState {
     last_fetch_time: std::time::Instant,
     backoff_duration: Duration,
     last_queue_log_time: std::time::Instant,
     queue_log_interval: Duration,
-    error_classifier: ErrorClassifier,
+    pub error_classifier: ErrorClassifier,
 }
 
 impl TaskFetchState {
@@ -48,33 +85,56 @@ impl TaskFetchState {
         }
     }
 
-    pub fn should_log_queue_status(&mut self) -> bool {
-        // Log queue status every QUEUE_LOG_INTERVAL seconds regardless of queue level
+    // =========================================================================
+    // QUERY METHODS
+    // =========================================================================
+
+    /// Check if it's time to log queue status
+    pub fn should_log_queue_status(&self) -> bool {
         self.last_queue_log_time.elapsed() >= self.queue_log_interval
     }
 
-    pub fn should_fetch(&self, tasks_in_queue: usize) -> bool {
-        tasks_in_queue < LOW_WATER_MARK && self.last_fetch_time.elapsed() >= self.backoff_duration
+    /// Check if enough time has passed since last fetch attempt (respects backoff)
+    pub fn can_fetch_now(&self) -> bool {
+        self.last_fetch_time.elapsed() >= self.backoff_duration
     }
 
+    /// Get current backoff duration
+    pub fn backoff_duration(&self) -> Duration {
+        self.backoff_duration
+    }
+
+    /// Get time since last fetch attempt
+    pub fn time_since_last_fetch(&self) -> Duration {
+        self.last_fetch_time.elapsed()
+    }
+
+    // =========================================================================
+    // MUTATION METHODS
+    // =========================================================================
+
+    /// Record that a fetch attempt was made (updates timing)
     pub fn record_fetch_attempt(&mut self) {
         self.last_fetch_time = std::time::Instant::now();
     }
 
+    /// Record that queue status was logged (updates timing)
     pub fn record_queue_log(&mut self) {
         self.last_queue_log_time = std::time::Instant::now();
     }
 
+    /// Reset backoff to default duration (after successful operation)
     pub fn reset_backoff(&mut self) {
         self.backoff_duration = Duration::from_millis(BACKOFF_DURATION);
     }
 
     /// Set backoff duration from server's Retry-After header (in seconds)
+    /// Respects server's exact timing for rate limit compliance
     pub fn set_backoff_from_server(&mut self, retry_after_seconds: u32) {
-        // Use the server's exact retry time
         self.backoff_duration = Duration::from_secs(retry_after_seconds as u64);
     }
 
+    /// Increase backoff duration for error handling (exponential backoff)
     pub fn increase_backoff_for_error(&mut self) {
         self.backoff_duration = std::cmp::min(
             self.backoff_duration * 2,
@@ -83,8 +143,7 @@ impl TaskFetchState {
     }
 }
 
-/// Fetches tasks from the orchestrator and place them in the task queue.
-/// Uses demand-driven fetching: only fetches when queue drops below LOW_WATER_MARK.
+/// Simple task fetcher: get one task at a time when queue is low.
 #[allow(clippy::too_many_arguments)]
 pub async fn fetch_prover_tasks(
     node_id: u64,
@@ -105,15 +164,15 @@ pub async fn fetch_prover_tasks(
             _ = tokio::time::sleep(Duration::from_millis(500)) => {
                 let tasks_in_queue = TASK_QUEUE_SIZE - sender.capacity();
 
-                // Log queue status every QUEUE_LOG_INTERVAL seconds regardless of queue level
+                // Log queue status periodically
                 if state.should_log_queue_status() {
                     state.record_queue_log();
                     log_queue_status(&event_sender, tasks_in_queue, &state).await;
                 }
 
-                // Attempt fetch if conditions are met
-                if state.should_fetch(tasks_in_queue) {
-                    if let Err(should_return) = attempt_task_fetch(
+                // Simple condition: fetch when queue is low and backoff time has passed
+                if tasks_in_queue < LOW_WATER_MARK && state.can_fetch_now() {
+                    if let Err(should_return) = fetch_single_task_simple(
                         &*orchestrator_client,
                         &node_id,
                         verifying_key,
@@ -134,9 +193,9 @@ pub async fn fetch_prover_tasks(
     }
 }
 
-/// Attempt to fetch tasks with timeout and error handling
+/// Simple task fetcher: get one task, prove, submit - perfect 1-2-3 flow
 #[allow(clippy::too_many_arguments)]
-async fn attempt_task_fetch(
+async fn fetch_single_task_simple(
     orchestrator_client: &dyn Orchestrator,
     node_id: &u64,
     verifying_key: VerifyingKey,
@@ -147,74 +206,111 @@ async fn attempt_task_fetch(
     environment: &Environment,
     client_id: &str,
 ) -> Result<(), bool> {
+    // Record fetch attempt
+    state.record_fetch_attempt();
+
     let _ = event_sender
         .send(Event::task_fetcher_with_level(
-            "[Task step 1 of 3] Fetching tasks...Note: CLI tasks are harder to solve, so they receive 10 times more points than web provers".to_string(),
+            "[Task step 1 of 3] Fetching task... Note: CLI tasks are harder to solve, so they receive 10 times more points than web provers".to_string(),
             crate::events::EventType::Refresh,
-            LogLevel::Debug,
+            LogLevel::Info,
         ))
         .await;
 
-    // Add timeout to prevent hanging
-    let fetch_future = fetch_task_batch(
-        orchestrator_client,
-        node_id,
-        verifying_key,
-        BATCH_SIZE,
-        event_sender,
-    );
-    let timeout_duration = Duration::from_secs(60); // 60 second timeout
+    // Fetch one task with timeout
+    let timeout_duration = Duration::from_secs(60);
+    let node_id_str = node_id.to_string();
+    let fetch_future = orchestrator_client.get_proof_task(&node_id_str, verifying_key);
 
     match tokio::time::timeout(timeout_duration, fetch_future).await {
-        Ok(fetch_result) => match fetch_result {
-            Ok(tasks) => {
-                // Record successful fetch attempt timing
-                state.record_fetch_attempt();
-                handle_fetch_success(
-                    tasks,
-                    sender,
+        Ok(Ok(task)) => {
+            // Check for duplicate
+            if recent_tasks.contains(&task.task_id).await {
+                state.increase_backoff_for_error();
+                send_event(
                     event_sender,
-                    recent_tasks,
-                    state,
-                    environment,
-                    client_id,
+                    format!(
+                        "Task was duplicate - backing off for {}s",
+                        state.backoff_duration().as_secs()
+                    ),
+                    crate::events::EventType::Refresh,
+                    LogLevel::Warn,
                 )
-                .await
+                .await;
+                return Ok(());
             }
-            Err(e) => {
-                // Record failed fetch attempt timing
-                state.record_fetch_attempt();
-                handle_fetch_error(e, event_sender, state).await;
-                Ok(())
+
+            // Add to cache and queue
+            recent_tasks.insert(task.task_id.clone()).await;
+
+            if sender.send(task.clone()).await.is_err() {
+                let _ = event_sender
+                    .send(Event::task_fetcher(
+                        "Task queue is closed".to_string(),
+                        crate::events::EventType::Shutdown,
+                    ))
+                    .await;
+                return Err(true); // Signal shutdown
             }
-        },
-        Err(_timeout) => {
-            // Handle timeout case
-            state.record_fetch_attempt();
+
+            // Track analytics
+            tokio::spawn(track_got_task(
+                task,
+                environment.clone(),
+                client_id.to_string(),
+            ));
+
+            // Success: reset backoff and log
+            state.reset_backoff();
+            let current_queue_level = TASK_QUEUE_SIZE - sender.capacity();
+            let queue_percentage =
+                (current_queue_level as f64 / TASK_QUEUE_SIZE as f64 * 100.0) as u32;
             let _ = event_sender
                 .send(Event::task_fetcher_with_level(
-                    format!("Fetch timeout after {}s", timeout_duration.as_secs()),
-                    crate::events::EventType::Error,
-                    LogLevel::Warn,
+                    format!(
+                        "Queue status: +1 task → {} total ({}% full)",
+                        current_queue_level, queue_percentage
+                    ),
+                    crate::events::EventType::Refresh,
+                    if queue_percentage >= 80 {
+                        LogLevel::Info
+                    } else {
+                        LogLevel::Debug
+                    },
                 ))
                 .await;
-            // Increase backoff for timeout
+
+            Ok(())
+        }
+        Ok(Err(e)) => {
+            handle_fetch_error(e, event_sender, state).await;
+            Ok(())
+        }
+        Err(_timeout) => {
             state.increase_backoff_for_error();
+            send_event(
+                event_sender,
+                format!("Fetch timeout after {}s", timeout_duration.as_secs()),
+                crate::events::EventType::Error,
+                LogLevel::Warn,
+            )
+            .await;
             Ok(())
         }
     }
 }
 
-/// Log the current queue status
+/// Log the current queue status with timing information
 async fn log_queue_status(
     event_sender: &mpsc::Sender<Event>,
     tasks_in_queue: usize,
     state: &TaskFetchState,
 ) {
-    let time_since_last = state.last_fetch_time.elapsed();
-    let backoff_secs = state.backoff_duration.as_secs();
+    let time_since_last = state.time_since_last_fetch();
+    let backoff_duration = state.backoff_duration();
+    let backoff_secs = backoff_duration.as_secs();
 
-    let message = if state.should_fetch(tasks_in_queue) {
+    let message = if tasks_in_queue < LOW_WATER_MARK && state.can_fetch_now() {
         format!(
             "Tasks Queue low: {} tasks to compute, ready to fetch",
             tasks_in_queue
@@ -229,185 +325,13 @@ async fn log_queue_status(
         )
     };
 
-    let _ = event_sender
-        .send(Event::task_fetcher_with_level(
-            message,
-            crate::events::EventType::Refresh,
-            LogLevel::Debug,
-        ))
-        .await;
-}
-
-/// Handle successful task fetch
-async fn handle_fetch_success(
-    tasks: Vec<Task>,
-    sender: &mpsc::Sender<Task>,
-    event_sender: &mpsc::Sender<Event>,
-    recent_tasks: &TaskCache,
-    state: &mut TaskFetchState,
-    environment: &Environment,
-    client_id: &str,
-) -> Result<(), bool> {
-    if tasks.is_empty() {
-        handle_empty_task_response(sender, event_sender, state).await;
-        return Ok(());
-    }
-
-    let (added_count, duplicate_count) = process_fetched_tasks(
-        tasks,
-        sender,
+    send_event(
         event_sender,
-        recent_tasks,
-        environment,
-        client_id,
+        message,
+        crate::events::EventType::Refresh,
+        LogLevel::Debug,
     )
-    .await?;
-
-    log_fetch_results(added_count, duplicate_count, sender, event_sender, state).await;
-    Ok(())
-}
-
-/// Handle empty task response from server
-async fn handle_empty_task_response(
-    _sender: &mpsc::Sender<Task>,
-    event_sender: &mpsc::Sender<Event>,
-    state: &mut TaskFetchState,
-) {
-    let msg = "No tasks available yet for this node".to_string();
-    let _ = event_sender
-        .send(Event::task_fetcher_with_level(
-            msg,
-            crate::events::EventType::Refresh,
-            LogLevel::Info,
-        ))
-        .await;
-
-    // Only reset backoff if it's at or below default level
-    // If backoff is higher, it's likely from a server retry-after header
-    if state.backoff_duration <= Duration::from_millis(BACKOFF_DURATION) {
-        state.reset_backoff();
-    }
-}
-
-/// Process fetched tasks and handle duplicates
-async fn process_fetched_tasks(
-    tasks: Vec<Task>,
-    sender: &mpsc::Sender<Task>,
-    event_sender: &mpsc::Sender<Event>,
-    recent_tasks: &TaskCache,
-    environment: &Environment,
-    client_id: &str,
-) -> Result<(usize, usize), bool> {
-    let mut added_count = 0;
-    let mut duplicate_count = 0;
-
-    for task in tasks {
-        if recent_tasks.contains(&task.task_id).await {
-            duplicate_count += 1;
-            continue;
-        }
-        recent_tasks.insert(task.task_id.clone()).await;
-
-        if sender.send(task.clone()).await.is_err() {
-            let _ = event_sender
-                .send(Event::task_fetcher(
-                    "Task queue is closed".to_string(),
-                    crate::events::EventType::Shutdown,
-                ))
-                .await;
-            return Err(true); // Signal caller to return
-        }
-
-        // Track analytics for getting a task (non-blocking)
-        tokio::spawn(track_got_task(
-            task.clone(),
-            environment.clone(),
-            client_id.to_string(),
-        ));
-
-        added_count += 1;
-    }
-
-    Ok((added_count, duplicate_count))
-}
-
-/// Log fetch results and handle backoff logic
-async fn log_fetch_results(
-    added_count: usize,
-    duplicate_count: usize,
-    sender: &mpsc::Sender<Task>,
-    event_sender: &mpsc::Sender<Event>,
-    state: &mut TaskFetchState,
-) {
-    if added_count > 0 {
-        log_successful_fetch(added_count, sender, event_sender).await;
-        state.reset_backoff(); // Reset to default 120s backoff
-    } else if duplicate_count > 0 {
-        handle_all_duplicates(duplicate_count, event_sender, state).await;
-    }
-}
-
-/// Log successful task fetch with queue status
-async fn log_successful_fetch(
-    added_count: usize,
-    sender: &mpsc::Sender<Task>,
-    event_sender: &mpsc::Sender<Event>,
-) {
-    let current_queue_level = TASK_QUEUE_SIZE - sender.capacity();
-    let queue_percentage = (current_queue_level as f64 / TASK_QUEUE_SIZE as f64 * 100.0) as u32;
-
-    // Enhanced queue status logging
-    let msg = if added_count >= 5 {
-        format!(
-            "Queue status: +{} tasks → {} total ({}/{}={queued_percentage}% full)",
-            added_count,
-            current_queue_level,
-            current_queue_level,
-            TASK_QUEUE_SIZE,
-            queued_percentage = queue_percentage
-        )
-    } else {
-        format!(
-            "Queue status: +{} tasks → {} total ({}% full)",
-            added_count, current_queue_level, queue_percentage
-        )
-    };
-
-    // Log level based on queue fullness
-    let log_level = if queue_percentage >= 80 || added_count >= 5 {
-        LogLevel::Info // High queue level or significant additions are important
-    } else {
-        LogLevel::Debug // Minor additions are debug level
-    };
-
-    let _ = event_sender
-        .send(Event::task_fetcher_with_level(
-            msg,
-            crate::events::EventType::Refresh,
-            log_level,
-        ))
-        .await;
-}
-
-/// Handle case where all fetched tasks were duplicates
-async fn handle_all_duplicates(
-    duplicate_count: usize,
-    event_sender: &mpsc::Sender<Event>,
-    state: &mut TaskFetchState,
-) {
-    // All duplicates - significant backoff increase
-    state.increase_backoff_for_error();
-    let _ = event_sender
-        .send(Event::task_fetcher_with_level(
-            format!(
-                "All {} tasks were duplicates - backing off for {}s",
-                duplicate_count,
-                state.backoff_duration.as_secs()
-            ),
-            crate::events::EventType::Refresh,
-            LogLevel::Warn,
-        ))
-        .await;
+    .await;
 }
 
 /// Handle fetch errors with appropriate backoff
@@ -433,23 +357,23 @@ async fn handle_fetch_error(
 
             if let Some(retry_after_seconds) = error.get_retry_after_seconds() {
                 state.set_backoff_from_server(retry_after_seconds);
-                let _ = event_sender
-                    .send(Event::task_fetcher_with_level(
-                        format!("Rate limited - retrying in {}s", retry_after_seconds),
-                        crate::events::EventType::Error,
-                        LogLevel::Warn,
-                    ))
-                    .await;
+                send_event(
+                    event_sender,
+                    format!("Rate limited - retrying in {}s", retry_after_seconds),
+                    crate::events::EventType::Error,
+                    LogLevel::Warn,
+                )
+                .await;
             } else {
                 // This shouldn't happen with a properly configured server
                 state.increase_backoff_for_error();
-                let _ = event_sender
-                    .send(Event::task_fetcher_with_level(
-                        "Rate limited - no retry time specified".to_string(),
-                        crate::events::EventType::Error,
-                        LogLevel::Error,
-                    ))
-                    .await;
+                send_event(
+                    event_sender,
+                    "Rate limited - no retry time specified".to_string(),
+                    crate::events::EventType::Error,
+                    LogLevel::Error,
+                )
+                .await;
             }
         }
         _ => {
@@ -457,9 +381,9 @@ async fn handle_fetch_error(
             let log_level = state.error_classifier.classify_fetch_error(&error);
             let event = Event::task_fetcher_with_level(
                 format!(
-                    "Failed to fetch tasks: {}, retrying in {} seconds",
+                    "Failed to fetch task: {}, retrying in {} seconds",
                     error,
-                    state.backoff_duration.as_secs()
+                    state.backoff_duration().as_secs()
                 ),
                 crate::events::EventType::Error,
                 log_level,
@@ -471,148 +395,13 @@ async fn handle_fetch_error(
     }
 }
 
-/// Fetch a batch of tasks from the orchestrator
-async fn fetch_task_batch(
-    orchestrator_client: &dyn Orchestrator,
-    node_id: &u64,
-    verifying_key: VerifyingKey,
-    batch_size: usize,
-    event_sender: &mpsc::Sender<Event>,
-) -> Result<Vec<Task>, OrchestratorError> {
-    // First try to get existing assigned tasks
-    if let Some(existing_tasks) = try_get_existing_tasks(orchestrator_client, node_id).await? {
-        return Ok(existing_tasks);
-    }
-
-    // If no existing tasks, try to get new ones
-    fetch_new_tasks_batch(
-        orchestrator_client,
-        node_id,
-        verifying_key,
-        batch_size,
-        event_sender,
-    )
-    .await
-}
-
-/// Try to get existing assigned tasks
-async fn try_get_existing_tasks(
-    orchestrator_client: &dyn Orchestrator,
-    node_id: &u64,
-) -> Result<Option<Vec<Task>>, OrchestratorError> {
-    match orchestrator_client.get_tasks(&node_id.to_string()).await {
-        Ok(tasks) => {
-            if !tasks.is_empty() {
-                Ok(Some(tasks))
-            } else {
-                Ok(None)
-            }
-        }
-        Err(e) => {
-            // If getting existing tasks fails, try to get new ones
-            if matches!(e, OrchestratorError::Http { status: 404, .. }) {
-                Ok(None)
-            } else {
-                Err(e)
-            }
-        }
-    }
-}
-
-/// Fetch a batch of new tasks from the orchestrator
-async fn fetch_new_tasks_batch(
-    orchestrator_client: &dyn Orchestrator,
-    node_id: &u64,
-    verifying_key: VerifyingKey,
-    batch_size: usize,
-    event_sender: &mpsc::Sender<Event>,
-) -> Result<Vec<Task>, OrchestratorError> {
-    let mut new_tasks = Vec::new();
-    let mut consecutive_404s = 0;
-
-    for i in 0..batch_size {
-        match orchestrator_client
-            .get_proof_task(&node_id.to_string(), verifying_key)
-            .await
-        {
-            Ok(task) => {
-                new_tasks.push(task);
-                consecutive_404s = 0; // Reset counter on success
-            }
-            Err(OrchestratorError::Http {
-                status: 429,
-                message,
-                ref headers,
-            }) => {
-                // Debug: print headers for 429 responses
-                let _ = event_sender
-                    .send(Event::task_fetcher_with_level(
-                        "Every node in the Prover Network is rate limited to 3 tasks per 3 minutes"
-                            .to_string(),
-                        crate::events::EventType::Refresh,
-                        LogLevel::Debug,
-                    ))
-                    .await;
-
-                // Don't handle 429 here - propagate it back to main error handler
-                return Err(OrchestratorError::Http {
-                    status: 429,
-                    message,
-                    headers: headers.clone(),
-                });
-            }
-            Err(OrchestratorError::Http { status: 404, .. }) => {
-                consecutive_404s += 1;
-                let _ = event_sender
-                    .send(Event::task_fetcher_with_level(
-                        format!("fetch_task_batch: No task available (404) on attempt #{}, consecutive_404s: {}", i + 1, consecutive_404s),
-                        crate::events::EventType::Refresh,
-                        LogLevel::Debug,
-                    ))
-                    .await;
-
-                if consecutive_404s >= MAX_404S_BEFORE_GIVING_UP {
-                    let _ = event_sender
-                        .send(Event::task_fetcher_with_level(
-                            format!(
-                                "fetch_task_batch: Too many 404s ({}), giving up",
-                                consecutive_404s
-                            ),
-                            crate::events::EventType::Refresh,
-                            LogLevel::Debug,
-                        ))
-                        .await;
-                    break;
-                }
-                // Continue trying more tasks
-            }
-            Err(e) => {
-                let _ = event_sender
-                    .send(Event::task_fetcher_with_level(
-                        format!(
-                            "fetch_task_batch: get_proof_task #{} failed with error: {:?}",
-                            i + 1,
-                            e
-                        ),
-                        crate::events::EventType::Refresh,
-                        LogLevel::Debug,
-                    ))
-                    .await;
-                return Err(e);
-            }
-        }
-    }
-
-    Ok(new_tasks)
-}
-
 /// Submits proofs to the orchestrator
 #[allow(clippy::too_many_arguments)]
 pub async fn submit_proofs(
     signing_key: SigningKey,
     orchestrator: Box<dyn Orchestrator>,
     num_workers: usize,
-    mut results: mpsc::Receiver<(Task, Proof)>,
+    mut results: mpsc::Receiver<(Task, ProofResult)>,
     event_sender: mpsc::Sender<Event>,
     mut shutdown: broadcast::Receiver<()>,
     successful_tasks: TaskCache,
@@ -620,18 +409,15 @@ pub async fn submit_proofs(
     client_id: String,
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
-        let mut completed_count = 0;
-        let mut last_stats_time = std::time::Instant::now();
-        let stats_interval = Duration::from_secs(60);
-
         loop {
             tokio::select! {
                 maybe_item = results.recv() => {
                     match maybe_item {
-                        Some((task, proof)) => {
-                            if let Some(success) = process_proof_submission(
+                        Some((task, proof_result)) => {
+                            process_proof_submission(
                                 task,
-                                proof,
+                                proof_result.proof,
+                                proof_result.combined_hash,
                                 &*orchestrator,
                                 &signing_key,
                                 num_workers,
@@ -639,28 +425,10 @@ pub async fn submit_proofs(
                                 &successful_tasks,
                                 &environment,
                                 &client_id,
-                            ).await {
-                                if success {
-                                    completed_count += 1;
-                                }
-                            }
-
-                            // Check if it's time to report stats (avoid timer starvation)
-                            if last_stats_time.elapsed() >= stats_interval {
-                                report_performance_stats(&event_sender, completed_count, last_stats_time).await;
-                                completed_count = 0;
-                                last_stats_time = std::time::Instant::now();
-                            }
+                            ).await;
                         }
                         None => break,
                     }
-                }
-
-                _ = tokio::time::sleep(stats_interval) => {
-                    // Fallback timer in case there's no activity
-                    report_performance_stats(&event_sender, completed_count, last_stats_time).await;
-                    completed_count = 0;
-                    last_stats_time = std::time::Instant::now();
                 }
 
                 _ = shutdown.recv() => break,
@@ -669,40 +437,12 @@ pub async fn submit_proofs(
     })
 }
 
-/// Report performance statistics
-async fn report_performance_stats(
-    event_sender: &mpsc::Sender<Event>,
-    completed_count: u64,
-    last_stats_time: std::time::Instant,
-) {
-    let elapsed = last_stats_time.elapsed();
-    let tasks_per_minute = if elapsed.as_secs() > 0 {
-        (completed_count as f64 * 60.0) / elapsed.as_secs() as f64
-    } else {
-        0.0
-    };
-
-    let msg = format!(
-        "Performance Status: {} tasks completed in the past {:.1}s ({:.1} tasks/min)",
-        completed_count,
-        elapsed.as_secs_f64(),
-        tasks_per_minute
-    );
-    let _ = event_sender
-        .send(Event::proof_submitter_with_level(
-            msg,
-            crate::events::EventType::Refresh,
-            LogLevel::Info,
-        ))
-        .await;
-}
-
 /// Process a single proof submission
-/// Returns Some(true) if successful, Some(false) if failed, None if should skip
 #[allow(clippy::too_many_arguments)]
 async fn process_proof_submission(
     task: Task,
     proof: Proof,
+    combined_hash: String,
     orchestrator: &dyn Orchestrator,
     signing_key: &SigningKey,
     num_workers: usize,
@@ -710,7 +450,7 @@ async fn process_proof_submission(
     successful_tasks: &TaskCache,
     environment: &Environment,
     client_id: &str,
-) -> Option<bool> {
+) {
     // Check for duplicate submissions
     if successful_tasks.contains(&task.task_id).await {
         let msg = format!(
@@ -720,12 +460,20 @@ async fn process_proof_submission(
         let _ = event_sender
             .send(Event::proof_submitter(msg, crate::events::EventType::Error))
             .await;
-        return None; // Skip this task
+        return; // Skip this task
     }
 
-    // Serialize proof
+    // Use combined hash if provided, otherwise generate from proof
+    let proof_hash = if !combined_hash.is_empty() {
+        combined_hash
+    } else {
+        // Serialize proof and generate hash
+        let proof_bytes = postcard::to_allocvec(&proof).expect("Failed to serialize proof");
+        format!("{:x}", Keccak256::digest(&proof_bytes))
+    };
+
+    // Serialize proof for submission
     let proof_bytes = postcard::to_allocvec(&proof).expect("Failed to serialize proof");
-    let proof_hash = format!("{:x}", Keccak256::digest(&proof_bytes));
 
     // Submit to orchestrator
     match orchestrator
@@ -735,6 +483,7 @@ async fn process_proof_submission(
             proof_bytes,
             signing_key.clone(),
             num_workers,
+            task.task_type,
         )
         .await
     {
@@ -753,11 +502,9 @@ async fn process_proof_submission(
                 client_id,
             )
             .await;
-            Some(true)
         }
         Err(e) => {
             handle_submission_error(&task, e, event_sender, environment, client_id).await;
-            Some(false)
         }
     }
 }
@@ -782,13 +529,13 @@ async fn handle_submission_success(
         client_id.to_string(),
     ));
 
-    let _ = event_sender
-        .send(Event::proof_submitter_with_level(
-            msg,
-            crate::events::EventType::Success,
-            LogLevel::Info,
-        ))
-        .await;
+    send_proof_event(
+        event_sender,
+        msg,
+        crate::events::EventType::Success,
+        LogLevel::Info,
+    )
+    .await;
 }
 
 /// Handle proof submission errors
@@ -800,10 +547,14 @@ async fn handle_submission_error(
     client_id: &str,
 ) {
     let (msg, status_code) = match error {
-        OrchestratorError::Http { status, .. } => (
+        OrchestratorError::Http {
+            status,
+            ref message,
+            ..
+        } => (
             format!(
-                "Failed to submit proof for task {}. Status: {}",
-                task.task_id, status
+                "Failed to submit proof for task {}. Status: {}, Message: {}",
+                task.task_id, status, message
             ),
             Some(status),
         ),

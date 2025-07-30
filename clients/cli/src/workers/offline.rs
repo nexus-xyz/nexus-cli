@@ -5,13 +5,14 @@
 //! - Proof computation (authenticated and anonymous)
 //! - Worker management
 
-use crate::analytics::{track_anonymous_proof_analytics, track_authenticated_proof_analytics};
+use crate::analytics::track_anonymous_proof_analytics;
+use crate::analytics::track_authenticated_proof_analytics;
 use crate::environment::Environment;
 use crate::error_classifier::ErrorClassifier;
 use crate::events::{Event, EventType};
 use crate::prover::authenticated_proving;
 use crate::task::Task;
-use nexus_sdk::stwo::seq::Proof;
+use crate::workers::online::ProofResult;
 use std::time::Duration;
 use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;
@@ -56,24 +57,24 @@ pub fn start_dispatcher(
 /// * A vector of `JoinHandle<()>` for each worker, allowing the main thread to await their completion.
 pub fn start_workers(
     num_workers: usize,
-    results_sender: mpsc::Sender<(Task, Proof)>,
+    results_sender: mpsc::Sender<(Task, ProofResult)>,
     event_sender: mpsc::Sender<Event>,
     shutdown: broadcast::Receiver<()>,
     environment: Environment,
     client_id: String,
 ) -> (Vec<mpsc::Sender<Task>>, Vec<JoinHandle<()>>) {
-    let mut senders = Vec::with_capacity(num_workers);
-    let mut handles = Vec::with_capacity(num_workers);
+    let mut senders = Vec::new();
+    let mut handles = Vec::new();
 
     for worker_id in 0..num_workers {
-        let (task_sender, mut task_receiver) = mpsc::channel::<Task>(8);
-        // Clone senders and receivers for each worker.
-        let prover_event_sender = event_sender.clone();
+        let (task_sender, mut task_receiver) = mpsc::channel::<Task>(100);
         let results_sender = results_sender.clone();
-        let mut shutdown_rx = shutdown.resubscribe();
+        let prover_event_sender = event_sender.clone();
+        let mut shutdown_rx = shutdown.resubscribe(); // clone receiver for each worker
         let client_id = client_id.clone();
         let environment = environment.clone();
         let error_classifier = ErrorClassifier::new();
+
         let handle = tokio::spawn(async move {
             loop {
                 tokio::select! {
@@ -86,8 +87,8 @@ pub fn start_workers(
                     }
                     // Check if there are tasks to process
                     Some(task) = task_receiver.recv() => {
-                        match authenticated_proving(&task, &environment, &client_id).await {
-                            Ok(proof) => {
+                        match authenticated_proving(&task, &environment, &client_id, Some(&prover_event_sender)).await {
+                            Ok((proof, combined_hash)) => {
                                 let message = format!(
                                     "[Task step 2 of 3] Proof completed successfully (Task ID: {})",
                                     task.task_id
@@ -99,7 +100,12 @@ pub fn start_workers(
                                 // Track analytics for successful proof (non-blocking)
                                 tokio::spawn(track_authenticated_proof_analytics(task.clone(), environment.clone(), client_id.clone()));
 
-                                let _ = results_sender.send((task, proof)).await;
+                                // Send the proof result to the results channel
+                                let proof_result = ProofResult {
+                                    proof,
+                                    combined_hash,
+                                };
+                                let _ = results_sender.send((task, proof_result)).await;
                             }
                             Err(e) => {
                                 let log_level = error_classifier.classify_worker_error(&e);

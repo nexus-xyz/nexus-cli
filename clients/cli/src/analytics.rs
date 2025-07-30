@@ -31,6 +31,9 @@ pub enum TrackError {
 pub const PRODUCTION_MEASUREMENT_ID: &str = "G-GLH0GMEEFH";
 pub const PRODUCTION_API_SECRET: &str = "3wxu8FjVSPqOlxSsZEnBOw";
 
+// Expected input size for fib_input_initial (3 u32 values = 12 bytes)
+const FIB_INPUT_INITIAL_BYTES: usize = 12;
+
 pub fn analytics_id(environment: &Environment) -> String {
     match environment {
         Environment::Production => PRODUCTION_MEASUREMENT_ID.to_string(),
@@ -271,33 +274,33 @@ pub async fn track_authenticated_proof_analytics(
     client_id: String,
 ) {
     let analytics_data = match task.program_id.as_str() {
-        "fast-fib" => {
-            // For fast-fib, extract the input from task public_inputs
-            let input = if !task.public_inputs.is_empty() {
-                task.public_inputs[0] as u32
-            } else {
-                0
-            };
-            json!({
-                "program_name": "fast-fib",
-                "public_input": input,
-                "task_id": task.task_id,
-            })
-        }
         "fib_input_initial" => {
-            // For fib_input_initial, extract the triple inputs
-            let inputs = if task.public_inputs.len() >= 12 {
-                let mut bytes = [0u8; 4];
-                bytes.copy_from_slice(&task.public_inputs[0..4]);
-                let n = u32::from_le_bytes(bytes);
-                bytes.copy_from_slice(&task.public_inputs[4..8]);
-                let init_a = u32::from_le_bytes(bytes);
-                bytes.copy_from_slice(&task.public_inputs[8..12]);
-                let init_b = u32::from_le_bytes(bytes);
-                (n, init_a, init_b)
+            // For fib_input_initial, extract the triple inputs from the first input
+            let all_inputs = task.all_inputs();
+            let input_data = if all_inputs.is_empty() {
+                &vec![]
             } else {
-                (0, 0, 0)
+                &all_inputs[0]
             };
+
+            // Assert that we have exactly the expected number of bytes for fib_input_initial
+            assert_eq!(
+                input_data.len(),
+                FIB_INPUT_INITIAL_BYTES,
+                "fib_input_initial expects exactly {} bytes, got {}",
+                FIB_INPUT_INITIAL_BYTES,
+                input_data.len()
+            );
+
+            let mut bytes = [0u8; 4];
+            bytes.copy_from_slice(&input_data[0..4]);
+            let n = u32::from_le_bytes(bytes);
+            bytes.copy_from_slice(&input_data[4..8]);
+            let init_a = u32::from_le_bytes(bytes);
+            bytes.copy_from_slice(&input_data[8..12]);
+            let init_b = u32::from_le_bytes(bytes);
+            let inputs = (n, init_a, init_b);
+
             json!({
                 "program_name": "fib_input_initial",
                 "public_input": inputs.0,
