@@ -89,10 +89,7 @@ pub fn start_workers(
                     Some(task) = task_receiver.recv() => {
                         match authenticated_proving(&task, &environment, &client_id, Some(&prover_event_sender)).await {
                             Ok((proof, combined_hash)) => {
-                                let message = format!(
-                                    "[Task step 2 of 3] Proof completed successfully (Task ID: {})",
-                                    task.task_id
-                                );
+                                let message = "Generating proof...".to_string();
                                 let _ = prover_event_sender
                                     .send(Event::prover(worker_id, message, EventType::Success))
                                     .await;

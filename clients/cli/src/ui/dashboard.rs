@@ -375,9 +375,9 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
             };
 
             let worker_type = match event.worker {
-                Worker::TaskFetcher => "Fetcher".to_string(),
+                Worker::TaskFetcher => "".to_string(),
                 Worker::Prover(worker_id) => format!("P{}", worker_id),
-                Worker::ProofSubmitter => "Submitter".to_string(),
+                Worker::ProofSubmitter => "".to_string(),
                 Worker::VersionChecker => "Version".to_string(),
             };
 
@@ -412,7 +412,7 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
                 ),
                 // Worker type in bold with worker color
                 Span::styled(
-                    format!("[{}] ", worker_type),
+                    format!("{} ", worker_type),
                     Style::default()
                         .fg(worker_color)
                         .add_modifier(Modifier::BOLD),

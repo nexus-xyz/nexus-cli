@@ -350,10 +350,11 @@ async fn fetch_single_task(
 
     send_event(
         event_sender,
-        "[Task step 1 of 3] Fetching task... Note: CLI tasks are harder to solve, so they receive more points than web provers".to_string(),
+        "Fetching task...".to_string(),
         crate::events::EventType::Refresh,
         LogLevel::Info,
-    ).await;
+    )
+    .await;
 
     // Fetch task with timeout
     let timeout_duration = Duration::from_secs(60);
@@ -575,6 +576,15 @@ async fn submit_proof_to_orchestrator(
     environment: &Environment,
     client_id: &str,
 ) {
+    // Send submitting message
+    send_proof_event(
+        event_sender,
+        "Submitting proof...".to_string(),
+        crate::events::EventType::Refresh,
+        LogLevel::Info,
+    )
+    .await;
+
     // Serialize proof for submission
     let proof_bytes = postcard::to_allocvec(proof).expect("Failed to serialize proof");
 
@@ -661,10 +671,7 @@ async fn handle_submission_success(
     client_id: &str,
 ) {
     completed_tasks.insert(task.task_id.clone()).await;
-    let msg = format!(
-        "[Task step 3 of 3] Proof submitted (Task ID: {}) Points for this node will be updated in https://app.nexus.xyz/rewards within 10 minutes",
-        task.task_id
-    );
+    let msg = "Complete! +300 points pending".to_string();
     // Track analytics for proof acceptance (non-blocking)
     tokio::spawn(track_proof_accepted(
         task.clone(),
