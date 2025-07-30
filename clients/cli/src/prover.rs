@@ -306,9 +306,9 @@ mod tests {
 
         match authenticated_proving(&task, &environment, &client_id, None).await {
             Ok((_proof, combined_hash)) => {
-                // Should succeed with multiple inputs but no combined hash for ProofRequired
-                assert!(combined_hash.is_empty(), "Expected empty combined hash for ProofRequired task type");
-                println!("Multiple inputs with ProofRequired works (no hash needed)");
+                // Should succeed with multiple inputs and return the first proof hash for ProofRequired
+                assert!(!combined_hash.is_empty(), "Expected proof hash for ProofRequired task type");
+                println!("Multiple inputs with ProofRequired works (returns first proof hash): {}", combined_hash);
             }
             Err(e) => {
                 panic!("Expected success for multiple inputs with ProofRequired: {}", e);
@@ -397,9 +397,9 @@ mod tests {
 
         match authenticated_proving(&task, &environment, &client_id, None).await {
             Ok((_proof, combined_hash)) => {
-                // Should have empty combined hash for single input with ProofRequired
-                assert!(combined_hash.is_empty(), "Expected empty combined hash for single input with ProofRequired");
-                println!("Single input with ProofRequired - no hash needed");
+                // Should have proof hash for single input with ProofRequired
+                assert!(!combined_hash.is_empty(), "Expected proof hash for single input with ProofRequired");
+                println!("Single input with ProofRequired - returns proof hash: {}", combined_hash);
             }
             Err(e) => {
                 panic!("Expected success for single input with ProofRequired: {}", e);
