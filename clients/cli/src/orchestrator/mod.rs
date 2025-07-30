@@ -31,9 +31,6 @@ pub trait Orchestrator: Send + Sync {
     /// Get the wallet address associated with a node ID.
     async fn get_node(&self, node_id: &str) -> Result<String, OrchestratorError>;
 
-    /// Get the list of tasks currently assigned to the node.
-    async fn get_tasks(&self, node_id: &str) -> Result<Vec<Task>, OrchestratorError>;
-
     /// Request a new proof task for the node.
     async fn get_proof_task(
         &self,
