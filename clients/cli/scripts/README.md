@@ -80,4 +80,70 @@ The script will exit with an error if:
 - The build fails
 - The ELF file can't be copied
 
-All errors are displayed with red text and include helpful error messages. 
+All errors are displayed with red text and include helpful error messages.
+
+## Peak Memory Monitor Script
+
+The `peak_memory.sh` script monitors the peak memory usage of the nexus-cli during operation.
+
+### Usage
+
+```bash
+./scripts/peak_memory.sh [DURATION_SECONDS]
+```
+
+### Parameters
+
+- `DURATION_SECONDS` (optional): How long to monitor in seconds. Defaults to 60 seconds
+
+### Examples
+
+```bash
+# Monitor for default 60 seconds
+./scripts/peak_memory.sh
+
+# Monitor for 20 seconds
+./scripts/peak_memory.sh 20
+
+# Monitor for 5 minutes
+./scripts/peak_memory.sh 300
+```
+
+### What it does
+
+1. Starts `nexus-cli start --headless` in the background
+2. Monitors memory usage every second for the specified duration
+3. Tracks peak memory usage throughout the run
+4. Displays real-time current and peak memory usage
+5. Terminates the process and reports final statistics
+
+### Example Output
+
+```bash
+❯ ./scripts/peak_memory.sh 20
+Starting nexus-cli and monitoring memory for 20 seconds...
+[1/20s] Current: 4 MB, Peak: 4 MB
+[INFO!!!] ✅ Found Node ID from config file      Node ID: 19444429
+Refresh [2025-07-31 08:09:24] Task Fetcher: [Task step 1 of 3] Fetching task...
+[2/20s] Current: 241 MB, Peak: 241 MB
+[3/20s] Current: 795 MB, Peak: 795 MB
+[4/20s] Current: 1154 MB, Peak: 1154 MB
+[5/20s] Current: 1993 MB, Peak: 1993 MB
+[6/20s] Current: 2148 MB, Peak: 2148 MB
+[7/20s] Current: 1097 MB, Peak: 2148 MB
+...
+[13/20s] Current: 2970 MB, Peak: 2970 MB
+[14/20s] Current: 1714 MB, Peak: 2970 MB
+Success [2025-07-31 08:09:37] Prover 0: [Task step 2 of 3] Proof completed successfully
+[15/20s] Current: 642 MB, Peak: 2970 MB
+...
+[20/20s] Current: 643 MB, Peak: 2970 MB
+================================
+Peak Memory Usage: 2970 MB
+Total Runtime: 21 seconds
+================================
+```
+### Requirements
+
+- `nexus-cli` must be built and available in PATH or current directory
+- Valid nexus configuration (Node ID) for proper operation
