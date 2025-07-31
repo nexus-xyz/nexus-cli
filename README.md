@@ -223,3 +223,24 @@ the workflow. This leads to a release without a Docker image or binaries, which 
 ## License
 
 Nexus CLI is distributed under the terms of both the [MIT License](./LICENSE-MIT) and the [Apache License (Version 2.0)](./LICENSE-APACHE).
+
+### Single Container with Dockerfile (v0.10.2)
+
+A `Dockerfile.0.10.2` is provided to build the `nexusxyz/nexus-cli:0.10.2` image, which uses the v0.10.2 binary for the Nexus Network Testnet III.
+
+#### Build the Docker Image
+```bash
+docker build -f Dockerfile.0.10.2 -t nexusxyz/nexus-cli:0.10.2 .
+```
+
+#### Pull the Latest Image
+After this PR is merged, the `latest` tag will point to v0.10.2:
+```bash
+docker pull nexusxyz/nexus-cli:latest
+```
+
+#### Verify Version
+```bash
+docker run --rm nexusxyz/nexus-cli:latest --version
+```
+Expected output: `nexus-network 0.10.2`
