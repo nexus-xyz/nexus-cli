@@ -259,7 +259,6 @@ async fn process_new_task(
     state: &mut TaskFetchState,
     environment: &Environment,
     client_id: &str,
-    _once: bool, // Unused for now - the once logic is handled in the main loop
 ) -> Result<(), bool> {
     // Add to cache and queue
     recent_tasks.insert(task.task_id.clone()).await;
@@ -353,7 +352,6 @@ async fn fetch_single_task(
     state: &mut TaskFetchState,
     environment: &Environment,
     client_id: &str,
-    _once: bool, // Unused for now - the once logic is handled in the main loop
 ) -> Result<(), bool> {
     // Record fetch attempt and send initial event
     state.record_fetch_attempt();
