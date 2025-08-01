@@ -310,6 +310,7 @@ async fn start(
             event_receiver,
             shutdown_sender,
             no_background_color,
+            num_workers,
         );
         let res = ui::run(&mut terminal, app).await;
 

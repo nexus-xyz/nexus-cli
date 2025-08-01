@@ -54,6 +54,9 @@ pub struct App {
 
     /// Whether to disable background colors
     no_background_color: bool,
+
+    /// Number of worker threads being used for proving.
+    num_threads: usize,
 }
 
 impl App {
@@ -64,6 +67,7 @@ impl App {
         event_receiver: mpsc::Receiver<WorkerEvent>,
         shutdown_sender: broadcast::Sender<()>,
         no_background_color: bool,
+        num_threads: usize,
     ) -> Self {
         Self {
             start_time: Instant::now(),
@@ -74,6 +78,7 @@ impl App {
             event_receiver,
             shutdown_sender,
             no_background_color,
+            num_threads,
         }
     }
 
@@ -87,6 +92,7 @@ impl App {
             self.start_time,
             &self.events,
             self.no_background_color,
+            self.num_threads,
         );
         self.current_screen = Screen::Dashboard(state);
     }
@@ -118,6 +124,7 @@ pub async fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::i
                     app.start_time,
                     &app.events,
                     app.no_background_color,
+                    app.num_threads,
                 );
                 app.current_screen = Screen::Dashboard(state);
             }
@@ -133,6 +140,7 @@ pub async fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::i
                     app.start_time,
                     &app.events,
                     app.no_background_color,
+                    app.num_threads,
                 ));
                 continue;
             }
@@ -163,6 +171,7 @@ pub async fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::i
                                 app.start_time,
                                 &app.events,
                                 app.no_background_color,
+                                app.num_threads,
                             ));
                         }
                     }

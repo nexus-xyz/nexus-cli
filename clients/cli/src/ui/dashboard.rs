@@ -35,6 +35,9 @@ pub struct DashboardState {
     /// Total RAM available on the machine, in GB.
     pub total_ram_gb: f64,
 
+    /// Number of worker threads being used for proving.
+    pub num_threads: usize,
+
     /// A queue of events received from worker threads.
     pub events: VecDeque<WorkerEvent>,
 
@@ -62,6 +65,7 @@ impl DashboardState {
         start_time: Instant,
         events: &VecDeque<WorkerEvent>,
         no_background_color: bool,
+        num_threads: usize,
     ) -> Self {
         // Check for version update messages in recent events
         let (update_available, latest_version, _) = Self::check_for_version_updates(events);
@@ -74,6 +78,7 @@ impl DashboardState {
             current_task: None,
             total_cores: system::num_cores(),
             total_ram_gb: system::total_memory_gb(),
+            num_threads,
             events: events.clone(),
             update_available,
             latest_version,
@@ -345,6 +350,9 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
 
     // Total Cores
     status_lines.push(Line::from(format!("TOTAL CORES: {}", state.total_cores)));
+
+    // Number of Threads
+    status_lines.push(Line::from(format!("NUM THREADS: {}", state.num_threads)));
 
     // Total RAM in GB
     status_lines.push(Line::from(format!(
