@@ -214,7 +214,6 @@ async fn handle_task_success(
     state: &mut TaskFetchState,
     environment: &Environment,
     client_id: &str,
-    _once: bool, // Unused for now - the once logic is handled in the main loop
 ) -> Result<(), bool> {
     // Check for duplicate
     if recent_tasks.contains(&task.task_id).await {
