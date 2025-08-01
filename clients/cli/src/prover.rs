@@ -141,13 +141,7 @@ pub async fn authenticated_proving(
                 final_view = Some(view);
             }
 
-            // If we have multiple inputs, combine the proof hashes
-            let final_proof_hash = if proof_hashes.len() > 1 {
-                Task::combine_proof_hashes(&proof_hashes)
-            } else {
-                // For single input, no combined hash needed
-                String::new()
-            };
+            let final_proof = Task::combine_proof_hashes(&proof_hashes);
 
             // Check if this is a ProofHash task type - if so, discard the proof
             let task_type = task
