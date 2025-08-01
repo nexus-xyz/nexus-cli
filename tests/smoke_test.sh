@@ -7,6 +7,9 @@
 
 set -e
 
+# Disable core dumps globally
+ulimit -c 0
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -80,8 +83,8 @@ for node_id in "${NODE_IDS[@]}"; do
     TEMP_OUTPUT=$(mktemp)
     trap "rm -f $TEMP_OUTPUT" EXIT
 
-    # Start the CLI process (disable core dumps)
-    if (ulimit -c 0; "$BINARY_PATH" start --headless --once --node-id $node_id 2>&1 | tee "$TEMP_OUTPUT"); then
+    # Start the CLI process and filter out core dump messages
+    if (ulimit -c 0; "$BINARY_PATH" start --headless --once --node-id $node_id 2>&1 | grep -v "Program Header Information" | grep -v "┌─" | grep -v "└─" | grep -v "│" | tee "$TEMP_OUTPUT"); then
         # Process completed successfully
         if grep -q "$SUCCESS_PATTERN" "$TEMP_OUTPUT" 2>/dev/null; then
             print_status "Success pattern detected: $SUCCESS_PATTERN"

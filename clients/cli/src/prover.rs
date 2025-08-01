@@ -203,10 +203,22 @@ pub async fn authenticated_proving(
             if task_type == crate::nexus_orchestrator::TaskType::ProofHash {
                 // For ProofHash tasks, we still return the proof but the submission logic
                 // should only use the hash and discard the proof
-                (final_view.unwrap(), final_proof.unwrap(), final_proof_hash)
+                let view = final_view.ok_or_else(|| {
+                    ProverError::Stwo("Failed to generate proof view".to_string())
+                })?;
+                let proof = final_proof.ok_or_else(|| {
+                    ProverError::Stwo("Failed to generate proof".to_string())
+                })?;
+                (view, proof, final_proof_hash)
             } else {
                 // For ProofRequired tasks, return the actual proof
-                (final_view.unwrap(), final_proof.unwrap(), final_proof_hash)
+                let view = final_view.ok_or_else(|| {
+                    ProverError::Stwo("Failed to generate proof view".to_string())
+                })?;
+                let proof = final_proof.ok_or_else(|| {
+                    ProverError::Stwo("Failed to generate proof".to_string())
+                })?;
+                (view, proof, final_proof_hash)
             }
         }
         _ => {
