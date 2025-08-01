@@ -292,6 +292,7 @@ async fn start(
                 shutdown_sender.subscribe(),
                 env.clone(),
                 client_id,
+                once,
             )
             .await
         }

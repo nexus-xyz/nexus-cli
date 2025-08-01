@@ -81,7 +81,7 @@ for node_id in "${NODE_IDS[@]}"; do
     trap "rm -f $TEMP_OUTPUT" EXIT
 
     # Start the CLI process (disable core dumps)
-    if (ulimit -c 0; "$BINARY_PATH" start --headless --node-id $node_id 2>&1 | tee "$TEMP_OUTPUT"); then
+    if (ulimit -c 0; "$BINARY_PATH" start --headless --once --node-id $node_id 2>&1 | tee "$TEMP_OUTPUT"); then
         # Process completed successfully
         if grep -q "$SUCCESS_PATTERN" "$TEMP_OUTPUT" 2>/dev/null; then
             print_status "Success pattern detected: $SUCCESS_PATTERN"

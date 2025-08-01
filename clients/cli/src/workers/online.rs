@@ -214,6 +214,7 @@ async fn handle_task_success(
     state: &mut TaskFetchState,
     environment: &Environment,
     client_id: &str,
+    once: bool,
 ) -> Result<(), bool> {
     // Check for duplicate
     if recent_tasks.contains(&task.task_id).await {
@@ -230,6 +231,7 @@ async fn handle_task_success(
         state,
         environment,
         client_id,
+        once,
     )
     .await
 }
@@ -258,6 +260,7 @@ async fn process_new_task(
     state: &mut TaskFetchState,
     environment: &Environment,
     client_id: &str,
+    once: bool,
 ) -> Result<(), bool> {
     // Add to cache and queue
     recent_tasks.insert(task.task_id.clone()).await;
@@ -383,6 +386,7 @@ async fn fetch_single_task(
                     state,
                     environment,
                     client_id,
+                    once,
                 )
                 .await
             }
