@@ -45,97 +45,86 @@ jobs:
             nexusxyz/nexus-cli:${{ github.sha }}
             nexusxyz/nexus-cli:${{ github.ref_name }}
 
-
-  build-linux-x86_64:
-    name: Build Linux (x86_64)
-    runs-on: ubuntu-latest
+  build:
+    name: Build ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - platform: Linux (x86_64)
+            runner: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            binary_name: nexus-network-linux-x86_64
+            rustflags: "-C target-feature=+crt-static"
+            build_command: cargo build --release --target x86_64-unknown-linux-gnu
+            linker: ""
+            mold: true
+          - platform: Linux (ARM64)
+            runner: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            binary_name: nexus-network-linux-arm64
+            rustflags: "-C target-feature=+crt-static"
+            build_command: |
+              export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
+              cargo build -Zbuild-std=std,panic_abort --release --target aarch64-unknown-linux-gnu
+            linker: "aarch64-linux-gnu-gcc"
+            mold: true
+          - platform: macOS (x86_64)
+            runner: macos-latest
+            target: x86_64-apple-darwin
+            binary_name: nexus-network-macos-x86_64
+            rustflags: "-C target-feature=+sse4.2,+avx,+avx2"
+            build_command: cargo +nightly-2025-04-06 build --release --target=x86_64-apple-darwin -Z build-std=std,panic_abort
+            linker: ""
+            mold: true
+          - platform: macOS (ARM64)
+            runner: macos-latest
+            target: aarch64-apple-darwin
+            binary_name: nexus-network-macos-arm64
+            rustflags: "-C target-feature=+neon,+fp-armv8,+crc"
+            build_command: cargo build --release --target=aarch64-apple-darwin
+            linker: ""
+            mold: true
+          - platform: Windows (x86_64)
+            runner: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary_name: nexus-network-windows-x86_64.exe
+            rustflags: "-C target-feature=+sse4.2,+avx,+avx2"
+            build_command: cargo build --release --target=x86_64-pc-windows-msvc
+            linker: ""
+            mold: false
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: "clients/cli -> target"
+          workspaces: "clients/cli"
           cache-all-crates: "true"
           cache-on-failure: "true"
-          key: "linux-x86_64"
+          key: ${{ matrix.platform }}
 
       - name: Install & Use `mold`
+        if: matrix.mold
         uses: rui314/setup-mold@v1
 
       # Set up the Rust toolchain for the specified target(s)
-      # When passing an explicit toolchain... you'll want to use "dtolnay/rust-toolchain@master"
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ env.RUSTUP_TOOLCHAIN }}
-          targets: x86_64-unknown-linux-gnu
-          components: rustfmt
-
-      - name: Debug Rust environment
-        run: |
-          echo "Rust version: $(rustc --version --verbose)"
-          echo "Cargo version: $(cargo --version)"
-          echo "Rustup installed targets: $(rustup target list --installed | tr '\n' ',' | sed 's/,$//')"
-          echo "Rustup active toolchain: $(rustup show active-toolchain)"
-          echo "Host target: $(rustc -vV | grep host)"
-
-      - name: Build Linux x86_64 binary
-        working-directory: clients/cli
-        run: cargo build --release --target x86_64-unknown-linux-gnu
-        env:
-          RUSTFLAGS: "-C target-feature=+crt-static"
-
-      # Rename the binary to indicate the target OS
-      - name: Rename binary
-        working-directory: clients/cli/target/x86_64-unknown-linux-gnu/release/
-        run: cp nexus-network nexus-network-linux-x86_64
-
-      # Upload the binary as an artifact
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: nexus-network-linux-x86_64 # Name of the artifact
-          path: clients/cli/target/x86_64-unknown-linux-gnu/release/nexus-network-linux-x86_64 # Path to file to upload
-
-      - name: Run smoke test
-        working-directory: clients/cli
-        run: ../../tests/smoke_test.sh ./target/x86_64-unknown-linux-gnu/release/nexus-network-linux-x86_64 ${{ secrets.SMOKE_TEST_NODE_ID }}
-
-
-  build-linux-arm64:
-    name: Build Linux (ARM64)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: "clients/cli -> target"
-          cache-all-crates: "true"
-          cache-on-failure: "true"
-          key: "linux-arm64"
-
-      - name: Install & Use `mold`
-        uses: rui314/setup-mold@v1
-
-      # Set up the Rust toolchain for the specified target(s)
-      # When passing an explicit toolchain... you'll want to use "dtolnay/rust-toolchain@master"
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.RUSTUP_TOOLCHAIN }}
-          targets: aarch64-unknown-linux-gnu
-          components: rustfmt
+          targets: ${{ matrix.target }}
+          components: rustfmt, rust-src
 
       # Install the required targets for cross-compilation
       - name: Ensure targets are installed (fallback)
         run: |
-          rustup target add aarch64-unknown-linux-gnu
+          rustup target add ${{ matrix.target }}
           rustup component add rust-src --toolchain ${{ env.RUSTUP_TOOLCHAIN }}
 
+      # Install ARM64 Linux linker if needed
       - name: Install ARM64 Linux linker
+        if: matrix.linker != ''
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross
@@ -148,217 +137,40 @@ jobs:
           echo "Rustup active toolchain: $(rustup show active-toolchain)"
           echo "Host target: $(rustc -vV | grep host)"
 
-      - name: Build Linux ARM64 binary (build-std)
-        working-directory: clients/cli
-        run: |
-          export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
-          cargo build -Zbuild-std=std,panic_abort --release --target aarch64-unknown-linux-gnu
-        env:
-          RUSTFLAGS: "-C target-feature=+crt-static"
-
-      # Rename the binary to indicate the target OS
-      - name: Rename binary
-        working-directory: clients/cli/target/aarch64-unknown-linux-gnu/release/
-        run: cp nexus-network nexus-network-linux-arm64
-
-      # Upload the binary as an artifact
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: nexus-network-linux-arm64 # Name of the artifact
-          path: clients/cli/target/aarch64-unknown-linux-gnu/release/nexus-network-linux-arm64 # Path to file to upload
-
-      - name: Run smoke test
-        working-directory: clients/cli
-        run: ../../tests/smoke_test.sh ./target/aarch64-unknown-linux-gnu/release/nexus-network-linux-arm64 ${{ secrets.SMOKE_TEST_NODE_ID }}
-
-
-  build-macos-x86_64:
-    name: Build macOS (x86_64)
-    runs-on: macos-latest
-    #    needs: build-linux   # Ensure Linux job (and release creation) runs first
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: "clients/cli -> target"
-          cache-all-crates: "true"
-          cache-on-failure: "true"
-          key: "macos-x86_64"
-
-      - name: Install & Use `mold`
-        uses: rui314/setup-mold@v1
-
-      # Set up the Rust toolchain for the specified target(s)
-      # When passing an explicit toolchain... you'll want to use "dtolnay/rust-toolchain@master"
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.RUSTUP_TOOLCHAIN }}
-          targets: x86_64-apple-darwin
-          components: rustfmt, rust-src
-
-      # Install the required targets for cross-compilation
-      - name: Ensure targets are installed (fallback)
-        run: |
-          rustup target add x86_64-apple-darwin
-          rustup component add rust-src --toolchain  ${{ env.RUSTUP_TOOLCHAIN }}
-
-      - name: Debug Rust environment
-        run: |
-          echo "Rust version: $(rustc --version --verbose)"
-          echo "Cargo version: $(cargo --version)"
-          echo "Rustup installed targets: $(rustup target list --installed | tr '\n' ',' | sed 's/,$//')"
-          echo "Rustup active toolchain: $(rustup show active-toolchain)"
-          echo "Host target: $(rustc -vV | grep host)"
-
-      # Build the release binary for the specified target. Explicitly using the nightly toolchain.
-      - name: Build CLI binary
-        working-directory: clients/cli
-        run: cargo +nightly-2025-04-06 build --release --target=x86_64-apple-darwin -Z build-std=std,panic_abort
-        env:
-          RUSTUP_TOOLCHAIN: ${{ env.RUSTUP_TOOLCHAIN }}
-          RUSTC_BOOTSTRAP: 1
-          RUSTFLAGS: "-C target-feature=+sse4.2,+avx,+avx2"
-
-      # Rename the binary to indicate the target OS
-      - name: Rename binary
-        working-directory: clients/cli/target/x86_64-apple-darwin/release/
-        run: cp nexus-network nexus-network-macos-x86_64
-
-
-      # Upload the binary as an artifact
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: nexus-network-macos-x86_64 # Name of the artifact
-          path: clients/cli/target/x86_64-apple-darwin/release/nexus-network-macos-x86_64 # Path to file to upload
-
-      - name: Run smoke test
-        working-directory: clients/cli
-        run: ../../tests/smoke_test.sh ./target/x86_64-apple-darwin/release/nexus-network-macos-x86_64 ${{ secrets.SMOKE_TEST_NODE_ID }}
-
-
-  build-macos-arm64:
-    name: Build macOS (ARM64)
-    runs-on: macos-latest
-    #    needs: build-linux   # Ensure Linux job (and release creation) runs first
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: "clients/cli -> target"
-          cache-all-crates: "true"
-          cache-on-failure: "true"
-          key: "macos-arm64"
-
-      - name: Install & Use `mold`
-        uses: rui314/setup-mold@v1
-
-      # Set up the Rust toolchain for the specified target(s)
-      # When passing an explicit toolchain... you'll want to use "dtolnay/rust-toolchain@master"
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.RUSTUP_TOOLCHAIN }}
-          targets: aarch64-apple-darwin
-          components: rustfmt, rust-src
-
-      - name: Debug Rust environment
-        run: |
-          echo "Rust version: $(rustc --version --verbose)"
-          echo "Cargo version: $(cargo --version)"
-          echo "Rustup installed targets: $(rustup target list --installed | tr '\n' ',' | sed 's/,$//')"
-          echo "Rustup active toolchain: $(rustup show active-toolchain)"
-          echo "Host target: $(rustc -vV | grep host)"
-
       # Build the release binary for the specified target
       - name: Build CLI binary
         working-directory: clients/cli
-        run: cargo build --release --target=aarch64-apple-darwin
+        run: ${{ matrix.build_command }}
         env:
-          RUSTFLAGS: "-C target-feature=+neon,+fp-armv8,+crc"
+          RUSTFLAGS: ${{ matrix.rustflags }}
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${{ matrix.linker }}
 
-      # Rename the binary to indicate the target OS and platform
+      # Rename the binary to indicate the target OS
       - name: Rename binary
-        working-directory: clients/cli/target/aarch64-apple-darwin/release/
-        run: cp nexus-network nexus-network-macos-arm64
+        working-directory: clients/cli/target/${{ matrix.target }}/release/
+        run: cp nexus-network ${{ matrix.target == 'x86_64-pc-windows-msvc' && '.exe' || '' }} ${{ matrix.binary_name }}
 
       # Upload the binary as an artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: nexus-network-macos-arm64 # Name of the artifact
-          path: clients/cli/target/aarch64-apple-darwin/release/nexus-network-macos-arm64 # Path to file to upload
+          name: ${{ matrix.binary_name }}
+          path: clients/cli/target/${{ matrix.target }}/release/${{ matrix.binary_name }}
 
       - name: Run smoke test
         working-directory: clients/cli
-        run: ../../tests/smoke_test.sh ./target/aarch64-apple-darwin/release/nexus-network-macos-arm64 ${{ secrets.SMOKE_TEST_NODE_ID }}
-
-
-  build-windows-x86_64:
-    name: Build Windows (x86_64)
-    runs-on: windows-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: "clients/cli -> target"
-          cache-all-crates: "true"
-          cache-on-failure: "true"
-          key: "windows-x86_64"
-
-      # Set up the Rust toolchain for the specified target(s)
-      # When passing an explicit toolchain... you'll want to use "dtolnay/rust-toolchain@master"
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.RUSTUP_TOOLCHAIN }}
-          targets: x86_64-pc-windows-msvc
-          components: rustfmt, rust-src
-
-      - name: Debug Rust environment
         run: |
-          echo "Rust version: $(rustc --version --verbose)"
-          echo "Cargo version: $(cargo --version)"
-          echo "Rustup installed targets: $(rustup target list --installed | tr '\n' ',' | sed 's/,$//')"
-          echo "Rustup active toolchain: $(rustup show active-toolchain)"
-          echo "Host target: $(rustc -vV | grep host)"
-
-      # Build the release binary for the specified target
-      - name: Build CLI binary
-        working-directory: clients/cli
-        run: cargo build --release --target=x86_64-pc-windows-msvc
-        env:
-          RUSTFLAGS: "-C target-feature=+sse4.2,+avx,+avx2"
-
-      # Rename the binary to indicate the target OS and platform
-      - name: Rename binary
-        working-directory: clients/cli/target/x86_64-pc-windows-msvc/release/
-        run: cp nexus-network.exe nexus-network-windows-x86_64.exe
-
-      # Upload the binary as an artifact
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: nexus-network-windows-x86_64.exe # Name of the artifact
-          path: clients/cli/target/x86_64-pc-windows-msvc/release/nexus-network-windows-x86_64.exe # Path to file to upload
-
-      - name: Run smoke test
-        working-directory: clients/cli
-        run: ../../tests/smoke_test.sh ./target/x86_64-pc-windows-msvc/release/nexus-network-windows-x86_64.exe ${{ secrets.SMOKE_TEST_NODE_ID }}
-
+          if [ -n "${{ secrets.SMOKE_TEST_NODE_IDS }}" ]; then
+            echo "Running smoke test with secret node IDs"
+            SMOKE_TEST_NODE_IDS="${{ secrets.SMOKE_TEST_NODE_IDS }}" ../../tests/smoke_test.sh ./target/${{ matrix.target }}/release/${{ matrix.binary_name }} --once
+          else
+            echo "Running smoke test with fallback node IDs"
+            ../../tests/smoke_test.sh ./target/${{ matrix.target }}/release/${{ matrix.binary_name }} --once
+          fi
 
   release:
     name: Create Release
-    needs: [ build-linux-x86_64, build-linux-arm64, build-macos-x86_64, build-macos-arm64, build-windows-x86_64 ]
+    needs: [ build ]
     if: github.event.inputs.create_release == 'true' || github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
