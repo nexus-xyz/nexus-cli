@@ -102,11 +102,26 @@ jobs:
       - name: Check system resources
         run: |
           echo "Available memory:"
-          free -h
-          echo "Total memory: $(free -m | awk 'NR==2{print $2}') MB"
-          echo "Available memory: $(free -m | awk 'NR==2{print $7}') MB"
-          if [ $(free -m | awk 'NR==2{print $2}') -lt 4096 ]; then
-            echo "WARNING: Less than 4GB total memory available"
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            free -h
+            echo "Total memory: $(free -m | awk 'NR==2{print $2}') MB"
+            echo "Available memory: $(free -m | awk 'NR==2{print $7}') MB"
+            if [ $(free -m | awk 'NR==2{print $2}') -lt 4096 ]; then
+              echo "WARNING: Less than 4GB total memory available"
+            fi
+          elif [[ "$RUNNER_OS" == "macOS" ]]; then
+            vm_stat | head -4
+            echo "Total memory: $(sysctl -n hw.memsize | awk '{print int($1/1024/1024)}') MB"
+            echo "Available memory: $(vm_stat | awk '/free/ {gsub(/\./, "", $3); print $3*4096/1024/1024}' | head -1) MB"
+            if [ $(sysctl -n hw.memsize | awk '{print int($1/1024/1024)}') -lt 4096 ]; then
+              echo "WARNING: Less than 4GB total memory available"
+            fi
+          elif [[ "$RUNNER_OS" == "Windows" ]]; then
+            wmic computersystem get TotalPhysicalMemory | tail -1 | awk '{print int($1/1024/1024)}' | xargs -I {} echo "Total memory: {} MB"
+            echo "Available memory: $(wmic OS get FreePhysicalMemory | tail -1 | awk '{print int($1/1024)}') MB"
+            if [ $(wmic computersystem get TotalPhysicalMemory | tail -1 | awk '{print int($1/1024/1024)}') -lt 4096 ]; then
+              echo "WARNING: Less than 4GB total memory available"
+            fi
           fi
 
       - uses: Swatinem/rust-cache@v2

@@ -83,13 +83,23 @@ for node_id in "${NODE_IDS[@]}"; do
     TEMP_OUTPUT=$(mktemp)
     trap "rm -f $TEMP_OUTPUT" EXIT
 
-    # Start the CLI process and filter out core dump messages
-    if (ulimit -c 0; "$BINARY_PATH" start --headless --once --node-id $node_id 2>&1 | grep -v "Program Header Information" | grep -v "┌─" | grep -v "└─" | grep -v "│" | tee "$TEMP_OUTPUT"); then
+    # Start the CLI process and capture all output
+    print_info "Starting CLI process..."
+    if (ulimit -c 0; "$BINARY_PATH" start --headless --once --node-id $node_id 2>&1 | tee "$TEMP_OUTPUT"); then
         # Process completed successfully
+        print_info "CLI process completed"
         if grep -q "$SUCCESS_PATTERN" "$TEMP_OUTPUT" 2>/dev/null; then
             print_status "Success pattern detected: $SUCCESS_PATTERN"
             SUCCESS_FOUND=true
+        else
+            print_info "No success pattern found in output"
         fi
+        
+        # Show last few lines of CLI output for debugging
+        print_info "CLI output (last 10 lines):"
+        tail -10 "$TEMP_OUTPUT" | while IFS= read -r line; do
+            echo "  $line"
+        done
     else
         # Process failed or was terminated
         EXIT_CODE=$?
@@ -106,6 +116,12 @@ for node_id in "${NODE_IDS[@]}"; do
         if grep -q "Rate limited" "$TEMP_OUTPUT" 2>/dev/null; then
             RATE_LIMITED=true
         fi
+        
+        # Show last few lines of CLI output for debugging
+        print_info "CLI output (last 10 lines):"
+        tail -10 "$TEMP_OUTPUT" | while IFS= read -r line; do
+            echo "  $line"
+        done
     fi
 
     # Check if we found the success pattern
