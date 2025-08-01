@@ -443,7 +443,7 @@ async fn handle_fetch_error(
                 .await;
             } else {
                 // This shouldn't happen with a properly configured server
-                //state.increase_backoff_for_error();
+                state.increase_backoff_for_error();
                 send_event(
                     event_sender,
                     "Rate limited - no retry time specified".to_string(),

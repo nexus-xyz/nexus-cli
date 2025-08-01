@@ -54,11 +54,8 @@ impl Task {
         let combined = hashes.join("");
 
         // Hash the combined string using Keccak-256
-        println!("before digest string: {}", combined);
         let hash = Keccak256::digest(combined.as_bytes());
-        println!("after digest: {:?}", hash);
         let result = format!("{:x}", hash);
-        println!("after digest string: {:?}", hash);
         result
     }
 

@@ -171,10 +171,6 @@ pub async fn authenticated_proving(
             let task_type = task
                 .task_type;
 
-            println!("individual proof hashes: {:?}", proof_hashes);
-            println!("task_type: {:?}", task_type);
-            println!("crate::nexus_orchestrator::TaskType::ProofHash: {:?}", crate::nexus_orchestrator::TaskType::ProofHash);
-            println!("task_type == crate::nexus_orchestrator::TaskType::ProofHash: {:?}", task_type == crate::nexus_orchestrator::TaskType::ProofHash);
             let final_proof_hash = if task_type == crate::nexus_orchestrator::TaskType::ProofHash {
                 // For ProofHash tasks, always hash the result (even single inputs)
                 Task::combine_proof_hashes(&proof_hashes)
@@ -182,7 +178,6 @@ pub async fn authenticated_proving(
                 // For ProofRequired tasks, return the first proof hash (or empty if no proofs)
                 proof_hashes.first().cloned().unwrap_or_default()
             };
-            println!("final_proof_hash: {}", final_proof_hash);
 
             // Send completion event for proof hash tasks
             if let Some(sender) = event_sender {
@@ -309,7 +304,6 @@ mod tests {
             .push(vec![3, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]);
 
         // Set task type to ProofRequired
-        task.task_type = crate::nexus_orchestrator::TaskType::ProofRequired;
 
         let environment = Environment::Production;
         let client_id = "test_client".to_string();
@@ -350,8 +344,6 @@ mod tests {
         task.public_inputs_list
             .push(vec![4, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]);
 
-        // Set task type to ProofHash (or None, which should work)
-        task.task_type = crate::nexus_orchestrator::TaskType::ProofHash;
 
         let environment = Environment::Production;
         let client_id = "test_client".to_string();
@@ -374,16 +366,13 @@ mod tests {
     #[tokio::test]
     // Should return combined hash for single input with ProofHash task type.
     async fn test_single_input_proof_hash_combined_hash() {
-        let mut task = Task::new(
+        let task = Task::new(
             "test_task".to_string(),
             "fib_input_initial".to_string(),
             // Single input: n=2, init_a=1, init_b=1 (computes F(2) = 2)
             vec![2, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
             crate::nexus_orchestrator::TaskType::ProofHash,
         );
-
-        // Set task type to ProofHash
-        task.task_type = crate::nexus_orchestrator::TaskType::ProofHash;
 
         let environment = Environment::Production;
         let client_id = "test_client".to_string();
@@ -409,7 +398,7 @@ mod tests {
     #[tokio::test]
     // Should return empty combined hash for single input with ProofRequired task type.
     async fn test_single_input_proof_required_no_combined_hash() {
-        let mut task = Task::new(
+        let task = Task::new(
             "test_task".to_string(),
             "fib_input_initial".to_string(),
             // Single input: n=2, init_a=1, init_b=1 (computes F(2) = 2)
@@ -418,7 +407,6 @@ mod tests {
         );
 
         // Set task type to ProofRequired
-        task.task_type = crate::nexus_orchestrator::TaskType::ProofRequired;
 
         let environment = Environment::Production;
         let client_id = "test_client".to_string();
@@ -459,8 +447,6 @@ mod tests {
         task.public_inputs_list
             .push(vec![3, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]);
 
-        // Set task type to ProofRequired (what orchestrator actually sends)
-        task.task_type = crate::nexus_orchestrator::TaskType::ProofRequired;
 
         // Verify we have multiple input sets
         let input_count = task.all_inputs().len();
