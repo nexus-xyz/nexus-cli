@@ -131,7 +131,7 @@ pub fn total_memory_gb() -> f64 {
     let mut sys = System::new();
     sys.refresh_memory();
     let total_memory = sys.total_memory(); // bytes
-    total_memory as f64 / 1000.0 / 1000.0 / 1000.0 // Convert to GB
+    total_memory as f64 / 1024.0 / 1024.0 / 1024.0 // Convert to GB (binary)
 }
 
 /// Memory used by the current process, in GB.
@@ -146,7 +146,7 @@ pub fn process_memory_gb() -> f64 {
         .expect("Failed to get current process");
 
     let memory = current_process.memory(); // bytes
-    memory as f64 / 1000.0 / 1000.0 / 1000.0 // Convert to GB
+    memory as f64 / 1024.0 / 1024.0 / 1024.0 // Convert to GB (binary)
 }
 
 // We encode the memory usage to i32 type at client
