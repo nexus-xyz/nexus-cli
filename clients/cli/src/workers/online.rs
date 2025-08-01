@@ -431,10 +431,7 @@ async fn handle_fetch_error(
     state: &mut TaskFetchState,
 ) {
     match error {
-        OrchestratorError::Http {
-            status: 429,
-            ..
-        } => {
+        OrchestratorError::Http { status: 429, .. } => {
             if let Some(retry_after_seconds) = error.get_retry_after_seconds() {
                 state.set_backoff_from_server(retry_after_seconds);
                 send_event(
