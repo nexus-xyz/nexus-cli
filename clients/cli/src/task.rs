@@ -55,8 +55,7 @@ impl Task {
 
         // Hash the combined string using Keccak-256
         let hash = Keccak256::digest(combined.as_bytes());
-        let result = format!("{:x}", hash);
-        result
+        format!("{:x}", hash)
     }
 
     /// Get all inputs for the task
@@ -94,15 +93,18 @@ impl From<&crate::nexus_orchestrator::Task> for Task {
 // From GetProofTaskResponse
 impl From<&crate::nexus_orchestrator::GetProofTaskResponse> for Task {
     fn from(response: &crate::nexus_orchestrator::GetProofTaskResponse) -> Self {
+        // Extract task_type directly without cloning the entire task
+        let task_type = crate::nexus_orchestrator::TaskType::try_from(
+            response.task.as_ref().unwrap().task_type,
+        )
+        .unwrap();
+
         Task {
             task_id: response.task_id.clone(),
             program_id: response.program_id.clone(),
             public_inputs: response.public_inputs.clone(),
             public_inputs_list: vec![response.public_inputs.clone()],
-            task_type: crate::nexus_orchestrator::TaskType::try_from(
-                response.task.clone().unwrap().task_type,
-            )
-            .unwrap(),
+            task_type,
         }
     }
 }
