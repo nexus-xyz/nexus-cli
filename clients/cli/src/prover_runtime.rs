@@ -17,6 +17,7 @@ use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;
 
 /// Starts authenticated workers that fetch tasks from the orchestrator and process them.
+#[allow(clippy::too_many_arguments)]
 pub async fn start_authenticated_workers(
     node_id: u64,
     signing_key: SigningKey,

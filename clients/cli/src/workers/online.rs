@@ -206,6 +206,7 @@ pub async fn fetch_prover_tasks(
 }
 
 /// Handle successful task fetch: duplicate check, caching, and queue management
+#[allow(clippy::too_many_arguments)]
 async fn handle_task_success(
     task: Task,
     sender: &mpsc::Sender<Task>,
@@ -252,6 +253,7 @@ async fn handle_duplicate_task(event_sender: &mpsc::Sender<Event>, state: &mut T
 }
 
 /// Process a new (non-duplicate) task: cache, queue, analytics, and logging
+#[allow(clippy::too_many_arguments)]
 async fn process_new_task(
     task: Task,
     sender: &mpsc::Sender<Task>,
