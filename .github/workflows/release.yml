@@ -11,11 +11,7 @@ on:
         required: true
         type: boolean
         default: false
-      build_docker:
-        description: 'Build and push Docker image to Docker Hub'
-        required: false
-        type: boolean
-        default: false
+
 
 env:
   # Set the default Rust toolchain to use for all jobs
@@ -24,7 +20,7 @@ env:
 jobs:
   build-docker:
     name: Build and Push Docker Image
-    if: github.event.inputs.build_docker == 'true' || github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
