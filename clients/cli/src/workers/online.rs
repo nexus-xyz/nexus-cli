@@ -439,7 +439,7 @@ async fn handle_fetch_error(
             // Debug: print headers for 429 responses
             send_event(
                 event_sender,
-                format!("429 Rate limit retry-after: {:?}", headers["retry-after"]),
+                format!("429 Rate limit retry-after: {:?}", headers.get("retry-after")),
                 crate::events::EventType::Refresh,
                 LogLevel::Debug,
             )
