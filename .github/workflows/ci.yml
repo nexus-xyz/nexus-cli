@@ -50,7 +50,7 @@ jobs:
         working-directory: clients/cli
         run: cargo clippy --profile=ci-build --no-deps --package nexus-network -- -D warnings
 
-      - name: Build CLI for smoke test
+      - name: Build CLI
         working-directory: clients/cli
         run: cargo build --profile=ci-build
 
