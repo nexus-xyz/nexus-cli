@@ -51,7 +51,7 @@ This will:
 2. Prompt you to accept the Terms of Use.
 3. Start the CLI in interactive mode.
 
-The exact installation script is viewable [here](./public/install.sh).
+The exact installation script is viewable [here](./public/install.sh.template).
 
 #### Non-Interactive Installation
 
