@@ -160,6 +160,7 @@ pub async fn fetch_prover_tasks(
     recent_tasks: TaskCache,
     environment: Environment,
     client_id: String,
+    once: bool,
 ) {
     let mut state = TaskFetchState::new();
 
@@ -187,10 +188,16 @@ pub async fn fetch_prover_tasks(
                         &mut state,
                         &environment,
                         &client_id,
+                        once,
                     ).await {
                         if should_return {
                             return;
                         }
+                    }
+                    
+                    // In --once mode, stop fetching after first task
+                    if once {
+                        return;
                     }
                 }
             }
@@ -344,6 +351,7 @@ async fn fetch_single_task(
     state: &mut TaskFetchState,
     environment: &Environment,
     client_id: &str,
+    once: bool,
 ) -> Result<(), bool> {
     // Record fetch attempt and send initial event
     state.record_fetch_attempt();

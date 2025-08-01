@@ -73,6 +73,10 @@ enum Command {
         /// Disable background colors in the dashboard
         #[arg(long = "no-background-color", action = ArgAction::SetTrue)]
         no_background_color: bool,
+
+        /// Run once and exit after first proof submission
+        #[arg(long = "once", action = ArgAction::SetTrue)]
+        once: bool,
     },
     /// Register a new user
     RegisterUser {
@@ -107,6 +111,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             max_threads,
             orchestrator_url,
             no_background_color,
+            once,
         } => {
             // If a custom orchestrator URL is provided, create a custom environment
             let final_environment = if let Some(url) = orchestrator_url {
@@ -123,6 +128,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 headless,
                 max_threads,
                 no_background_color,
+                once,
             )
             .await
         }
@@ -157,6 +163,7 @@ async fn start(
     headless: bool,
     max_threads: Option<u32>,
     no_background_color: bool,
+    once: bool,
 ) -> Result<(), Box<dyn Error>> {
     // Check version requirements before starting any workers
     match VersionRequirements::fetch().await {
