@@ -85,6 +85,9 @@ fi
 print_info "Using binary: $BINARY_PATH"
 print_info "Monitoring for: $SUCCESS_PATTERN"
 
+# Shuffle the node IDs array to load balance
+NODE_IDS=($(printf '%s\n' "${NODE_IDS[@]}" | sort -R))
+
 # Try each node ID until one works
 for node_id in "${NODE_IDS[@]}"; do
     
