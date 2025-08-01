@@ -208,6 +208,7 @@ mod tests {
                 submitted_tasks,
                 crate::environment::Environment::Production,
                 "test-client-id".to_string(),
+                false, // not in once mode for tests
             )
             .await;
         });
