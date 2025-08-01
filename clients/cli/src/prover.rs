@@ -477,8 +477,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "fib_input_initial expects exactly 12 bytes, got 8")]
-    // Should panic when analytics receives wrong input size.
+    // Should handle wrong input size gracefully without panicking.
     fn test_analytics_wrong_input_size() {
         let task = Task::new(
             "test_task".to_string(),
@@ -490,10 +489,12 @@ mod tests {
         let environment = Environment::Production;
         let client_id = "test_client".to_string();
 
-        // This should panic with the assertion error
+        // This should not panic anymore - analytics handles wrong input sizes gracefully
         tokio::runtime::Runtime::new().unwrap().block_on(
             crate::analytics::track_authenticated_proof_analytics(task, environment, client_id),
         );
+
+        println!("Analytics test completed successfully - wrong input size handled gracefully");
     }
 
     #[test]
