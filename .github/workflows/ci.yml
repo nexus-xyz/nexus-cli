@@ -49,7 +49,7 @@ jobs:
         working-directory: clients/cli
         run: cargo clippy --profile=ci-build --no-deps --package nexus-network -- -D warnings
 
-      - name: Build
+      - name: Build CLI for smoke test
         working-directory: clients/cli
         run: cargo build --profile=ci-build
 
@@ -57,9 +57,9 @@ jobs:
         working-directory: clients/cli
         run: cargo test --profile=ci-build --tests
 
-      - name: CLI smoke test (help)
+      - name: Run smoke test
         working-directory: clients/cli
-        run: cargo run --profile=ci-build -- --help
+        run: ../../tests/smoke_test.sh ./target/ci-build/nexus-network ${{ secrets.SMOKE_TEST_NODE_ID }}
 
       - name: Ensure checked in generated files are up to date
         run: |

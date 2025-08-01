@@ -98,6 +98,10 @@ jobs:
           name: nexus-network-linux-x86_64 # Name of the artifact
           path: clients/cli/target/x86_64-unknown-linux-gnu/release/nexus-network-linux-x86_64 # Path to file to upload
 
+      - name: Run smoke test
+        working-directory: clients/cli
+        run: ../../tests/smoke_test.sh ./target/x86_64-unknown-linux-gnu/release/nexus-network-linux-x86_64 ${{ secrets.SMOKE_TEST_NODE_ID }}
+
 
   build-linux-arm64:
     name: Build Linux (ARM64)
@@ -164,6 +168,11 @@ jobs:
           name: nexus-network-linux-arm64 # Name of the artifact
           path: clients/cli/target/aarch64-unknown-linux-gnu/release/nexus-network-linux-arm64 # Path to file to upload
 
+      - name: Run smoke test
+        working-directory: clients/cli
+        run: ../../tests/smoke_test.sh ./target/aarch64-unknown-linux-gnu/release/nexus-network-linux-arm64 ${{ secrets.SMOKE_TEST_NODE_ID }}
+
+
   build-macos-x86_64:
     name: Build macOS (x86_64)
     runs-on: macos-latest
@@ -227,6 +236,10 @@ jobs:
           name: nexus-network-macos-x86_64 # Name of the artifact
           path: clients/cli/target/x86_64-apple-darwin/release/nexus-network-macos-x86_64 # Path to file to upload
 
+      - name: Run smoke test
+        working-directory: clients/cli
+        run: ../../tests/smoke_test.sh ./target/x86_64-apple-darwin/release/nexus-network-macos-x86_64 ${{ secrets.SMOKE_TEST_NODE_ID }}
+
 
   build-macos-arm64:
     name: Build macOS (ARM64)
@@ -282,6 +295,10 @@ jobs:
           name: nexus-network-macos-arm64 # Name of the artifact
           path: clients/cli/target/aarch64-apple-darwin/release/nexus-network-macos-arm64 # Path to file to upload
 
+      - name: Run smoke test
+        working-directory: clients/cli
+        run: ../../tests/smoke_test.sh ./target/aarch64-apple-darwin/release/nexus-network-macos-arm64 ${{ secrets.SMOKE_TEST_NODE_ID }}
+
 
   build-windows-x86_64:
     name: Build Windows (x86_64)
@@ -333,6 +350,10 @@ jobs:
         with:
           name: nexus-network-windows-x86_64.exe # Name of the artifact
           path: clients/cli/target/x86_64-pc-windows-msvc/release/nexus-network-windows-x86_64.exe # Path to file to upload
+
+      - name: Run smoke test
+        working-directory: clients/cli
+        run: ../../tests/smoke_test.sh ./target/x86_64-pc-windows-msvc/release/nexus-network-windows-x86_64.exe ${{ secrets.SMOKE_TEST_NODE_ID }}
 
 
   release:
