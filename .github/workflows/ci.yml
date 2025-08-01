@@ -58,18 +58,9 @@ jobs:
         working-directory: clients/cli
         run: cargo test --profile=ci-build --tests
 
-      - name: Debug smoke test setup
-        run: |
-          echo "Checking if SMOKE_TEST_NODE_IDS secret is available..."
-          if [ -n "${{ secrets.SMOKE_TEST_NODE_IDS }}" ]; then
-            echo "Secret is available"
-            echo "Node IDs: ${{ secrets.SMOKE_TEST_NODE_IDS }}"
-          else
-            echo "Secret is not available, will use fallback"
-          fi
-
       - name: Run smoke test
         working-directory: clients/cli
+        timeout-minutes: 5
         run: |
           if [ -n "${{ secrets.SMOKE_TEST_NODE_IDS }}" ]; then
             echo "Running smoke test with secret node IDs"

@@ -154,6 +154,7 @@ jobs:
 
       - name: Run smoke test
         working-directory: clients/cli
+        timeout-minutes: 5
         run: |
           if [ -n "${{ secrets.SMOKE_TEST_NODE_IDS }}" ]; then
             echo "Running smoke test with secret node IDs"

@@ -13,22 +13,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# Global variable to track CLI process
-CLI_PID=""
 
-# Function to cleanup processes on script exit
-cleanup() {
-    if [ -n "$CLI_PID" ] && kill -0 $CLI_PID 2>/dev/null; then
-        print_info "Cleaning up CLI process (PID: $CLI_PID)"
-        kill -TERM $CLI_PID 2>/dev/null || true
-        sleep 1
-        kill -KILL $CLI_PID 2>/dev/null || true
-        wait $CLI_PID 2>/dev/null || true
-    fi
-}
-
-# Set up trap to cleanup on script exit
-trap cleanup EXIT
 
 echo -e "${YELLOW}Starting Nexus CLI Smoke Test...${NC}"
 
@@ -95,53 +80,19 @@ for node_id in "${NODE_IDS[@]}"; do
     TEMP_OUTPUT=$(mktemp)
     trap "rm -f $TEMP_OUTPUT" EXIT
 
-    # Start the CLI process in a subshell to suppress termination messages
-    SUCCESS_FOUND=false
-    RATE_LIMITED=false
-    EXIT_EARLY=false
-    
-    (
-        "$BINARY_PATH" start --headless --node-id $node_id 2>&1 | tee "$TEMP_OUTPUT" &
-        CLI_PID=$!
-        
-        # Monitor the output file for the success pattern
-        for i in $(seq 1 $MAX_TIMEOUT_SECONDS); do
-            # Check for actual success patterns first
-            if grep -q "$SUCCESS_PATTERN" "$TEMP_OUTPUT" 2>/dev/null; then
-                print_status "Success pattern detected: $SUCCESS_PATTERN"
-                SUCCESS_FOUND=true
-                break
-            fi
-            
-            # Check for rate limiting (but don't stop - keep trying)
-            if [ "$SUCCESS_FOUND" = false ]; then
-                if grep -q "Rate limited" "$TEMP_OUTPUT" 2>/dev/null; then
-                    if [ "$RATE_LIMITED" = false ]; then
-                        RATE_LIMITED=true
-                    fi
-                    
-                    # In --once mode, exit immediately when rate limited
-                    if [ "$JUST_ONCE" = true ]; then
-                        EXIT_EARLY=true
-                        break
-                    fi
-                fi
-            fi
-            
-            sleep 1
-        done
-        
-        # Clean up the process
-        if [ -n "$CLI_PID" ] && kill -0 $CLI_PID 2>/dev/null; then
-            kill -TERM $CLI_PID 2>/dev/null || true
-            sleep 2
-            kill -KILL $CLI_PID 2>/dev/null || true
-            wait $CLI_PID 2>/dev/null || true
+    # Start the CLI process directly
+    if "$BINARY_PATH" start --headless --node-id $node_id 2>&1 | tee "$TEMP_OUTPUT"; then
+        # Process completed successfully
+        if grep -q "$SUCCESS_PATTERN" "$TEMP_OUTPUT" 2>/dev/null; then
+            print_status "Success pattern detected: $SUCCESS_PATTERN"
+            SUCCESS_FOUND=true
         fi
-    ) 2>/dev/null
-
-    # Process will be cleaned up by the trap on exit
-    CLI_PID=""  # Clear the global variable so trap doesn't try to kill again
+    else
+        # Process failed
+        if grep -q "Rate limited" "$TEMP_OUTPUT" 2>/dev/null; then
+            RATE_LIMITED=true
+        fi
+    fi
 
     # Check if we found the success pattern
     if [ "$SUCCESS_FOUND" = true ]; then
