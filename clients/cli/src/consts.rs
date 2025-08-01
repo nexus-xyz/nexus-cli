@@ -35,10 +35,6 @@ pub mod prover {
     /// Set to 2 minutes to balance responsiveness with server load
     pub const BACKOFF_DURATION: u64 = 120_000; // 2 minutes
 
-    /// How often to log queue status information (milliseconds)
-    /// Provides regular status updates without spamming logs
-    pub const QUEUE_LOG_INTERVAL: u64 = 60_000; // 1 minute
-
     // =============================================================================
     // CACHE MANAGEMENT
     // =============================================================================

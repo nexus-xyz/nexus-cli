@@ -24,6 +24,7 @@ pub enum EventType {
     Success,
     Error,
     Refresh,
+    Waiting,
     Shutdown,
 }
 
@@ -110,16 +111,6 @@ impl Event {
 
 impl Display for Event {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let worker_type: String = match self.worker {
-            Worker::TaskFetcher => "Task Fetcher".to_string(),
-            Worker::Prover(worker_id) => format!("Prover {}", worker_id),
-            Worker::ProofSubmitter => "Proof Submitter".to_string(),
-            Worker::VersionChecker => "Version Checker".to_string(),
-        };
-        write!(
-            f,
-            "{} [{}] {}: {}",
-            self.event_type, self.timestamp, worker_type, self.msg
-        )
+        write!(f, "{} [{}] {}", self.event_type, self.timestamp, self.msg)
     }
 }
