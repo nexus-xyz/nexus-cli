@@ -24,6 +24,7 @@ pub enum EventType {
     Success,
     Error,
     Refresh,
+    Waiting,
     Shutdown,
 }
 

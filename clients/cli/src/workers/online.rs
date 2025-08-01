@@ -128,11 +128,6 @@ impl TaskFetchState {
         self.last_queue_log_time = std::time::Instant::now();
     }
 
-    /// Reset backoff to default duration (after successful operation)
-    pub fn reset_backoff(&mut self) {
-        self.backoff_duration = Duration::from_millis(BACKOFF_DURATION);
-    }
-
     /// Set backoff duration from server's Retry-After header (in seconds)
     /// Respects server's exact timing for rate limit compliance
     pub fn set_backoff_from_server(&mut self, retry_after_seconds: u32) {
@@ -220,7 +215,6 @@ async fn handle_task_success(
         sender,
         event_sender,
         recent_tasks,
-        state,
         environment,
         client_id,
     )
@@ -248,7 +242,6 @@ async fn process_new_task(
     sender: &mpsc::Sender<Task>,
     event_sender: &mpsc::Sender<Event>,
     recent_tasks: &TaskCache,
-    state: &mut TaskFetchState,
     environment: &Environment,
     client_id: &str,
 ) -> Result<(), bool> {
@@ -273,8 +266,6 @@ async fn process_new_task(
         client_id.to_string(),
     ));
 
-    // Success: reset backoff and log queue status
-    state.reset_backoff();
     log_successful_task_addition(sender, event_sender).await;
 
     Ok(())
@@ -350,10 +341,11 @@ async fn fetch_single_task(
 
     send_event(
         event_sender,
-        "[Task step 1 of 3] Fetching task... Note: CLI tasks are harder to solve, so they receive more points than web provers".to_string(),
+        "Requesting task...".to_string(),
         crate::events::EventType::Refresh,
         LogLevel::Info,
-    ).await;
+    )
+    .await;
 
     // Fetch task with timeout
     let timeout_duration = Duration::from_secs(60);
@@ -436,8 +428,8 @@ async fn handle_fetch_error(
                 state.set_backoff_from_server(retry_after_seconds);
                 send_event(
                     event_sender,
-                    format!("Rate limited - retrying in {}s", retry_after_seconds),
-                    crate::events::EventType::Error,
+                    format!("Fetch rate limited - retrying in {}s", retry_after_seconds),
+                    crate::events::EventType::Waiting,
                     LogLevel::Warn,
                 )
                 .await;
@@ -446,8 +438,8 @@ async fn handle_fetch_error(
                 state.increase_backoff_for_error();
                 send_event(
                     event_sender,
-                    "Rate limited - no retry time specified".to_string(),
-                    crate::events::EventType::Error,
+                    "Fetch rate limited - no retry time specified".to_string(),
+                    crate::events::EventType::Waiting,
                     LogLevel::Error,
                 )
                 .await;
@@ -462,7 +454,7 @@ async fn handle_fetch_error(
                     error,
                     state.backoff_duration().as_secs()
                 ),
-                crate::events::EventType::Error,
+                crate::events::EventType::Waiting,
                 log_level,
             );
             if event.should_display() {
@@ -562,6 +554,15 @@ async fn submit_proof_to_orchestrator(
     environment: &Environment,
     client_id: &str,
 ) {
+    // Send submitting message
+    send_proof_event(
+        event_sender,
+        "Submitting...(Sending your proof to the network)".to_string(),
+        crate::events::EventType::Waiting,
+        LogLevel::Info,
+    )
+    .await;
+
     // Serialize proof for submission
     let proof_bytes = postcard::to_allocvec(proof).expect("Failed to serialize proof");
 
@@ -648,10 +649,7 @@ async fn handle_submission_success(
     client_id: &str,
 ) {
     completed_tasks.insert(task.task_id.clone()).await;
-    let msg = format!(
-        "[Task step 3 of 3] Proof submitted (Task ID: {}) Points for this node will be updated in https://app.nexus.xyz/rewards within 10 minutes",
-        task.task_id
-    );
+    let msg = "Submitted! ≈300 points will be added soon".to_string();
     // Track analytics for proof acceptance (non-blocking)
     tokio::spawn(track_proof_accepted(
         task.clone(),
@@ -746,17 +744,5 @@ mod tests {
         // Test that very long retry times are respected
         state.set_backoff_from_server(3600); // 1 hour
         assert_eq!(state.backoff_duration, Duration::from_secs(3600));
-    }
-
-    #[test]
-    fn test_reset_backoff() {
-        let mut state = TaskFetchState::new();
-
-        // Test that reset sets backoff to default 120s
-        state.reset_backoff();
-        assert_eq!(
-            state.backoff_duration,
-            Duration::from_millis(BACKOFF_DURATION)
-        );
     }
 }

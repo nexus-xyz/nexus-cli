@@ -1,0 +1,207 @@
+diff --git a/clients/cli/src/events.rs b/clients/cli/src/events.rs
+--- a/clients/cli/src/events.rs
++++ b/clients/cli/src/events.rs
+@@ -24,6 +24,7 @@
+     Success,
+     Error,
+     Refresh,
++    Waiting,
+     Shutdown,
+ }
+ 
+diff --git a/clients/cli/src/ui/dashboard.rs b/clients/cli/src/ui/dashboard.rs
+--- a/clients/cli/src/ui/dashboard.rs
++++ b/clients/cli/src/ui/dashboard.rs
+@@ -380,13 +380,7 @@
+                 (EventType::Error, _) => "❌",
+                 (EventType::Refresh, _) => "🔄",
+                 (EventType::Shutdown, _) => "🔴",
+-            };
+-
+-            let worker_type = match event.worker {
+-                Worker::TaskFetcher => "Fetcher".to_string(),
+-                Worker::Prover(worker_id) => format!("P{}", worker_id),
+-                Worker::ProofSubmitter => "Submitter".to_string(),
+-                Worker::VersionChecker => "Version".to_string(),
++                (EventType::Waiting, _) => "⏳",
+             };
+ 
+             let worker_color = DashboardState::get_worker_color(&event.worker);
+@@ -418,13 +412,6 @@
+                     format!("{} ", compact_time),
+                     Style::default().fg(Color::DarkGray),
+                 ),
+-                // Worker type in bold with worker color
+-                Span::styled(
+-                    format!("[{}] ", worker_type),
+-                    Style::default()
+-                        .fg(worker_color)
+-                        .add_modifier(Modifier::BOLD),
+-                ),
+                 // Cleaned message with appropriate color
+                 Span::styled(cleaned_msg, Style::default().fg(message_color)),
+             ])
+diff --git a/clients/cli/src/workers/offline.rs b/clients/cli/src/workers/offline.rs
+--- a/clients/cli/src/workers/offline.rs
++++ b/clients/cli/src/workers/offline.rs
+@@ -87,15 +87,12 @@
+                     }
+                     // Check if there are tasks to process
+                     Some(task) = task_receiver.recv() => {
++                        let message = format!("Computing...(Generating your zk-proof) Task-{}", task.task_id);
++                        let _ = prover_event_sender
++                            .send(Event::prover(worker_id, message, EventType::Success))
++                            .await;
+                         match authenticated_proving(&task, &environment, &client_id, Some(&prover_event_sender)).await {
+                             Ok((proof, combined_hash)) => {
+-                                let message = format!(
+-                                    "[Task step 2 of 3] Proof completed successfully (Task ID: {})",
+-                                    task.task_id
+-                                );
+-                                let _ = prover_event_sender
+-                                    .send(Event::prover(worker_id, message, EventType::Success))
+-                                    .await;
+ 
+                                 // Track analytics for successful proof (non-blocking)
+                                 tokio::spawn(track_authenticated_proof_analytics(task.clone(), environment.clone(), client_id.clone()));
+@@ -161,6 +158,10 @@
+ 
+                     _ = tokio::time::sleep(Duration::from_millis(300)) => {
+                         // Perform work
++                        let message = "Computing...(Generating your zk-proof)".to_string();
++                        let _ = prover_event_sender
++                            .send(Event::prover(worker_id, message, EventType::Success))
++                            .await;
+                         match crate::prover::prove_anonymously().await {
+                             Ok(_proof) => {
+                                 let message = "Anonymous proof completed successfully".to_string();
+diff --git a/clients/cli/src/workers/online.rs b/clients/cli/src/workers/online.rs
+--- a/clients/cli/src/workers/online.rs
++++ b/clients/cli/src/workers/online.rs
+@@ -128,11 +128,6 @@
+         self.last_queue_log_time = std::time::Instant::now();
+     }
+ 
+-    /// Reset backoff to default duration (after successful operation)
+-    pub fn reset_backoff(&mut self) {
+-        self.backoff_duration = Duration::from_millis(BACKOFF_DURATION);
+-    }
+-
+     /// Set backoff duration from server's Retry-After header (in seconds)
+     /// Respects server's exact timing for rate limit compliance
+     pub fn set_backoff_from_server(&mut self, retry_after_seconds: u32) {
+@@ -220,7 +215,6 @@
+         sender,
+         event_sender,
+         recent_tasks,
+-        state,
+         environment,
+         client_id,
+     )
+@@ -248,7 +242,6 @@
+     sender: &mpsc::Sender<Task>,
+     event_sender: &mpsc::Sender<Event>,
+     recent_tasks: &TaskCache,
+-    state: &mut TaskFetchState,
+     environment: &Environment,
+     client_id: &str,
+ ) -> Result<(), bool> {
+@@ -273,8 +266,6 @@
+         client_id.to_string(),
+     ));
+ 
+-    // Success: reset backoff and log queue status
+-    state.reset_backoff();
+     log_successful_task_addition(sender, event_sender).await;
+ 
+     Ok(())
+@@ -350,10 +341,11 @@
+ 
+     send_event(
+         event_sender,
+-        "[Task step 1 of 3] Fetching task... Note: CLI tasks are harder to solve, so they receive more points than web provers".to_string(),
++        "Requesting task...".to_string(),
+         crate::events::EventType::Refresh,
+         LogLevel::Info,
+-    ).await;
++    )
++    .await;
+ 
+     // Fetch task with timeout
+     let timeout_duration = Duration::from_secs(60);
+@@ -436,8 +428,8 @@
+                 state.set_backoff_from_server(retry_after_seconds);
+                 send_event(
+                     event_sender,
+-                    format!("Rate limited - retrying in {}s", retry_after_seconds),
+-                    crate::events::EventType::Error,
++                    format!("Fetch rate limited - retrying in {}s", retry_after_seconds),
++                    crate::events::EventType::Waiting,
+                     LogLevel::Warn,
+                 )
+                 .await;
+@@ -446,8 +438,8 @@
+                 state.increase_backoff_for_error();
+                 send_event(
+                     event_sender,
+-                    "Rate limited - no retry time specified".to_string(),
+-                    crate::events::EventType::Error,
++                    "Fetch rate limited - no retry time specified".to_string(),
++                    crate::events::EventType::Waiting,
+                     LogLevel::Error,
+                 )
+                 .await;
+@@ -462,7 +454,7 @@
+                     error,
+                     state.backoff_duration().as_secs()
+                 ),
+-                crate::events::EventType::Error,
++                crate::events::EventType::Waiting,
+                 log_level,
+             );
+             if event.should_display() {
+@@ -562,6 +554,15 @@
+     environment: &Environment,
+     client_id: &str,
+ ) {
++    // Send submitting message
++    send_proof_event(
++        event_sender,
++        "Submitting...(Sending your proof to the network)".to_string(),
++        crate::events::EventType::Waiting,
++        LogLevel::Info,
++    )
++    .await;
++
+     // Serialize proof for submission
+     let proof_bytes = postcard::to_allocvec(proof).expect("Failed to serialize proof");
+ 
+@@ -648,10 +649,7 @@
+     client_id: &str,
+ ) {
+     completed_tasks.insert(task.task_id.clone()).await;
+-    let msg = format!(
+-        "[Task step 3 of 3] Proof submitted (Task ID: {}) Points for this node will be updated in https://app.nexus.xyz/rewards within 10 minutes",
+-        task.task_id
+-    );
++    let msg = "Submitted! ≈300 points will be added soon".to_string();
+     // Track analytics for proof acceptance (non-blocking)
+     tokio::spawn(track_proof_accepted(
+         task.clone(),
+@@ -747,16 +745,4 @@
+         state.set_backoff_from_server(3600); // 1 hour
+         assert_eq!(state.backoff_duration, Duration::from_secs(3600));
+     }
+-
+-    #[test]
+-    fn test_reset_backoff() {
+-        let mut state = TaskFetchState::new();
+-
+-        // Test that reset sets backoff to default 120s
+-        state.reset_backoff();
+-        assert_eq!(
+-            state.backoff_duration,
+-            Duration::from_millis(BACKOFF_DURATION)
+-        );
+-    }
+ }
