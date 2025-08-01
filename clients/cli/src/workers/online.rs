@@ -194,7 +194,7 @@ pub async fn fetch_prover_tasks(
                             return;
                         }
                     }
-                    
+
                     // In --once mode, stop fetching after first task
                     if once {
                         return;
