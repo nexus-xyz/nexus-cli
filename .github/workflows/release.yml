@@ -152,13 +152,6 @@ jobs:
         working-directory: clients/cli/target/${{ matrix.target }}/release/
         run: cp nexus-network ${{ matrix.target == 'x86_64-pc-windows-msvc' && '.exe' || '' }} ${{ matrix.binary_name }}
 
-      # Upload the binary as an artifact
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.binary_name }}
-          path: clients/cli/target/${{ matrix.target }}/release/${{ matrix.binary_name }}
-
       - name: Run smoke test
         working-directory: clients/cli
         run: |
@@ -169,6 +162,13 @@ jobs:
             echo "Running smoke test with fallback node IDs"
             ../../tests/smoke_test.sh ./target/${{ matrix.target }}/release/${{ matrix.binary_name }} --once
           fi
+
+      # Upload the binary as an artifact (only if smoke test passes)
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.binary_name }}
+          path: clients/cli/target/${{ matrix.target }}/release/${{ matrix.binary_name }}
 
   release:
     name: Create Release

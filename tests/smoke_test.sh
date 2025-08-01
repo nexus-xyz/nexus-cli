@@ -78,17 +78,15 @@ BINARY_PATH="${1:-./target/release/nexus-network}"
 if [ ! -f "$BINARY_PATH" ]; then
     print_error "CLI binary not found at: $BINARY_PATH"
     print_info "Usage: $0 [binary_path] [node_id]"
-    print_info "Example: $0 ./target/release/nexus-network 6166715"
+    print_info "Example: $0 ./target/release/nexus-network <node_id>"
     exit 1
 fi
 
 print_info "Using binary: $BINARY_PATH"
-print_info "Using node IDs: ${NODE_IDS[*]}"
 print_info "Monitoring for: $SUCCESS_PATTERN"
 
 # Try each node ID until one works
 for node_id in "${NODE_IDS[@]}"; do
-    print_info "Trying node ID: $node_id"
     
     # Use a temporary file to capture output
     TEMP_OUTPUT=$(mktemp)
@@ -116,13 +114,11 @@ for node_id in "${NODE_IDS[@]}"; do
             if [ "$SUCCESS_FOUND" = false ]; then
                 if grep -q "Rate limited" "$TEMP_OUTPUT" 2>/dev/null; then
                     if [ "$RATE_LIMITED" = false ]; then
-                        print_info "Rate limited detected - continuing to wait for tasks..."
                         RATE_LIMITED=true
                     fi
                     
                     # In --once mode, exit immediately when rate limited
                     if [ "$JUST_ONCE" = true ]; then
-                        print_info "Rate limited in --once mode, trying next node ID"
                         EXIT_EARLY=true
                         break
                     fi
@@ -146,20 +142,14 @@ for node_id in "${NODE_IDS[@]}"; do
 
     # Check if we found the success pattern
     if [ "$SUCCESS_FOUND" = true ]; then
-        print_status "Smoke test PASSED - CLI successfully submitted proof with node ID: $node_id"
-        if [ "$JUST_ONCE" = true ]; then
-            exit 0
-        fi
-    else
-        print_info "No success with node ID: $node_id"
-        if [ "$RATE_LIMITED" = true ]; then
-            print_info "Note: CLI was rate limited during the test period"
-        fi
-        
+        print_status "Smoke test PASSED - CLI successfully submitted proof"
+        exit 0
+    elif [ "$JUST_ONCE" = true ] && [ "$EXIT_EARLY" = true ]; then
         # In --once mode, continue to next node ID if rate limited
-        if [ "$JUST_ONCE" = true ] && [ "$EXIT_EARLY" = true ]; then
-            print_info "Rate limited with node ID $node_id, trying next node ID..."
-            continue
+        continue
+    else
+        if [ "$RATE_LIMITED" = true ]; then
+            print_info "Rate limited"
         fi
     fi
     
@@ -168,11 +158,7 @@ for node_id in "${NODE_IDS[@]}"; do
 done
 
 # If we get here, none of the node IDs worked
-print_error "Smoke test FAILED - No proof submission detected with any node ID within $MAX_TIMEOUT_SECONDS seconds"
-echo "CLI Output from last attempt:"
-cat "$TEMP_OUTPUT"
-echo ""
+print_error "Smoke test FAILED - No proof submission detected within $MAX_TIMEOUT_SECONDS seconds"
 print_info "Checked for success patterns:"
 echo "  - $SUCCESS_PATTERN"
-print_info "Tried node IDs: ${NODE_IDS[*]}"
 exit 1 

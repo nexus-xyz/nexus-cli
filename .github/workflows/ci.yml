@@ -78,7 +78,6 @@ jobs:
             echo "Running smoke test with fallback node IDs"
             ../../tests/smoke_test.sh ./target/ci-build/nexus-network --once
           fi
-        continue-on-error: true
 
       - name: Ensure checked in generated files are up to date
         run: |
