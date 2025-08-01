@@ -178,18 +178,17 @@ pub async fn fetch_prover_tasks(
 
                 // Simple condition: fetch when queue is low and backoff time has passed
                 if state.should_fetch(tasks_in_queue) {
-                    if let Err(should_return) = fetch_single_task(
-                        &*orchestrator_client,
-                        &node_id,
-                        verifying_key,
-                        &sender,
-                        &event_sender,
-                        &recent_tasks,
-                        &mut state,
-                        &environment,
-                        &client_id,
-                        once,
-                    ).await {
+                            if let Err(should_return) = fetch_single_task(
+            &*orchestrator_client,
+            &node_id,
+            verifying_key,
+            &sender,
+            &event_sender,
+            &recent_tasks,
+            &mut state,
+            &environment,
+            &client_id,
+        ).await {
                         if should_return {
                             return;
                         }
@@ -215,7 +214,7 @@ async fn handle_task_success(
     state: &mut TaskFetchState,
     environment: &Environment,
     client_id: &str,
-    once: bool,
+    _once: bool, // Unused for now - the once logic is handled in the main loop
 ) -> Result<(), bool> {
     // Check for duplicate
     if recent_tasks.contains(&task.task_id).await {
@@ -232,7 +231,6 @@ async fn handle_task_success(
         state,
         environment,
         client_id,
-        once,
     )
     .await
 }
@@ -262,7 +260,7 @@ async fn process_new_task(
     state: &mut TaskFetchState,
     environment: &Environment,
     client_id: &str,
-    once: bool,
+    _once: bool, // Unused for now - the once logic is handled in the main loop
 ) -> Result<(), bool> {
     // Add to cache and queue
     recent_tasks.insert(task.task_id.clone()).await;
@@ -356,7 +354,7 @@ async fn fetch_single_task(
     state: &mut TaskFetchState,
     environment: &Environment,
     client_id: &str,
-    once: bool,
+    _once: bool, // Unused for now - the once logic is handled in the main loop
 ) -> Result<(), bool> {
     // Record fetch attempt and send initial event
     state.record_fetch_attempt();
@@ -388,7 +386,6 @@ async fn fetch_single_task(
                     state,
                     environment,
                     client_id,
-                    once,
                 )
                 .await
             }
