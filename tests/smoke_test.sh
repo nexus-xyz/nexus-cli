@@ -80,15 +80,26 @@ for node_id in "${NODE_IDS[@]}"; do
     TEMP_OUTPUT=$(mktemp)
     trap "rm -f $TEMP_OUTPUT" EXIT
 
-    # Start the CLI process directly
-    if "$BINARY_PATH" start --headless --node-id $node_id 2>&1 | tee "$TEMP_OUTPUT"; then
+    # Start the CLI process (disable core dumps)
+    if (ulimit -c 0; "$BINARY_PATH" start --headless --node-id $node_id 2>&1 | tee "$TEMP_OUTPUT"); then
         # Process completed successfully
         if grep -q "$SUCCESS_PATTERN" "$TEMP_OUTPUT" 2>/dev/null; then
             print_status "Success pattern detected: $SUCCESS_PATTERN"
             SUCCESS_FOUND=true
         fi
     else
-        # Process failed
+        # Process failed or was terminated
+        EXIT_CODE=$?
+        if [ $EXIT_CODE -eq 143 ]; then
+            # Process was terminated by SIGTERM (timeout or signal)
+            print_info "Process terminated by signal"
+        elif [ $EXIT_CODE -eq 124 ]; then
+            # Process timed out
+            print_info "Process timed out"
+        else
+            print_info "Process exited with code: $EXIT_CODE"
+        fi
+        
         if grep -q "Rate limited" "$TEMP_OUTPUT" 2>/dev/null; then
             RATE_LIMITED=true
         fi

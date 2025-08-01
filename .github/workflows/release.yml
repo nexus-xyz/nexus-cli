@@ -99,6 +99,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Check system resources
+        run: |
+          echo "Available memory:"
+          free -h
+          echo "Total memory: $(free -m | awk 'NR==2{print $2}') MB"
+          echo "Available memory: $(free -m | awk 'NR==2{print $7}') MB"
+          if [ $(free -m | awk 'NR==2{print $2}') -lt 4096 ]; then
+            echo "WARNING: Less than 4GB total memory available"
+          fi
+
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: "clients/cli"

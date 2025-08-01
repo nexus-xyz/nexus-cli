@@ -23,6 +23,16 @@ jobs:
             proto
             tests
 
+      - name: Check system resources
+        run: |
+          echo "Available memory:"
+          free -h
+          echo "Total memory: $(free -m | awk 'NR==2{print $2}') MB"
+          echo "Available memory: $(free -m | awk 'NR==2{print $7}') MB"
+          if [ $(free -m | awk 'NR==2{print $2}') -lt 4096 ]; then
+            echo "WARNING: Less than 4GB total memory available"
+          fi
+
       # Install Rust toolchain used by CLI
       # When passing an explicit toolchain... use "dtolnay/rust-toolchain@master""
       - name: Install Rust
