@@ -433,18 +433,8 @@ async fn handle_fetch_error(
     match error {
         OrchestratorError::Http {
             status: 429,
-            ref headers,
             ..
         } => {
-            // Debug: print headers for 429 responses
-            send_event(
-                event_sender,
-                format!("429 Rate limit retry-after: {:?}", headers["retry-after"]),
-                crate::events::EventType::Refresh,
-                LogLevel::Debug,
-            )
-            .await;
-
             if let Some(retry_after_seconds) = error.get_retry_after_seconds() {
                 state.set_backoff_from_server(retry_after_seconds);
                 send_event(
