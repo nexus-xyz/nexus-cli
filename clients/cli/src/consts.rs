@@ -33,7 +33,7 @@ pub mod prover {
 
     /// Default backoff duration when retrying failed operations (milliseconds)
     /// Set to 2 minutes to balance responsiveness with server load
-    pub const BACKOFF_DURATION: u64 = 120_000; // 2 minutes
+    pub const BACKOFF_DURATION: u64 = 30_000; // 2 minutes
 
     /// How often to log queue status information (milliseconds)
     /// Provides regular status updates without spamming logs

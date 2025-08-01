@@ -89,6 +89,9 @@ message GetProofTaskResponse {
 
   // The task's ID.
   string task_id = 3;
+
+  // The task assigned.
+  Task task = 4;
 }
 
 // Submit the result of a prover task.

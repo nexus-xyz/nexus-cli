@@ -170,7 +170,7 @@ mod tests {
         let mut mock = MockOrchestrator::new();
         mock.expect_get_proof_task().returning_st(move |_, _| {
             // Simulate a task with dummy data
-            let task = Task::new(i.to_string(), format!("Task {}", i), vec![1, 2, 3]);
+            let task = Task::new(i.to_string(), format!("Task {}", i), vec![1, 2, 3], crate::nexus_orchestrator::TaskType::ProofRequired);
             i += 1;
             Ok(task)
         });

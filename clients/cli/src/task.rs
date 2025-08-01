@@ -22,19 +22,24 @@ pub struct Task {
     pub public_inputs_list: Vec<Vec<u8>>,
 
     /// The type of task (proof required or only hash)
-    pub task_type: Option<crate::nexus_orchestrator::TaskType>,
+    pub task_type: crate::nexus_orchestrator::TaskType,
 }
 
 impl Task {
     /// Creates a new task with the given parameters.
     #[allow(unused)]
-    pub fn new(task_id: String, program_id: String, public_inputs: Vec<u8>) -> Self {
+    pub fn new(
+        task_id: String,
+        program_id: String,
+        public_inputs: Vec<u8>,
+        task_type: crate::nexus_orchestrator::TaskType,
+    ) -> Self {
         Task {
             task_id,
             program_id,
             public_inputs: public_inputs.clone(),
             public_inputs_list: vec![public_inputs],
-            task_type: None,
+            task_type,
         }
     }
 
@@ -49,8 +54,12 @@ impl Task {
         let combined = hashes.join("");
 
         // Hash the combined string using Keccak-256
+        println!("before digest string: {}", combined);
         let hash = Keccak256::digest(combined.as_bytes());
-        format!("{:x}", hash)
+        println!("after digest: {:?}", hash);
+        let result = format!("{:x}", hash);
+        println!("after digest string: {:?}", hash);
+        result
     }
 
     /// Get all inputs for the task
@@ -80,10 +89,7 @@ impl From<&crate::nexus_orchestrator::Task> for Task {
             program_id: task.program_id.clone(),
             public_inputs: task.public_inputs_list.first().cloned().unwrap_or_default(),
             public_inputs_list: task.public_inputs_list.clone(),
-            task_type: Some(
-                crate::nexus_orchestrator::TaskType::try_from(task.task_type)
-                    .unwrap_or(crate::nexus_orchestrator::TaskType::ProofRequired),
-            ),
+            task_type: crate::nexus_orchestrator::TaskType::try_from(task.task_type).unwrap(),
         }
     }
 }
@@ -96,7 +102,10 @@ impl From<&crate::nexus_orchestrator::GetProofTaskResponse> for Task {
             program_id: response.program_id.clone(),
             public_inputs: response.public_inputs.clone(),
             public_inputs_list: vec![response.public_inputs.clone()],
-            task_type: None, // GetProofTaskResponse doesn't include task_type
+            task_type: crate::nexus_orchestrator::TaskType::try_from(
+                response.task.clone().unwrap().task_type,
+            )
+            .unwrap(),
         }
     }
 }
@@ -146,6 +155,7 @@ mod tests {
             "test_task".to_string(),
             "test_program".to_string(),
             vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+            crate::nexus_orchestrator::TaskType::ProofRequired,
         );
 
         // Test all_inputs
@@ -165,6 +175,7 @@ mod tests {
             "test_task".to_string(),
             "test_program".to_string(),
             vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+            crate::nexus_orchestrator::TaskType::ProofRequired,
         );
 
         // Add additional inputs
@@ -197,6 +208,7 @@ mod tests {
             "test_task".to_string(),
             "fib_input_initial".to_string(),
             vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+            crate::nexus_orchestrator::TaskType::ProofRequired,
         );
 
         // Test that both legacy and new fields work

@@ -46,6 +46,6 @@ pub trait Orchestrator: Send + Sync {
         proof: Vec<u8>,
         signing_key: SigningKey,
         num_provers: usize,
-        task_type: Option<crate::nexus_orchestrator::TaskType>,
+        task_type: crate::nexus_orchestrator::TaskType,
     ) -> Result<(), OrchestratorError>;
 }

@@ -88,6 +88,9 @@ pub struct GetProofTaskResponse {
     /// The task's ID.
     #[prost(string, tag = "3")]
     pub task_id: ::prost::alloc::string::String,
+    /// The task assigned.
+    #[prost(message, optional, tag = "4")]
+    pub task: ::core::option::Option<Task>,
 }
 /// Submit the result of a prover task.
 #[derive(Clone, PartialEq, ::prost::Message)]

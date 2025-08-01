@@ -101,8 +101,7 @@ pub async fn authenticated_proving(
                 // Send progress event for proof hash tasks
                 if let Some(sender) = event_sender {
                     let task_type = task
-                        .task_type
-                        .unwrap_or(crate::nexus_orchestrator::TaskType::ProofRequired);
+                        .task_type;
                     if task_type == crate::nexus_orchestrator::TaskType::ProofHash {
                         let progress_msg = format!(
                             "Processing input {}/{} for proving task",
@@ -170,9 +169,12 @@ pub async fn authenticated_proving(
 
             // Always combine proof hashes for ProofHash tasks, even for single inputs
             let task_type = task
-                .task_type
-                .unwrap_or(crate::nexus_orchestrator::TaskType::ProofRequired);
+                .task_type;
 
+            println!("individual proof hashes: {:?}", proof_hashes);
+            println!("task_type: {:?}", task_type);
+            println!("crate::nexus_orchestrator::TaskType::ProofHash: {:?}", crate::nexus_orchestrator::TaskType::ProofHash);
+            println!("task_type == crate::nexus_orchestrator::TaskType::ProofHash: {:?}", task_type == crate::nexus_orchestrator::TaskType::ProofHash);
             let final_proof_hash = if task_type == crate::nexus_orchestrator::TaskType::ProofHash {
                 // For ProofHash tasks, always hash the result (even single inputs)
                 Task::combine_proof_hashes(&proof_hashes)
@@ -180,6 +182,7 @@ pub async fn authenticated_proving(
                 // For ProofRequired tasks, return the first proof hash (or empty if no proofs)
                 proof_hashes.first().cloned().unwrap_or_default()
             };
+            println!("final_proof_hash: {}", final_proof_hash);
 
             // Send completion event for proof hash tasks
             if let Some(sender) = event_sender {
@@ -298,6 +301,7 @@ mod tests {
             "fib_input_initial".to_string(),
             // First input: n=2, init_a=1, init_b=1 (computes F(2) = 2)
             vec![2, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+            crate::nexus_orchestrator::TaskType::ProofRequired,
         );
 
         // Add a second input: n=3, init_a=1, init_b=1 (computes F(3) = 3)
@@ -305,7 +309,7 @@ mod tests {
             .push(vec![3, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]);
 
         // Set task type to ProofRequired
-        task.task_type = Some(crate::nexus_orchestrator::TaskType::ProofRequired);
+        task.task_type = crate::nexus_orchestrator::TaskType::ProofRequired;
 
         let environment = Environment::Production;
         let client_id = "test_client".to_string();
@@ -339,6 +343,7 @@ mod tests {
             "fib_input_initial".to_string(),
             // First input: n=3, init_a=1, init_b=1 (computes F(3) = 3)
             vec![3, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+            crate::nexus_orchestrator::TaskType::ProofHash,
         );
 
         // Add a second input: n=4, init_a=1, init_b=1 (computes F(4) = 5)
@@ -346,7 +351,7 @@ mod tests {
             .push(vec![4, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]);
 
         // Set task type to ProofHash (or None, which should work)
-        task.task_type = Some(crate::nexus_orchestrator::TaskType::ProofHash);
+        task.task_type = crate::nexus_orchestrator::TaskType::ProofHash;
 
         let environment = Environment::Production;
         let client_id = "test_client".to_string();
@@ -374,10 +379,11 @@ mod tests {
             "fib_input_initial".to_string(),
             // Single input: n=2, init_a=1, init_b=1 (computes F(2) = 2)
             vec![2, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+            crate::nexus_orchestrator::TaskType::ProofHash,
         );
 
         // Set task type to ProofHash
-        task.task_type = Some(crate::nexus_orchestrator::TaskType::ProofHash);
+        task.task_type = crate::nexus_orchestrator::TaskType::ProofHash;
 
         let environment = Environment::Production;
         let client_id = "test_client".to_string();
@@ -408,10 +414,11 @@ mod tests {
             "fib_input_initial".to_string(),
             // Single input: n=2, init_a=1, init_b=1 (computes F(2) = 2)
             vec![2, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+            crate::nexus_orchestrator::TaskType::ProofRequired,
         );
 
         // Set task type to ProofRequired
-        task.task_type = Some(crate::nexus_orchestrator::TaskType::ProofRequired);
+        task.task_type = crate::nexus_orchestrator::TaskType::ProofRequired;
 
         let environment = Environment::Production;
         let client_id = "test_client".to_string();
@@ -445,6 +452,7 @@ mod tests {
             "fib_input_initial".to_string(),
             // First input: n=2, init_a=1, init_b=1 (computes F(2) = 2)
             vec![2, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+            crate::nexus_orchestrator::TaskType::ProofRequired,
         );
 
         // Add a second input: n=3, init_a=1, init_b=1 (computes F(3) = 3)
@@ -452,7 +460,7 @@ mod tests {
             .push(vec![3, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]);
 
         // Set task type to ProofRequired (what orchestrator actually sends)
-        task.task_type = Some(crate::nexus_orchestrator::TaskType::ProofRequired);
+        task.task_type = crate::nexus_orchestrator::TaskType::ProofRequired;
 
         // Verify we have multiple input sets
         let input_count = task.all_inputs().len();
@@ -475,6 +483,7 @@ mod tests {
             "fib_input_initial".to_string(),
             // Wrong input size: only 8 bytes instead of 12
             vec![1, 2, 3, 4, 5, 6, 7, 8],
+            crate::nexus_orchestrator::TaskType::ProofRequired,
         );
 
         let environment = Environment::Production;
@@ -494,6 +503,7 @@ mod tests {
             "fib_input_initial".to_string(),
             // Correct input size: 12 bytes (3 u32 values)
             vec![2, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+            crate::nexus_orchestrator::TaskType::ProofRequired,
         );
 
         let environment = Environment::Production;
@@ -515,6 +525,7 @@ mod tests {
             "fib_input_initial".to_string(),
             // First input: n=2, init_a=1, init_b=1 (computes F(2) = 2)
             vec![2, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+            crate::nexus_orchestrator::TaskType::ProofHash,
         );
 
         // Add a second input: n=3, init_a=1, init_b=1 (computes F(3) = 3)
@@ -522,7 +533,7 @@ mod tests {
             .push(vec![3, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]);
 
         // Set task type to ProofHash
-        task.task_type = Some(crate::nexus_orchestrator::TaskType::ProofHash);
+        task.task_type = crate::nexus_orchestrator::TaskType::ProofHash;
 
         let environment = Environment::Production;
         let client_id = "test_client".to_string();
