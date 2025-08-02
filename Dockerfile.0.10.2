@@ -1,0 +1,14 @@
+# Use lightweight Alpine Linux as the base image
+FROM alpine:latest
+
+# Download and install nexus-cli v0.10.2 binary
+RUN wget -O /usr/local/bin/nexus-cli \
+    https://github.com/nexus-xyz/nexus-cli/releases/download/v0.10.2/nexus-network-linux-x86_64 && \
+    chmod +x /usr/local/bin/nexus-cli
+
+# Verify SHA256 checksum for security
+RUN echo "23c369b8b1cafdb4e90b8a89cd39bca220ec1a7d1819cedfa910ce945e42a3c1  /usr/local/bin/nexus-cli" | sha256sum -c
+
+# Set default command
+ENTRYPOINT ["/usr/local/bin/nexus-cli"]
+CMD ["--help"]
