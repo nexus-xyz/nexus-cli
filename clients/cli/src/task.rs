@@ -93,7 +93,6 @@ impl From<&crate::nexus_orchestrator::Task> for Task {
 // From GetProofTaskResponse
 impl From<&crate::nexus_orchestrator::GetProofTaskResponse> for Task {
     fn from(response: &crate::nexus_orchestrator::GetProofTaskResponse) -> Self {
-        // Extract task_type directly without cloning the entire task
         let task_type = crate::nexus_orchestrator::TaskType::try_from(
             response.task.as_ref().unwrap().task_type,
         )
