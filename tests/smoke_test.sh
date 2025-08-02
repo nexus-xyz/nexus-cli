@@ -117,29 +117,6 @@ for node_id in "${NODE_IDS[@]}"; do
     tail -10 "$TEMP_OUTPUT" | while IFS= read -r line; do
         echo "  $line"
     done
-    else
-        # Process failed or was terminated
-        EXIT_CODE=$?
-        if [ $EXIT_CODE -eq 143 ]; then
-            # Process was terminated by SIGTERM (timeout or signal)
-            print_info "Process terminated by signal"
-        elif [ $EXIT_CODE -eq 124 ]; then
-            # Process timed out
-            print_info "Process timed out"
-        else
-            print_info "Process exited with code: $EXIT_CODE"
-        fi
-        
-        if grep -q "Rate limited" "$TEMP_OUTPUT" 2>/dev/null; then
-            RATE_LIMITED=true
-        fi
-        
-        # Show last few lines of CLI output for debugging
-        print_info "CLI output (last 10 lines):"
-        tail -10 "$TEMP_OUTPUT" | while IFS= read -r line; do
-            echo "  $line"
-        done
-    fi
 
     # Check if we found the success pattern
     if [ "$SUCCESS_FOUND" = true ]; then
