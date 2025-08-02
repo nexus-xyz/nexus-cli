@@ -73,6 +73,10 @@ enum Command {
         /// Disable background colors in the dashboard
         #[arg(long = "no-background-color", action = ArgAction::SetTrue)]
         no_background_color: bool,
+
+        /// Run once and exit after first proof submission
+        #[arg(long = "once", action = ArgAction::SetTrue)]
+        once: bool,
     },
     /// Register a new user
     RegisterUser {
@@ -92,6 +96,12 @@ enum Command {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    // Set up panic hook to prevent core dumps
+    std::panic::set_hook(Box::new(|panic_info| {
+        eprintln!("Panic occurred: {}", panic_info);
+        std::process::exit(1);
+    }));
+
     let nexus_environment_str = std::env::var("NEXUS_ENVIRONMENT").unwrap_or_default();
     let environment = nexus_environment_str
         .parse::<Environment>()
@@ -107,6 +117,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             max_threads,
             orchestrator_url,
             no_background_color,
+            once,
         } => {
             // If a custom orchestrator URL is provided, create a custom environment
             let final_environment = if let Some(url) = orchestrator_url {
@@ -123,6 +134,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 headless,
                 max_threads,
                 no_background_color,
+                once,
             )
             .await
         }
@@ -157,6 +169,7 @@ async fn start(
     headless: bool,
     max_threads: Option<u32>,
     no_background_color: bool,
+    once: bool,
 ) -> Result<(), Box<dyn Error>> {
     // Check version requirements before starting any workers
     match VersionRequirements::fetch().await {
@@ -285,6 +298,7 @@ async fn start(
                 shutdown_sender.subscribe(),
                 env.clone(),
                 client_id,
+                once,
             )
             .await
         }
@@ -327,11 +341,25 @@ async fn start(
     } else {
         // Headless mode: log events to console.
 
-        // Trigger shutdown on Ctrl+C
+        // Trigger shutdown on Ctrl+C and other signals
         let shutdown_sender_clone = shutdown_sender.clone();
         tokio::spawn(async move {
             if tokio::signal::ctrl_c().await.is_ok() {
                 let _ = shutdown_sender_clone.send(());
+            }
+        });
+
+        // Also handle SIGTERM gracefully
+        let shutdown_sender_clone2 = shutdown_sender.clone();
+        tokio::spawn(async move {
+            if tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).is_ok() {
+                if let Ok(mut signal) =
+                    tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+                {
+                    if signal.recv().await.is_some() {
+                        let _ = shutdown_sender_clone2.send(());
+                    }
+                }
             }
         });
 

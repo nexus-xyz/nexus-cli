@@ -112,7 +112,7 @@ impl VersionRequirements {
         let current = Version::parse(current_version.strip_prefix('v').unwrap_or(current_version))?;
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .map_err(|e| VersionRequirementsError::Fetch(format!("System time error: {}", e)))?
             .as_secs();
 
         let mut most_severe_violation: Option<VersionCheckResult> = None;

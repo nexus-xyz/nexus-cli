@@ -160,6 +160,7 @@ pub async fn fetch_prover_tasks(
     recent_tasks: TaskCache,
     environment: Environment,
     client_id: String,
+    once: bool,
 ) {
     let mut state = TaskFetchState::new();
 
@@ -177,20 +178,25 @@ pub async fn fetch_prover_tasks(
 
                 // Simple condition: fetch when queue is low and backoff time has passed
                 if state.should_fetch(tasks_in_queue) {
-                    if let Err(should_return) = fetch_single_task(
-                        &*orchestrator_client,
-                        &node_id,
-                        verifying_key,
-                        &sender,
-                        &event_sender,
-                        &recent_tasks,
-                        &mut state,
-                        &environment,
-                        &client_id,
-                    ).await {
+                            if let Err(should_return) = fetch_single_task(
+            &*orchestrator_client,
+            &node_id,
+            verifying_key,
+            &sender,
+            &event_sender,
+            &recent_tasks,
+            &mut state,
+            &environment,
+            &client_id,
+        ).await {
                         if should_return {
                             return;
                         }
+                    }
+
+                    // In --once mode, stop fetching after first task
+                    if once {
+                        return;
                     }
                 }
             }
@@ -199,6 +205,7 @@ pub async fn fetch_prover_tasks(
 }
 
 /// Handle successful task fetch: duplicate check, caching, and queue management
+#[allow(clippy::too_many_arguments)]
 async fn handle_task_success(
     task: Task,
     sender: &mpsc::Sender<Task>,
@@ -243,6 +250,7 @@ async fn handle_duplicate_task(event_sender: &mpsc::Sender<Event>, state: &mut T
 }
 
 /// Process a new (non-duplicate) task: cache, queue, analytics, and logging
+#[allow(clippy::too_many_arguments)]
 async fn process_new_task(
     task: Task,
     sender: &mpsc::Sender<Task>,
