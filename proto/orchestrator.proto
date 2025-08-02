@@ -87,8 +87,9 @@ message GetProofTaskResponse {
   // Public inputs to the program.
   bytes public_inputs = 2;
 
+  // Deprecated: use Task instead.
   // The task's ID.
-  string task_id = 3;
+  string task_id = 3 [deprecated = true];
 
   // The task assigned.
   Task task = 4;
