@@ -96,6 +96,12 @@ enum Command {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    // Set up panic hook to prevent core dumps
+    std::panic::set_hook(Box::new(|panic_info| {
+        eprintln!("Panic occurred: {}", panic_info);
+        std::process::exit(1);
+    }));
+
     let nexus_environment_str = std::env::var("NEXUS_ENVIRONMENT").unwrap_or_default();
     let environment = nexus_environment_str
         .parse::<Environment>()
@@ -335,11 +341,25 @@ async fn start(
     } else {
         // Headless mode: log events to console.
 
-        // Trigger shutdown on Ctrl+C
+        // Trigger shutdown on Ctrl+C and other signals
         let shutdown_sender_clone = shutdown_sender.clone();
         tokio::spawn(async move {
             if tokio::signal::ctrl_c().await.is_ok() {
                 let _ = shutdown_sender_clone.send(());
+            }
+        });
+
+        // Also handle SIGTERM gracefully
+        let shutdown_sender_clone2 = shutdown_sender.clone();
+        tokio::spawn(async move {
+            if tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).is_ok() {
+                if let Ok(mut signal) =
+                    tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+                {
+                    if signal.recv().await.is_some() {
+                        let _ = shutdown_sender_clone2.send(());
+                    }
+                }
             }
         });
 
