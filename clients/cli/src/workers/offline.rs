@@ -87,15 +87,12 @@ pub fn start_workers(
                     }
                     // Check if there are tasks to process
                     Some(task) = task_receiver.recv() => {
+                        let message = format!("Step 2 of 4: Computing (Generating your zk-proof) Task-{}...", task.task_id);
+                        let _ = prover_event_sender
+                            .send(Event::prover(worker_id, message, EventType::Success))
+                            .await;
                         match authenticated_proving(&task, &environment, &client_id, Some(&prover_event_sender)).await {
                             Ok((proof, combined_hash)) => {
-                                let message = format!(
-                                    "[Task step 2 of 3] Proof completed successfully (Task ID: {})",
-                                    task.task_id
-                                );
-                                let _ = prover_event_sender
-                                    .send(Event::prover(worker_id, message, EventType::Success))
-                                    .await;
 
                                 // Track analytics for successful proof (non-blocking)
                                 tokio::spawn(track_authenticated_proof_analytics(task.clone(), environment.clone(), client_id.clone()));
@@ -161,6 +158,10 @@ pub async fn start_anonymous_workers(
 
                     _ = tokio::time::sleep(Duration::from_millis(300)) => {
                         // Perform work
+                        let message = "Step 2 of 4: Computing (Generating your zk-proof)...".to_string();
+                        let _ = prover_event_sender
+                            .send(Event::prover(worker_id, message, EventType::Success))
+                            .await;
                         match crate::prover::prove_anonymously().await {
                             Ok(_proof) => {
                                 let message = "Anonymous proof completed successfully".to_string();

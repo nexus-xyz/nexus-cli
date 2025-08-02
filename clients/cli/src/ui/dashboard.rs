@@ -380,13 +380,7 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
                 (EventType::Error, _) => "❌",
                 (EventType::Refresh, _) => "🔄",
                 (EventType::Shutdown, _) => "🔴",
-            };
-
-            let worker_type = match event.worker {
-                Worker::TaskFetcher => "Fetcher".to_string(),
-                Worker::Prover(worker_id) => format!("P{}", worker_id),
-                Worker::ProofSubmitter => "Submitter".to_string(),
-                Worker::VersionChecker => "Version".to_string(),
+                (EventType::Waiting, _) => "⏳",
             };
 
             let worker_color = DashboardState::get_worker_color(&event.worker);
@@ -417,13 +411,6 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
                 Span::styled(
                     format!("{} ", compact_time),
                     Style::default().fg(Color::DarkGray),
-                ),
-                // Worker type in bold with worker color
-                Span::styled(
-                    format!("[{}] ", worker_type),
-                    Style::default()
-                        .fg(worker_color)
-                        .add_modifier(Modifier::BOLD),
                 ),
                 // Cleaned message with appropriate color
                 Span::styled(cleaned_msg, Style::default().fg(message_color)),
