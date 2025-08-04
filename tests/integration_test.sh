@@ -186,11 +186,6 @@ for node_id in "${NODE_IDS[@]}"; do
         fi
     fi
     
-    # Show last few lines of CLI output for debugging
-    print_info "CLI output (last 10 lines):"
-    tail -10 "$TEMP_RAW_OUTPUT" 2>/dev/null | while IFS= read -r line; do
-        echo "  $line"
-    done
 
     # Check if we found the success pattern
     if [ "$SUCCESS_FOUND" = true ]; then
