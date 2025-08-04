@@ -117,7 +117,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             max_threads,
             orchestrator_url,
             no_background_color,
-            once,
+            max_tasks,
         } => {
             // If a custom orchestrator URL is provided, create a custom environment
             let final_environment = if let Some(url) = orchestrator_url {
@@ -298,7 +298,7 @@ async fn start(
                 shutdown_sender.subscribe(),
                 env.clone(),
                 client_id,
-                once,
+                max_tasks,
             )
             .await
         }

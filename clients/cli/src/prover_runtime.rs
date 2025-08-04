@@ -110,7 +110,7 @@ pub async fn start_authenticated_workers(
         environment,
         client_id,
         max_tasks,
-        shutdown.clone(),
+        shutdown.resubscribe(),
     )
     .await;
     join_handles.push(submit_proofs_handle);
@@ -210,7 +210,7 @@ mod tests {
                 submitted_tasks,
                 crate::environment::Environment::Production,
                 "test-client-id".to_string(),
-                false, // not in once mode for tests
+                None, // not in max_tasks mode for tests
             )
             .await;
         });
