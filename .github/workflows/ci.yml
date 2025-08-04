@@ -83,16 +83,16 @@ jobs:
         working-directory: clients/cli
         run: cargo test --profile=ci-build --tests
 
-      - name: Run smoke test
+      - name: Run integration test
         working-directory: clients/cli
         timeout-minutes: 5
         run: |
           if [ -n "${{ secrets.SMOKE_TEST_NODE_IDS }}" ]; then
-            echo "Running smoke test with secret node IDs"
-            SMOKE_TEST_NODE_IDS="${{ secrets.SMOKE_TEST_NODE_IDS }}" ../../tests/smoke_test.sh ./target/ci-build/nexus-network --once
+            echo "Running integration test with secret node IDs"
+            SMOKE_TEST_NODE_IDS="${{ secrets.SMOKE_TEST_NODE_IDS }}" ../../tests/integration_test.sh ./target/ci-build/nexus-network --max-tasks 1
           else
-            echo "Running smoke test with fallback node IDs"
-            ../../tests/smoke_test.sh ./target/ci-build/nexus-network --once
+            echo "Running integration test with fallback node IDs"
+            ../../tests/integration_test.sh ./target/ci-build/nexus-network --max-tasks 1
           fi
 
       - name: Ensure checked in generated files are up to date

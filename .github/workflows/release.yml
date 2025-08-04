@@ -177,16 +177,16 @@ jobs:
         working-directory: clients/cli/target/${{ matrix.target }}/release/
         run: cp nexus-network ${{ matrix.target == 'x86_64-pc-windows-msvc' && '.exe' || '' }} ${{ matrix.binary_name }}
 
-      - name: Run smoke test
+      - name: Run integration test
         working-directory: clients/cli
         timeout-minutes: 5
         run: |
           if [ -n "${{ secrets.SMOKE_TEST_NODE_IDS }}" ]; then
-            echo "Running smoke test with secret node IDs"
-            SMOKE_TEST_NODE_IDS="${{ secrets.SMOKE_TEST_NODE_IDS }}" ../../tests/smoke_test.sh ./target/${{ matrix.target }}/release/${{ matrix.binary_name }} --once
+            echo "Running integration test with secret node IDs"
+            SMOKE_TEST_NODE_IDS="${{ secrets.SMOKE_TEST_NODE_IDS }}" ../../tests/integration_test.sh ./target/${{ matrix.target }}/release/${{ matrix.binary_name }} --max-tasks 1
           else
-            echo "Running smoke test with fallback node IDs"
-            ../../tests/smoke_test.sh ./target/${{ matrix.target }}/release/${{ matrix.binary_name }} --once
+            echo "Running integration test with fallback node IDs"
+            ../../tests/integration_test.sh ./target/${{ matrix.target }}/release/${{ matrix.binary_name }} --max-tasks 1
           fi
 
       # Upload the binary as an artifact (only if smoke test passes)
