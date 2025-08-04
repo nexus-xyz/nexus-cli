@@ -27,6 +27,9 @@ pub mod prover {
     /// When task queue drops below this threshold, fetch new tasks
     pub const LOW_WATER_MARK: usize = 1;
 
+    /// Delay the fetch task time by this amount of seconds
+    pub const FETCH_TASK_DELAY_TIME: u64 = 10;
+
     // =============================================================================
     // TIMING AND BACKOFF CONFIGURATION
     // =============================================================================
