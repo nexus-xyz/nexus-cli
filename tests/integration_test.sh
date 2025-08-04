@@ -36,7 +36,7 @@ print_info() {
 # Configuration
 NODE_ID="${2:-6166715}"  # Use second argument or default (fallback)
 MAX_TIMEOUT_SECONDS=180  # 3 minutes max timeout
-SUCCESS_PATTERN="Proof submitted"
+SUCCESS_PATTERN="Submitted!"
 JUST_ONCE=false
 
 # Check for --max-tasks parameter (could be in position 2 or 3)
@@ -119,18 +119,27 @@ for node_id in "${NODE_IDS[@]}"; do
         if [ $((i % 5)) -eq 0 ] && [ -f "$TEMP_RAW_OUTPUT" ]; then
             if grep -q "$SUCCESS_PATTERN" "$TEMP_RAW_OUTPUT" 2>/dev/null; then
                 print_status "Success pattern detected early, waiting for clean exit..."
-                # Give it 10 more seconds to exit cleanly
-                sleep 10
+                # Give it 30 more seconds to exit cleanly
+                for j in $(seq 1 30); do
+                    if ! kill -0 "$CLI_PID" 2>/dev/null; then
+                        print_info "CLI exited cleanly after success"
+                        wait "$CLI_PID" 2>/dev/null
+                        CLI_EXIT_CODE=$?
+                        break 2
+                    fi
+                    sleep 1
+                done
+                # If still running after 30 seconds, terminate it
                 if kill -0 "$CLI_PID" 2>/dev/null; then
-                    print_info "CLI still running, terminating..."
+                    print_info "CLI still running after 30s, terminating..."
                     kill -TERM "$CLI_PID" 2>/dev/null
                     sleep 2
                     if kill -0 "$CLI_PID" 2>/dev/null; then
                         kill -KILL "$CLI_PID" 2>/dev/null
                     fi
+                    wait "$CLI_PID" 2>/dev/null
+                    CLI_EXIT_CODE=$?
                 fi
-                wait "$CLI_PID" 2>/dev/null
-                CLI_EXIT_CODE=$?
                 break
             fi
         fi

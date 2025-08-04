@@ -522,7 +522,7 @@ pub async fn submit_proofs(
                             // Check if we've reached the max tasks limit
                             if let Some(max) = max_tasks {
                                 if tasks_processed >= max {
-                                    // Reached max tasks, exit the loop
+                                    // Reached max tasks, exit and let the CLI shut down naturally
                                     break;
                                 }
                             }
