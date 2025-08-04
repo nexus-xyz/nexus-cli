@@ -516,9 +516,16 @@ pub async fn submit_proofs(
                                 &completed_tasks,
                                 &environment,
                                 &client_id,
-                                max_tasks,
                                 &mut tasks_processed,
                             ).await;
+                            
+                            // Check if we've reached the max tasks limit
+                            if let Some(max) = max_tasks {
+                                if tasks_processed >= max {
+                                    // Reached max tasks, exit the loop
+                                    break;
+                                }
+                            }
                         }
                         None => break,
                     }
@@ -577,7 +584,6 @@ async fn submit_proof_to_orchestrator(
     completed_tasks: &TaskCache,
     environment: &Environment,
     client_id: &str,
-    max_tasks: Option<u32>,
     tasks_processed: &mut u32,
 ) {
     // Serialize proof for submission
@@ -605,14 +611,8 @@ async fn submit_proof_to_orchestrator(
             handle_submission_success(task, event_sender, completed_tasks, environment, client_id)
                 .await;
 
-            // Increment task counter and check if we've reached the limit
+            // Increment task counter
             *tasks_processed += 1;
-            if let Some(max) = max_tasks {
-                if *tasks_processed >= max {
-                    // Reached max tasks, exit the loop to stop processing
-                    break;
-                }
-            }
         }
         Err(e) => {
             handle_submission_error(
@@ -641,7 +641,6 @@ async fn process_proof_submission(
     completed_tasks: &TaskCache,
     environment: &Environment,
     client_id: &str,
-    max_tasks: Option<u32>,
     tasks_processed: &mut u32,
 ) {
     // Check for duplicate submissions
@@ -664,7 +663,6 @@ async fn process_proof_submission(
         completed_tasks,
         environment,
         client_id,
-        max_tasks,
         tasks_processed,
     )
     .await;
