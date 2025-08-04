@@ -611,7 +611,6 @@ async fn submit_proof_to_orchestrator(
                 if *tasks_processed >= max {
                     // Reached max tasks, stop processing new proofs
                     // The task will continue running but won't process more proofs
-                    return;
                 }
             }
         }
