@@ -518,7 +518,7 @@ pub async fn submit_proofs(
                                 &client_id,
                                 &mut tasks_processed,
                             ).await;
-                            
+
                             // Check if we've reached the max tasks limit
                             if let Some(max) = max_tasks {
                                 if tasks_processed >= max {
