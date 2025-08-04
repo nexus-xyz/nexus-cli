@@ -177,7 +177,7 @@ jobs:
         working-directory: clients/cli/target/${{ matrix.target }}/release/
         run: cp nexus-network ${{ matrix.target == 'x86_64-pc-windows-msvc' && '.exe' || '' }} ${{ matrix.binary_name }}
 
-      - name: Run integration test
+      - name: Integration Test
         working-directory: clients/cli
         timeout-minutes: 5
         run: |

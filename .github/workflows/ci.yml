@@ -79,11 +79,13 @@ jobs:
         working-directory: clients/cli
         run: cargo build --profile=ci-build
 
-      - name: Test
+      # Unit tests for CLI functionality
+      - name: Unit Tests
         working-directory: clients/cli
         run: cargo test --profile=ci-build --tests
 
-      - name: Run integration test
+      # Integration test against production orchestrator
+      - name: Integration Test
         working-directory: clients/cli
         timeout-minutes: 5
         run: |
