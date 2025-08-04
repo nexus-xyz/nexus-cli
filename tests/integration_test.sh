@@ -87,8 +87,10 @@ for node_id in "${NODE_IDS[@]}"; do
     # Start the CLI process and capture output with timeout
     print_info "Starting CLI process..."
     
-    # Start the CLI process in background
-    (ulimit -c 0; RUST_LOG=error "$BINARY_PATH" start --headless --max-tasks 1 --node-id $node_id > "$TEMP_RAW_OUTPUT" 2>&1) &
+    # Start the CLI process in background with live filtered output (whitelist approach)
+    (ulimit -c 0; RUST_LOG=error "$BINARY_PATH" start --headless --max-tasks 1 --node-id $node_id 2>&1) | \
+    tee "$TEMP_RAW_OUTPUT" | \
+    grep -E "^\[(INFO|WARN|ERROR)\]|Refresh \[|Success \[|Error \[|Warning \[|Notice \[|Task Fetcher:|Prover [0-9]+:|Proof Submitter:|Rate limited|Proof submitted|Fetching task|Processing input|Completed proving|proof completed|proof submitted|Version|CLI|Nexus|Starting|Stopping|Exiting|Failed" &
     CLI_PID=$!
     
     # Wait for either completion or timeout (2 minutes)
@@ -140,9 +142,6 @@ for node_id in "${NODE_IDS[@]}"; do
         # Process completed successfully
         print_info "CLI process completed successfully"
         
-        # Filter the raw output to remove debug spam and save to clean output file
-        grep -v -E "Program Header Information|Segment Type|File Offset|Virtual Address|Physical Address|File Size|Memory Size|Flags|Alignment|LOADABLE|Section|dynamic:|opcode=|fn3=|fn7=|li a|lw a|add a|ecall|ret|mv a|jr t|addi sp" "$TEMP_RAW_OUTPUT" > "$TEMP_OUTPUT"
-        
         if grep -q "$SUCCESS_PATTERN" "$TEMP_RAW_OUTPUT" 2>/dev/null; then
             print_status "Success pattern detected: $SUCCESS_PATTERN"
             SUCCESS_FOUND=true
@@ -161,17 +160,14 @@ for node_id in "${NODE_IDS[@]}"; do
             print_info "Process exited with code: $CLI_EXIT_CODE"
         fi
         
-        # Filter the raw output to remove debug spam and save to clean output file
-        grep -v -E "Program Header Information|Segment Type|File Offset|Virtual Address|Physical Address|File Size|Memory Size|Flags|Alignment|LOADABLE|Section|dynamic:|opcode=|fn3=|fn7=|li a|lw a|add a|ecall|ret|mv a|jr t|addi sp" "$TEMP_RAW_OUTPUT" > "$TEMP_OUTPUT"
-        
         if grep -q "Rate limited" "$TEMP_RAW_OUTPUT" 2>/dev/null; then
             RATE_LIMITED=true
         fi
     fi
     
-    # Show last few lines of CLI output for debugging
+    # Show last few lines of CLI output for debugging (whitelist filtered)
     print_info "CLI output (last 10 lines):"
-    tail -10 "$TEMP_OUTPUT" | while IFS= read -r line; do
+    grep -E "^\[(INFO|WARN|ERROR)\]|Refresh \[|Success \[|Error \[|Warning \[|Notice \[|Task Fetcher:|Prover [0-9]+:|Proof Submitter:|Rate limited|Proof submitted|Fetching task|Processing input|Completed proving|proof completed|proof submitted|Version|CLI|Nexus|Starting|Stopping|Exiting|Failed" "$TEMP_RAW_OUTPUT" | tail -10 | while IFS= read -r line; do
         echo "  $line"
     done
 
