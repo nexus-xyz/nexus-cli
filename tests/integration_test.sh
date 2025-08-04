@@ -79,16 +79,71 @@ NODE_IDS=($(printf '%s\n' "${NODE_IDS[@]}" | sort -R))
 # Try each node ID until one works
 for node_id in "${NODE_IDS[@]}"; do
     
-    # Use a temporary file to capture output
+    # Use temporary files to capture output
     TEMP_OUTPUT=$(mktemp)
-    trap "rm -f $TEMP_OUTPUT" EXIT
+    TEMP_RAW_OUTPUT=$(mktemp)
+    trap "rm -f $TEMP_OUTPUT $TEMP_RAW_OUTPUT" EXIT
 
-    # Start the CLI process and capture output
+    # Start the CLI process and capture output with timeout
     print_info "Starting CLI process..."
-    if (ulimit -c 0; RUST_LOG=error "$BINARY_PATH" start --headless --max-tasks 1 --node-id $node_id 2>&1 | awk '!/Program Header Information|Segment Type|File Offset|Virtual Address|Physical Address|File Size|Memory Size|Flags|Alignment|LOADABLE|Section|dynamic:|opcode=|fn3=|fn7=|li a|lw a|add a|ecall|ret/' | tee "$TEMP_OUTPUT"); then
+    
+    # Start the CLI process in background
+    (ulimit -c 0; RUST_LOG=error "$BINARY_PATH" start --headless --max-tasks 1 --node-id $node_id > "$TEMP_RAW_OUTPUT" 2>&1) &
+    CLI_PID=$!
+    
+    # Wait for either completion or timeout (2 minutes)
+    TIMEOUT=120
+    for i in $(seq 1 $TIMEOUT); do
+        if ! kill -0 "$CLI_PID" 2>/dev/null; then
+            # Process has finished
+            wait "$CLI_PID"
+            CLI_EXIT_CODE=$?
+            break
+        fi
+        
+        # Check for success pattern every 5 seconds
+        if [ $((i % 5)) -eq 0 ] && [ -f "$TEMP_RAW_OUTPUT" ]; then
+            if grep -q "$SUCCESS_PATTERN" "$TEMP_RAW_OUTPUT" 2>/dev/null; then
+                print_status "Success pattern detected early, waiting for clean exit..."
+                # Give it 10 more seconds to exit cleanly
+                sleep 10
+                if kill -0 "$CLI_PID" 2>/dev/null; then
+                    print_info "CLI still running, terminating..."
+                    kill -TERM "$CLI_PID" 2>/dev/null
+                    sleep 2
+                    if kill -0 "$CLI_PID" 2>/dev/null; then
+                        kill -KILL "$CLI_PID" 2>/dev/null
+                    fi
+                fi
+                wait "$CLI_PID" 2>/dev/null
+                CLI_EXIT_CODE=$?
+                break
+            fi
+        fi
+        
+        sleep 1
+    done
+    
+    # If we reached timeout, kill the process
+    if kill -0 "$CLI_PID" 2>/dev/null; then
+        print_info "CLI process timed out after $TIMEOUT seconds, terminating..."
+        kill -TERM "$CLI_PID" 2>/dev/null
+        sleep 2
+        if kill -0 "$CLI_PID" 2>/dev/null; then
+            kill -KILL "$CLI_PID" 2>/dev/null
+        fi
+        wait "$CLI_PID" 2>/dev/null
+        CLI_EXIT_CODE=$?
+    fi
+    
+    if [ "$CLI_EXIT_CODE" -eq 0 ]; then
         # Process completed successfully
         print_info "CLI process completed successfully"
-        if grep -q "$SUCCESS_PATTERN" "$TEMP_OUTPUT" 2>/dev/null; then
+        
+        # Filter the raw output to remove debug spam and save to clean output file
+        grep -v -E "Program Header Information|Segment Type|File Offset|Virtual Address|Physical Address|File Size|Memory Size|Flags|Alignment|LOADABLE|Section|dynamic:|opcode=|fn3=|fn7=|li a|lw a|add a|ecall|ret|mv a|jr t|addi sp" "$TEMP_RAW_OUTPUT" > "$TEMP_OUTPUT"
+        
+        if grep -q "$SUCCESS_PATTERN" "$TEMP_RAW_OUTPUT" 2>/dev/null; then
             print_status "Success pattern detected: $SUCCESS_PATTERN"
             SUCCESS_FOUND=true
         else
@@ -96,18 +151,20 @@ for node_id in "${NODE_IDS[@]}"; do
         fi
     else
         # Process failed or was terminated
-        EXIT_CODE=$?
-        if [ $EXIT_CODE -eq 143 ]; then
+        if [ "$CLI_EXIT_CODE" -eq 143 ]; then
             # Process was terminated by SIGTERM (timeout or signal)
             print_info "Process terminated by signal"
-        elif [ $EXIT_CODE -eq 124 ]; then
+        elif [ "$CLI_EXIT_CODE" -eq 124 ]; then
             # Process timed out
             print_info "Process timed out"
         else
-            print_info "Process exited with code: $EXIT_CODE"
+            print_info "Process exited with code: $CLI_EXIT_CODE"
         fi
         
-        if grep -q "Rate limited" "$TEMP_OUTPUT" 2>/dev/null; then
+        # Filter the raw output to remove debug spam and save to clean output file
+        grep -v -E "Program Header Information|Segment Type|File Offset|Virtual Address|Physical Address|File Size|Memory Size|Flags|Alignment|LOADABLE|Section|dynamic:|opcode=|fn3=|fn7=|li a|lw a|add a|ecall|ret|mv a|jr t|addi sp" "$TEMP_RAW_OUTPUT" > "$TEMP_OUTPUT"
+        
+        if grep -q "Rate limited" "$TEMP_RAW_OUTPUT" 2>/dev/null; then
             RATE_LIMITED=true
         fi
     fi
@@ -131,8 +188,8 @@ for node_id in "${NODE_IDS[@]}"; do
         fi
     fi
     
-    # Clean up temp file
-    rm -f "$TEMP_OUTPUT"
+    # Clean up temp files
+    rm -f "$TEMP_OUTPUT" "$TEMP_RAW_OUTPUT"
 done
 
 # If we get here, none of the node IDs worked
