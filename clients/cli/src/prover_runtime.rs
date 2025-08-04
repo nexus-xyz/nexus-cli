@@ -109,6 +109,8 @@ pub async fn start_authenticated_workers(
         completed_tasks.clone(),
         environment,
         client_id,
+        once,
+        shutdown.clone(),
     )
     .await;
     join_handles.push(submit_proofs_handle);

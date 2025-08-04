@@ -492,6 +492,8 @@ pub async fn submit_proofs(
     completed_tasks: TaskCache,
     environment: Environment,
     client_id: String,
+    once: bool,
+    shutdown_sender: broadcast::Sender<()>,
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
         loop {
@@ -510,6 +512,8 @@ pub async fn submit_proofs(
                                 &completed_tasks,
                                 &environment,
                                 &client_id,
+                                once,
+                                &shutdown_sender,
                             ).await;
                         }
                         None => break,
@@ -569,6 +573,8 @@ async fn submit_proof_to_orchestrator(
     completed_tasks: &TaskCache,
     environment: &Environment,
     client_id: &str,
+    once: bool,
+    shutdown_sender: &broadcast::Sender<()>,
 ) {
     // Serialize proof for submission
     let proof_bytes = postcard::to_allocvec(proof).expect("Failed to serialize proof");
@@ -594,6 +600,11 @@ async fn submit_proof_to_orchestrator(
             ));
             handle_submission_success(task, event_sender, completed_tasks, environment, client_id)
                 .await;
+            
+            // In --once mode, trigger shutdown after successful proof submission
+            if once {
+                let _ = shutdown_sender.send(());
+            }
         }
         Err(e) => {
             handle_submission_error(
@@ -622,6 +633,8 @@ async fn process_proof_submission(
     completed_tasks: &TaskCache,
     environment: &Environment,
     client_id: &str,
+    once: bool,
+    shutdown_sender: &broadcast::Sender<()>,
 ) {
     // Check for duplicate submissions
     if check_duplicate_submission(&task, completed_tasks, event_sender).await {
@@ -643,6 +656,8 @@ async fn process_proof_submission(
         completed_tasks,
         environment,
         client_id,
+        once,
+        shutdown_sender,
     )
     .await;
 }
