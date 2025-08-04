@@ -163,7 +163,6 @@ pub async fn fetch_prover_tasks(
     max_tasks: Option<u32>,
 ) {
     let mut state = TaskFetchState::new();
-    let mut tasks_processed = 0;
 
     loop {
         tokio::select! {
@@ -195,13 +194,7 @@ pub async fn fetch_prover_tasks(
                         }
                     }
 
-                    // Check if we've reached the maximum number of tasks
-                    if let Some(max) = max_tasks {
-                        tasks_processed += 1;
-                        if tasks_processed >= max {
-                            return;
-                        }
-                    }
+
                 }
             }
         }
@@ -522,8 +515,8 @@ pub async fn submit_proofs(
                             // Check if we've reached the max tasks limit
                             if let Some(max) = max_tasks {
                                 if tasks_processed >= max {
-                                    // Reached max tasks, exit and let the CLI shut down naturally
-                                    break;
+                                    // Reached max tasks, exit cleanly
+                                    std::process::exit(0);
                                 }
                             }
                         }
