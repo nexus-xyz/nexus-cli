@@ -110,7 +110,7 @@ pub async fn start_authenticated_workers(
         environment,
         client_id,
         max_tasks,
-        shutdown.resubscribe(),
+        shutdown_sender.clone(),
     )
     .await;
     join_handles.push(submit_proofs_handle);
