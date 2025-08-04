@@ -39,10 +39,10 @@ MAX_TIMEOUT_SECONDS=180  # 3 minutes max timeout
 SUCCESS_PATTERN="Proof submitted"
 JUST_ONCE=false
 
-# Check for --once parameter (could be in position 2 or 3)
-if [[ "$2" == "--once" ]] || [[ "$3" == "--once" ]]; then
+# Check for --max-tasks parameter (could be in position 2 or 3)
+if [[ "$2" == "--max-tasks" ]] || [[ "$3" == "--max-tasks" ]]; then
     JUST_ONCE=true
-    print_info "Running in --once mode - will exit after first proof or rate limiting"
+    print_info "Running with max-tasks=1 - will exit after first proof or rate limiting"
 fi
 
 # Parse node IDs from environment variable (GitHub secret) or use fallback
@@ -85,7 +85,7 @@ for node_id in "${NODE_IDS[@]}"; do
 
     # Start the CLI process and capture output
     print_info "Starting CLI process..."
-    if (ulimit -c 0; "$BINARY_PATH" start --headless --once --node-id $node_id 2>&1 | tee "$TEMP_OUTPUT"); then
+    if (ulimit -c 0; "$BINARY_PATH" start --headless --max-tasks 1 --node-id $node_id 2>&1 | tee "$TEMP_OUTPUT"); then
         # Process completed successfully
         print_info "CLI process completed successfully"
         if grep -q "$SUCCESS_PATTERN" "$TEMP_OUTPUT" 2>/dev/null; then

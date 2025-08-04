@@ -160,9 +160,10 @@ pub async fn fetch_prover_tasks(
     recent_tasks: TaskCache,
     environment: Environment,
     client_id: String,
-    once: bool,
+    max_tasks: Option<u32>,
 ) {
     let mut state = TaskFetchState::new();
+    let mut tasks_processed = 0;
 
     loop {
         tokio::select! {
@@ -194,9 +195,12 @@ pub async fn fetch_prover_tasks(
                         }
                     }
 
-                    // In --once mode, stop fetching after first task
-                    if once {
-                        return;
+                    // Check if we've reached the maximum number of tasks
+                    if let Some(max) = max_tasks {
+                        tasks_processed += 1;
+                        if tasks_processed >= max {
+                            return;
+                        }
                     }
                 }
             }
@@ -492,10 +496,11 @@ pub async fn submit_proofs(
     completed_tasks: TaskCache,
     environment: Environment,
     client_id: String,
-    once: bool,
+    max_tasks: Option<u32>,
     shutdown_sender: broadcast::Sender<()>,
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
+        let mut tasks_processed = 0;
         loop {
             tokio::select! {
                 maybe_item = results.recv() => {
@@ -512,7 +517,8 @@ pub async fn submit_proofs(
                                 &completed_tasks,
                                 &environment,
                                 &client_id,
-                                once,
+                                max_tasks,
+                                &mut tasks_processed,
                                 &shutdown_sender,
                             ).await;
                         }
@@ -573,7 +579,8 @@ async fn submit_proof_to_orchestrator(
     completed_tasks: &TaskCache,
     environment: &Environment,
     client_id: &str,
-    once: bool,
+    max_tasks: Option<u32>,
+    tasks_processed: &mut u32,
     shutdown_sender: &broadcast::Sender<()>,
 ) {
     // Serialize proof for submission
@@ -600,10 +607,13 @@ async fn submit_proof_to_orchestrator(
             ));
             handle_submission_success(task, event_sender, completed_tasks, environment, client_id)
                 .await;
-            
-            // In --once mode, trigger shutdown after successful proof submission
-            if once {
-                let _ = shutdown_sender.send(());
+
+            // Increment task counter and check if we've reached the limit
+            *tasks_processed += 1;
+            if let Some(max) = max_tasks {
+                if *tasks_processed >= max {
+                    let _ = shutdown_sender.send(());
+                }
             }
         }
         Err(e) => {
@@ -633,7 +643,8 @@ async fn process_proof_submission(
     completed_tasks: &TaskCache,
     environment: &Environment,
     client_id: &str,
-    once: bool,
+    max_tasks: Option<u32>,
+    tasks_processed: &mut u32,
     shutdown_sender: &broadcast::Sender<()>,
 ) {
     // Check for duplicate submissions
@@ -656,7 +667,8 @@ async fn process_proof_submission(
         completed_tasks,
         environment,
         client_id,
-        once,
+        max_tasks,
+        tasks_processed,
         shutdown_sender,
     )
     .await;

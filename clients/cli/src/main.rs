@@ -74,9 +74,9 @@ enum Command {
         #[arg(long = "no-background-color", action = ArgAction::SetTrue)]
         no_background_color: bool,
 
-        /// Run once and exit after first proof submission
-        #[arg(long = "once", action = ArgAction::SetTrue)]
-        once: bool,
+        /// Maximum number of tasks to process before exiting (default: unlimited)
+        #[arg(long = "max-tasks", value_name = "MAX_TASKS")]
+        max_tasks: Option<u32>,
     },
     /// Register a new user
     RegisterUser {
@@ -134,7 +134,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 headless,
                 max_threads,
                 no_background_color,
-                once,
+                max_tasks,
             )
             .await
         }
@@ -169,7 +169,7 @@ async fn start(
     headless: bool,
     max_threads: Option<u32>,
     no_background_color: bool,
-    once: bool,
+    max_tasks: Option<u32>,
 ) -> Result<(), Box<dyn Error>> {
     // Check version requirements before starting any workers
     match VersionRequirements::fetch().await {
