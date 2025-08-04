@@ -69,7 +69,6 @@ pub async fn start_authenticated_workers(
                 enqueued_tasks,
                 environment,
                 client_id,
-                max_tasks,
             )
             .await;
         })
@@ -209,7 +208,6 @@ mod tests {
                 submitted_tasks,
                 crate::environment::Environment::Production,
                 "test-client-id".to_string(),
-                None, // not in max_tasks mode for tests
             )
             .await;
         });
