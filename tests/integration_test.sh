@@ -87,14 +87,12 @@ for node_id in "${NODE_IDS[@]}"; do
     # Start the CLI process and capture output with timeout
     print_info "Starting CLI process..."
     
-    # Start the CLI process in background with live filtered output (whitelist approach)
-    (ulimit -c 0; RUST_LOG=error "$BINARY_PATH" start --headless --max-tasks 1 --node-id $node_id 2>&1) | \
-    tee "$TEMP_RAW_OUTPUT" | \
-    grep -E "^\[(INFO|WARN|ERROR)\]|Refresh \[|Success \[|Error \[|Warning \[|Notice \[|Task Fetcher:|Prover [0-9]+:|Proof Submitter:|Rate limited|Proof submitted|Fetching task|Processing input|Completed proving|proof completed|proof submitted|Version|CLI|Nexus|Starting|Stopping|Exiting|Failed" &
+    # Start the CLI process in background (release mode should have clean output)
+    (ulimit -c 0; RUST_LOG=warn "$BINARY_PATH" start --headless --max-tasks 1 --node-id $node_id 2>&1 | tee "$TEMP_RAW_OUTPUT") &
     CLI_PID=$!
     
-    # Wait for either completion or timeout (2 minutes)
-    TIMEOUT=120
+    # Wait for either completion or timeout (60 seconds)
+    TIMEOUT=60
     for i in $(seq 1 $TIMEOUT); do
         if ! kill -0 "$CLI_PID" 2>/dev/null; then
             # Process has finished
@@ -103,7 +101,21 @@ for node_id in "${NODE_IDS[@]}"; do
             break
         fi
         
-        # Check for success pattern every 5 seconds
+        # Check for success pattern every 5 seconds and show progress
+        if [ $((i % 10)) -eq 0 ]; then
+            print_info "CLI still running... ($i/$TIMEOUT seconds)"
+            if [ -f "$TEMP_RAW_OUTPUT" ]; then
+                # Show the last few lines to see progress
+                LAST_LINES=$(tail -3 "$TEMP_RAW_OUTPUT" 2>/dev/null)
+                if [ -n "$LAST_LINES" ]; then
+                    print_info "Recent activity:"
+                    echo "$LAST_LINES" | while IFS= read -r line; do
+                        echo "    $line"
+                    done
+                fi
+            fi
+        fi
+        
         if [ $((i % 5)) -eq 0 ] && [ -f "$TEMP_RAW_OUTPUT" ]; then
             if grep -q "$SUCCESS_PATTERN" "$TEMP_RAW_OUTPUT" 2>/dev/null; then
                 print_status "Success pattern detected early, waiting for clean exit..."
@@ -165,9 +177,9 @@ for node_id in "${NODE_IDS[@]}"; do
         fi
     fi
     
-    # Show last few lines of CLI output for debugging (whitelist filtered)
+    # Show last few lines of CLI output for debugging
     print_info "CLI output (last 10 lines):"
-    grep -E "^\[(INFO|WARN|ERROR)\]|Refresh \[|Success \[|Error \[|Warning \[|Notice \[|Task Fetcher:|Prover [0-9]+:|Proof Submitter:|Rate limited|Proof submitted|Fetching task|Processing input|Completed proving|proof completed|proof submitted|Version|CLI|Nexus|Starting|Stopping|Exiting|Failed" "$TEMP_RAW_OUTPUT" | tail -10 | while IFS= read -r line; do
+    tail -10 "$TEMP_RAW_OUTPUT" 2>/dev/null | while IFS= read -r line; do
         echo "  $line"
     done
 
