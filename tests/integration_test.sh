@@ -85,7 +85,7 @@ for node_id in "${NODE_IDS[@]}"; do
 
     # Start the CLI process and capture output
     print_info "Starting CLI process..."
-    if (ulimit -c 0; "$BINARY_PATH" start --headless --max-tasks 1 --node-id $node_id 2>&1 | tee "$TEMP_OUTPUT"); then
+    if (ulimit -c 0; RUST_LOG=warn "$BINARY_PATH" start --headless --max-tasks 1 --node-id $node_id 2>&1 | tee "$TEMP_OUTPUT"); then
         # Process completed successfully
         print_info "CLI process completed successfully"
         if grep -q "$SUCCESS_PATTERN" "$TEMP_OUTPUT" 2>/dev/null; then
