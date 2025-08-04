@@ -27,7 +27,6 @@ pub async fn start_authenticated_workers(
     environment: Environment,
     client_id: String,
     max_tasks: Option<u32>,
-    shutdown_sender: broadcast::Sender<()>,
 ) -> (mpsc::Receiver<Event>, Vec<JoinHandle<()>>) {
     let mut join_handles = Vec::new();
     // Worker events
@@ -111,7 +110,6 @@ pub async fn start_authenticated_workers(
         environment,
         client_id,
         max_tasks,
-        shutdown_sender.clone(),
     )
     .await;
     join_handles.push(submit_proofs_handle);

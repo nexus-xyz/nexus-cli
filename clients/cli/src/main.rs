@@ -299,7 +299,6 @@ async fn start(
                 env.clone(),
                 client_id,
                 max_tasks,
-                shutdown_sender.clone(),
             )
             .await
         }

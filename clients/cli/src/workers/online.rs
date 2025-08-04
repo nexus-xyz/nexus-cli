@@ -497,7 +497,6 @@ pub async fn submit_proofs(
     environment: Environment,
     client_id: String,
     max_tasks: Option<u32>,
-    shutdown_sender: broadcast::Sender<()>,
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
         let mut tasks_processed = 0;
@@ -519,7 +518,6 @@ pub async fn submit_proofs(
                                 &client_id,
                                 max_tasks,
                                 &mut tasks_processed,
-                                &shutdown_sender,
                             ).await;
                         }
                         None => break,
@@ -581,7 +579,6 @@ async fn submit_proof_to_orchestrator(
     client_id: &str,
     max_tasks: Option<u32>,
     tasks_processed: &mut u32,
-    shutdown_sender: &broadcast::Sender<()>,
 ) {
     // Serialize proof for submission
     let proof_bytes = postcard::to_allocvec(proof).expect("Failed to serialize proof");
@@ -612,7 +609,9 @@ async fn submit_proof_to_orchestrator(
             *tasks_processed += 1;
             if let Some(max) = max_tasks {
                 if *tasks_processed >= max {
-                    let _ = shutdown_sender.send(());
+                    // Reached max tasks, stop processing new proofs
+                    // The task will continue running but won't process more proofs
+                    return;
                 }
             }
         }
@@ -645,7 +644,6 @@ async fn process_proof_submission(
     client_id: &str,
     max_tasks: Option<u32>,
     tasks_processed: &mut u32,
-    shutdown_sender: &broadcast::Sender<()>,
 ) {
     // Check for duplicate submissions
     if check_duplicate_submission(&task, completed_tasks, event_sender).await {
@@ -669,7 +667,6 @@ async fn process_proof_submission(
         client_id,
         max_tasks,
         tasks_processed,
-        shutdown_sender,
     )
     .await;
 }
