@@ -609,8 +609,8 @@ async fn submit_proof_to_orchestrator(
             *tasks_processed += 1;
             if let Some(max) = max_tasks {
                 if *tasks_processed >= max {
-                    // Reached max tasks, stop processing new proofs
-                    // The task will continue running but won't process more proofs
+                    // Reached max tasks, exit the loop to stop processing
+                    break;
                 }
             }
         }
