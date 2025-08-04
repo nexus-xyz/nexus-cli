@@ -658,15 +658,24 @@ mod tests {
 
         // Test setting a reasonable retry time
         state.set_backoff_from_server(60);
-        assert_eq!(state.backoff_duration, Duration::from_secs(60));
+        assert_eq!(
+            state.backoff_duration,
+            Duration::from_secs(60 + FETCH_TASK_DELAY_TIME)
+        );
 
         // Test that longer retry times are respected (no capping)
         state.set_backoff_from_server(300); // 5 minutes
-        assert_eq!(state.backoff_duration, Duration::from_secs(300));
+        assert_eq!(
+            state.backoff_duration,
+            Duration::from_secs(300 + FETCH_TASK_DELAY_TIME)
+        );
 
         // Test zero retry time
         state.set_backoff_from_server(0);
-        assert_eq!(state.backoff_duration, Duration::from_secs(0));
+        assert_eq!(
+            state.backoff_duration,
+            Duration::from_secs(FETCH_TASK_DELAY_TIME)
+        );
     }
 
     #[test]
@@ -675,6 +684,9 @@ mod tests {
 
         // Test that very long retry times are respected
         state.set_backoff_from_server(3600); // 1 hour
-        assert_eq!(state.backoff_duration, Duration::from_secs(3600));
+        assert_eq!(
+            state.backoff_duration,
+            Duration::from_secs(3600 + FETCH_TASK_DELAY_TIME)
+        );
     }
 }
