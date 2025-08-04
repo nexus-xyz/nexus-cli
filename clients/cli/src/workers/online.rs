@@ -9,7 +9,9 @@ use crate::analytics::{
     track_got_task, track_proof_accepted, track_proof_submission_error,
     track_proof_submission_success,
 };
-use crate::consts::prover::{BACKOFF_DURATION, LOW_WATER_MARK, TASK_QUEUE_SIZE};
+use crate::consts::prover::{
+    BACKOFF_DURATION, FETCH_TASK_DELAY_TIME, LOW_WATER_MARK, TASK_QUEUE_SIZE,
+};
 use crate::environment::Environment;
 use crate::error_classifier::{ErrorClassifier, LogLevel};
 use crate::events::Event;
@@ -110,7 +112,8 @@ impl TaskFetchState {
     /// Set backoff duration from server's Retry-After header (in seconds)
     /// Respects server's exact timing for rate limit compliance
     pub fn set_backoff_from_server(&mut self, retry_after_seconds: u32) {
-        self.backoff_duration = Duration::from_secs(retry_after_seconds as u64);
+        self.backoff_duration =
+            Duration::from_secs(retry_after_seconds as u64 + FETCH_TASK_DELAY_TIME);
     }
 
     /// Increase backoff duration for error handling (exponential backoff)
@@ -239,33 +242,7 @@ async fn process_new_task(
         client_id.to_string(),
     ));
 
-    log_successful_task_addition(sender, event_sender).await;
-
     Ok(())
-}
-
-/// Log successful task addition with queue status
-async fn log_successful_task_addition(
-    sender: &mpsc::Sender<Task>,
-    event_sender: &mpsc::Sender<Event>,
-) {
-    let current_queue_level = TASK_QUEUE_SIZE - sender.capacity();
-    let queue_percentage = (current_queue_level as f64 / TASK_QUEUE_SIZE as f64 * 100.0) as u32;
-
-    send_event(
-        event_sender,
-        format!(
-            "Queue status: +1 task → {} total ({}% full)",
-            current_queue_level, queue_percentage
-        ),
-        crate::events::EventType::Waiting,
-        if queue_percentage >= 80 {
-            LogLevel::Info
-        } else {
-            LogLevel::Debug
-        },
-    )
-    .await;
 }
 
 /// Handle fetch timeout with backoff and logging
@@ -383,6 +360,22 @@ async fn handle_fetch_error(
                 )
                 .await;
             }
+        }
+        OrchestratorError::Http {
+            status, headers, ..
+        } => {
+            // Print out all headers
+            let mut msg = String::new();
+            for (key, value) in headers {
+                msg.push_str(&format!("{}: {}\n", key, value));
+            }
+            send_event(
+                event_sender,
+                format!("HTTP Error {}: {}", status, msg),
+                crate::events::EventType::Error,
+                LogLevel::Warn,
+            )
+            .await;
         }
         _ => {
             state.increase_backoff_for_error();
@@ -665,15 +658,24 @@ mod tests {
 
         // Test setting a reasonable retry time
         state.set_backoff_from_server(60);
-        assert_eq!(state.backoff_duration, Duration::from_secs(60));
+        assert_eq!(
+            state.backoff_duration,
+            Duration::from_secs(60 + FETCH_TASK_DELAY_TIME)
+        );
 
         // Test that longer retry times are respected (no capping)
         state.set_backoff_from_server(300); // 5 minutes
-        assert_eq!(state.backoff_duration, Duration::from_secs(300));
+        assert_eq!(
+            state.backoff_duration,
+            Duration::from_secs(300 + FETCH_TASK_DELAY_TIME)
+        );
 
         // Test zero retry time
         state.set_backoff_from_server(0);
-        assert_eq!(state.backoff_duration, Duration::from_secs(0));
+        assert_eq!(
+            state.backoff_duration,
+            Duration::from_secs(FETCH_TASK_DELAY_TIME)
+        );
     }
 
     #[test]
@@ -682,6 +684,9 @@ mod tests {
 
         // Test that very long retry times are respected
         state.set_backoff_from_server(3600); // 1 hour
-        assert_eq!(state.backoff_duration, Duration::from_secs(3600));
+        assert_eq!(
+            state.backoff_duration,
+            Duration::from_secs(3600 + FETCH_TASK_DELAY_TIME)
+        );
     }
 }
