@@ -160,7 +160,6 @@ pub async fn fetch_prover_tasks(
     recent_tasks: TaskCache,
     environment: Environment,
     client_id: String,
-    max_tasks: Option<u32>,
 ) {
     let mut state = TaskFetchState::new();
 
