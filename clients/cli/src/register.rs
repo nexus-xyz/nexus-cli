@@ -3,9 +3,7 @@
 use crate::config::Config;
 use crate::keys;
 use crate::orchestrator::Orchestrator;
-use crate::pretty::{
-    handle_cmd_error, print_cmd_error, print_cmd_info, print_friendly_error_header,
-};
+use crate::session::messages::print_orchestrator_traffic_notice;
 use std::path::Path;
 
 /// Registers a user with the orchestrator.
@@ -21,7 +19,10 @@ pub async fn register_user(
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Check if the wallet address is valid.
     if !keys::is_valid_eth_address(wallet_address) {
-        print_cmd_error!("❌ Invalid Ethereum wallet address.");
+        crate::cli_messages::print_error(
+            "Invalid Ethereum wallet address",
+            Some(&format!("It should be a 42-character hex string starting with '0x', got: {}", wallet_address))
+        );
         let err_msg = format!(
             "Invalid Ethereum wallet address: {}. It should be a 42-character hex string starting with '0x'.",
             wallet_address
@@ -35,16 +36,14 @@ pub async fn register_user(
             if config.wallet_address.to_lowercase() == wallet_address.to_lowercase()
                 && !config.user_id.is_empty()
             {
-                print_cmd_info!(
-                    "User already registered.",
-                    "User ID: {}, Wallet Address: {}",
-                    config.user_id,
-                    config.wallet_address
+                crate::cli_messages::print_info(
+                    "User already registered",
+                    &format!("User ID: {}, Wallet Address: {}", config.user_id, config.wallet_address)
                 );
 
                 // Guide user to next step
-                print_cmd_info!(
-                    "✅ User registration complete!",
+                crate::cli_messages::print_success(
+                    "User registration complete!",
                     "Next step - register a node: nexus-cli register-node"
                 );
                 return Ok(());
@@ -54,11 +53,9 @@ pub async fn register_user(
 
     // Check if the wallet address is already registered with the orchestrator.
     if let Ok(user_id) = orchestrator.get_user(wallet_address).await {
-        print_cmd_info!(
-            "Wallet address is already registered with user ID.",
-            "User ID: {}, Wallet Address: {}",
-            wallet_address,
-            user_id
+        crate::cli_messages::print_info(
+            "Wallet address is already registered",
+            &format!("User ID: {}, Wallet Address: {}", user_id, wallet_address)
         );
         let config = Config::new(
             user_id,
@@ -69,11 +66,14 @@ pub async fn register_user(
         // Save the configuration file with the user ID and wallet address.
         config
             .save(config_path)
-            .map_err(|e| handle_cmd_error!(e, "Failed to save config."))?;
+            .map_err(|e| {
+                crate::cli_messages::print_error("Failed to save config", Some(&e.to_string()));
+                e
+            })?;
 
         // Guide user to next step
-        print_cmd_info!(
-            "✅ User registration complete!",
+        crate::cli_messages::print_success(
+            "User registration complete!",
             "Next step - register a node: nexus-cli register-node"
         );
 
@@ -83,13 +83,18 @@ pub async fn register_user(
     // Otherwise, register the user with the orchestrator.
     let uuid = uuid::Uuid::new_v4().to_string();
     match orchestrator.register_user(&uuid, wallet_address).await {
-        Ok(_) => println!("User {} registered successfully.", uuid),
+        Ok(_) => {
+            crate::cli_messages::print_success("User registered successfully", &format!("User ID: {}", uuid));
+        }
         Err(e) => {
-            print_friendly_error_header();
-            if let Some(pretty_error) = e.to_pretty() {
-                print_cmd_error!("Failed to register user.", "{}", pretty_error);
+            // Check if this looks like an orchestrator traffic issue
+            let error_str = e.to_string();
+            if error_str.contains("traffic") || error_str.contains("rate") || error_str.contains("429") {
+                print_orchestrator_traffic_notice();
+            } else if let Some(pretty_error) = e.to_pretty() {
+                crate::cli_messages::print_error("Failed to register user", Some(&pretty_error));
             } else {
-                print_cmd_error!("Failed to register user. Unable to pretty print error.");
+                crate::cli_messages::print_error("Failed to register user", Some(&error_str));
             }
 
             return Err(e.into());
@@ -105,11 +110,14 @@ pub async fn register_user(
     );
     config
         .save(config_path)
-        .map_err(|e| handle_cmd_error!(e, "Failed to save config."))?;
+        .map_err(|e| {
+            crate::cli_messages::print_error("Failed to save config", Some(&e.to_string()));
+            e
+        })?;
 
     // Guide user to next step
-    print_cmd_info!(
-        "✅ User registration complete!",
+    crate::cli_messages::print_success(
+        "User registration complete!",
         "Next step - register a node: nexus-cli register-node"
     );
 
@@ -131,10 +139,15 @@ pub async fn register_node(
     // Requires: a config file with a registered user.
     // If a node_id is provided, update the config with it and use it.
     // If no node_id is provided, generate a new one.
-    let mut config = Config::load_from_file(config_path)
-        .map_err(|e| handle_cmd_error!(e, "Failed to load config, please register a user first"))?;
+    let mut config = Config::load_from_file(config_path).map_err(|e| {
+        crate::cli_messages::print_error(
+            "Failed to load config, please register a user first",
+            Some(&e.to_string()),
+        );
+        e
+    })?;
     if config.user_id.is_empty() {
-        print_cmd_error!("❌ No user registered. Please register a user first.");
+        crate::cli_messages::print_error("No user registered", Some("Please register a user first."));
         return Err(Box::from(
             "No user registered. Please register a user first.",
         ));
@@ -145,13 +158,15 @@ pub async fn register_node(
         config.node_id = node_id.to_string();
         config
             .save(config_path)
-            .map_err(|e| handle_cmd_error!(e, "Failed to save updated config."))?;
+            .map_err(|e| {
+                crate::cli_messages::print_error("Failed to save updated config", Some(&e.to_string()));
+                e
+            })?;
 
         // Guide user to next step
-        print_cmd_info!(
-            "✅ Node registration complete!",
-            "Successfully registered node with ID: {}. Next step - start proving: nexus-cli start",
-            node_id
+        crate::cli_messages::print_success(
+            "Node registration complete!",
+            &format!("Successfully registered node with ID: {}. Next step - start proving: nexus-cli start", node_id)
         );
 
         Ok(())
@@ -167,20 +182,26 @@ pub async fn register_node(
                 updated_config.node_id = node_id.clone();
                 updated_config
                     .save(config_path)
-                    .map_err(|e| handle_cmd_error!(e, "Failed to save updated config."))?;
+                    .map_err(|e| {
+                        crate::cli_messages::print_error("Failed to save updated config", Some(&e.to_string()));
+                        e
+                    })?;
 
                 // Guide user to next step
-                print_cmd_info!(
-                    "✅ Node registration complete!",
-                    "Successfully registered node with ID: {}. Next step - start proving: nexus-cli start",
-                    node_id
+                crate::cli_messages::print_success(
+                    "Node registration complete!",
+                    &format!("Successfully registered node with ID: {}. Next step - start proving: nexus-cli start", node_id)
                 );
 
                 Ok(())
             }
             Err(e) => {
-                print_friendly_error_header();
-                print_cmd_error!("Failed to register node.");
+                let error_str = e.to_string();
+                if error_str.contains("traffic") || error_str.contains("rate") || error_str.contains("429") {
+                    print_orchestrator_traffic_notice();
+                } else {
+                    crate::cli_messages::print_error("Failed to register node", Some(&error_str));
+                }
                 Err(e.into())
             }
         }
