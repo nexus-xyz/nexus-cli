@@ -76,9 +76,12 @@ impl VersionRequirements {
                                 // Return comprehensive error with all attempts
                                 Err(VersionRequirementsError::Fetch(format!(
                                     "Failed to fetch from all sources. Primary ({}): {}. Cache ({}): {}. Fallback ({}): {}",
-                                    PRIMARY_CONFIG_URL, primary_error,
-                                    CACHE_CONFIG_URL, cache_error,
-                                    FALLBACK_CONFIG_URL, fallback_error
+                                    PRIMARY_CONFIG_URL,
+                                    primary_error,
+                                    CACHE_CONFIG_URL,
+                                    cache_error,
+                                    FALLBACK_CONFIG_URL,
+                                    fallback_error
                                 )))
                             }
                         }
