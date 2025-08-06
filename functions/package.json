@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Firebase Cloud Functions for Nexus CLI",
   "engines": {
-    "node": "18"
+    "node": "20"
   },
   "main": "lib/index.js",
   "scripts": {

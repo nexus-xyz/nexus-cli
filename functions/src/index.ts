@@ -55,7 +55,8 @@ export const version = onRequest(
           "X-Cache": "HIT",
         });
         
-        return res.status(200).json(cachedResponse.data);
+        res.status(200).json(cachedResponse.data);
+        return;
       }
 
       // Cache miss - fetch from origin
@@ -96,7 +97,8 @@ export const version = onRequest(
         });
 
         res.set(responseHeaders);
-        return res.status(200).json(response.data);
+        res.status(200).json(response.data);
+        return;
 
       } catch (fetchError: any) {
         logger.error("Failed to fetch from origin", {
@@ -111,19 +113,21 @@ export const version = onRequest(
             "Content-Type": "application/json",
             "X-Cache": "STALE",
           });
-          return res.status(200).json(cachedResponse.data);
+          res.status(200).json(cachedResponse.data);
+          return;
         }
 
         // No cache available
-        return res.status(503).json({
+        res.status(503).json({
           error: "Service temporarily unavailable",
           message: "Unable to fetch version information",
         });
+        return;
       }
 
     } catch (error: any) {
       logger.error("Unexpected error", { error: error.message });
-      return res.status(500).json({
+      res.status(500).json({
         error: "Internal server error",
         message: "An unexpected error occurred",
       });
