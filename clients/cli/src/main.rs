@@ -349,19 +349,22 @@ async fn start(
             }
         });
 
-        // Also handle SIGTERM gracefully
-        let shutdown_sender_clone2 = shutdown_sender.clone();
-        tokio::spawn(async move {
-            if tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).is_ok() {
-                if let Ok(mut signal) =
-                    tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
-                {
-                    if signal.recv().await.is_some() {
-                        let _ = shutdown_sender_clone2.send(());
+        // Also handle SIGTERM gracefully (Unix only)
+        #[cfg(unix)]
+        {
+            let shutdown_sender_clone2 = shutdown_sender.clone();
+            tokio::spawn(async move {
+                if tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).is_ok() {
+                    if let Ok(mut signal) =
+                        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+                    {
+                        if signal.recv().await.is_some() {
+                            let _ = shutdown_sender_clone2.send(());
+                        }
                     }
                 }
-            }
-        });
+            });
+        }
 
         let mut shutdown_receiver = shutdown_sender.subscribe();
         loop {
