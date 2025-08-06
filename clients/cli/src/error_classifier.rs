@@ -34,9 +34,9 @@ impl ErrorClassifier {
     pub fn classify_fetch_error(&self, error: &OrchestratorError) -> LogLevel {
         match error {
             // Non-critical: Temporary server issues
-            OrchestratorError::Http { status, .. } if *status == 429 => LogLevel::Debug,
+            OrchestratorError::Http { status, .. } if *status == 429 => LogLevel::Warn,
             OrchestratorError::Http { status, .. } if (500..=599).contains(status) => {
-                LogLevel::Warn
+                LogLevel::Error
             }
 
             // Critical: Auth, malformed responses

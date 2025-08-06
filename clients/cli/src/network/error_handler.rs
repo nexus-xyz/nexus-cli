@@ -1,0 +1,41 @@
+//! Centralized error handling and classification
+
+use crate::error_classifier::LogLevel;
+use crate::orchestrator::error::OrchestratorError;
+
+/// Centralized error handler for all network operations
+#[derive(Debug, Clone)]
+pub struct ErrorHandler;
+
+impl ErrorHandler {
+    pub fn new() -> Self {
+        Self
+    }
+
+    /// Classify error and determine appropriate log level
+    pub fn classify_error(&self, error: &OrchestratorError) -> LogLevel {
+        match error {
+            // Rate limiting - low priority
+            OrchestratorError::Http { status, .. } if *status == 429 => LogLevel::Debug,
+
+            // Server errors - temporary issues
+            OrchestratorError::Http { status, .. } if (500..=599).contains(status) => LogLevel::Warn,
+
+            // Authentication errors - critical
+            OrchestratorError::Http { status, .. } if *status == 401 => LogLevel::Error,
+            OrchestratorError::Http { status, .. } if *status == 403 => LogLevel::Error,
+
+            // Network issues - usually temporary
+            OrchestratorError::Reqwest(_) => LogLevel::Warn,
+
+            // Other errors
+            _ => LogLevel::Warn,
+        }
+    }
+
+    /// Determine if an error should trigger retry logic
+    pub fn should_retry(&self, error: &OrchestratorError) -> bool {
+        !matches!(error, OrchestratorError::Http { .. })
+    }
+
+}
