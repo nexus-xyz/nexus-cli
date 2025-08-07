@@ -16,12 +16,13 @@ path = "src/main.rs"
 opt-level = 1
 
 [profile.release]
-opt-level = 3          # Maximum optimization level
-lto = true             # Link Time Optimization for better performance
-codegen-units = 1      # Single codegen unit for maximum optimization
+opt-level = 2          # Good optimization with faster compile time than opt-level 3
+lto = "thin"           # Thin LTO - faster than full LTO while keeping most benefits
+codegen-units = 16     # More codegen units for parallel compilation
 panic = 'abort'        # Abort on panic (smaller binaries, better performance)
 strip = true           # Strip symbols for smaller binaries
-debug = true           # Keep debug symbols for easier debugging
+debug = false          # No debug symbols for faster builds
+incremental = true     # Enable incremental compilation for faster rebuilds
 
 [profile.ci-build]
 inherits = "dev"
@@ -54,7 +55,7 @@ serde = { version = "1.0.217", features = ["derive"] }
 serde_json = { version = "1.0.138" }
 sha3 = "0.10.8"
 strum = "0.26.3"
-sysinfo = "0.33.1"
+sysinfo = "0.36"
 thiserror = "2.0.12"
 tokio = { version = "1.38", features = ["full"] }
 urlencoding = "2.1.3"
