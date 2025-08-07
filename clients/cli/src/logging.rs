@@ -1,5 +1,26 @@
-use crate::error_classifier::LogLevel;
+use log::LevelFilter;
 use std::env;
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum LogLevel {
+    Trace = 0,
+    Debug = 1,
+    Info = 2,
+    Warn = 3,
+    Error = 4,
+}
+
+impl From<LogLevel> for LevelFilter {
+    fn from(level: LogLevel) -> Self {
+        match level {
+            LogLevel::Trace => LevelFilter::Trace,
+            LogLevel::Debug => LevelFilter::Debug,
+            LogLevel::Info => LevelFilter::Info,
+            LogLevel::Warn => LevelFilter::Warn,
+            LogLevel::Error => LevelFilter::Error,
+        }
+    }
+}
 
 pub fn get_rust_log_level() -> LogLevel {
     let rust_log = env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string());

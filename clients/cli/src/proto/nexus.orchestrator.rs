@@ -79,16 +79,21 @@ pub struct GetProofTaskRequest {
 /// A Prover task.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetProofTaskResponse {
+    /// Deprecated: use field in Task instead.
     /// Program id. (Assuming client-side default programs)
+    #[deprecated]
     #[prost(string, tag = "1")]
     pub program_id: ::prost::alloc::string::String,
+    /// Deprecated: use field in Task instead.
     /// Public inputs to the program.
+    #[deprecated]
     #[prost(bytes = "vec", tag = "2")]
     pub public_inputs: ::prost::alloc::vec::Vec<u8>,
+    /// Deprecated: use field in Task instead.
     /// The task's ID.
+    #[deprecated]
     #[prost(string, tag = "3")]
     pub task_id: ::prost::alloc::string::String,
-    /// The task assigned.
     #[prost(message, optional, tag = "4")]
     pub task: ::core::option::Option<Task>,
 }

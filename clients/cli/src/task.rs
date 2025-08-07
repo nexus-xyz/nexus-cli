@@ -93,18 +93,8 @@ impl From<&crate::nexus_orchestrator::Task> for Task {
 // From GetProofTaskResponse
 impl From<&crate::nexus_orchestrator::GetProofTaskResponse> for Task {
     fn from(response: &crate::nexus_orchestrator::GetProofTaskResponse) -> Self {
-        let task_type = crate::nexus_orchestrator::TaskType::try_from(
-            response.task.as_ref().unwrap().task_type,
-        )
-        .unwrap();
-
-        Task {
-            task_id: response.task_id.clone(),
-            program_id: response.program_id.clone(),
-            public_inputs: response.public_inputs.clone(),
-            public_inputs_list: vec![response.public_inputs.clone()],
-            task_type,
-        }
+        // Use the task field instead of deprecated fields
+        Task::from(response.task.as_ref().unwrap())
     }
 }
 

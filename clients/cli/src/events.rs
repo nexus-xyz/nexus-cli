@@ -2,8 +2,7 @@
 //!
 //! Types and implementations for worker events and logging
 
-use crate::error_classifier::LogLevel;
-use crate::logging::should_log_with_env;
+use crate::logging::{LogLevel, should_log_with_env};
 use chrono::Local;
 use std::fmt::Display;
 
@@ -15,8 +14,6 @@ pub enum Worker {
     Prover(usize),
     /// Worker that submits proofs to the orchestrator.
     ProofSubmitter,
-    /// Worker that checks for new CLI versions.
-    VersionChecker,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, strum::Display)]
@@ -25,41 +22,63 @@ pub enum EventType {
     Error,
     Refresh,
     Waiting,
-    Shutdown,
+    StateChange,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+/// Represents the current state in the proof pipeline
+#[derive(Debug, Copy, Clone, Eq, PartialEq, strum::Display)]
+pub enum ProverState {
+    /// Computing the proof
+    Proving,
+    /// Waiting before fetching next task (idle state)
+    Waiting,
+}
+
+#[derive(Debug, Clone)]
 pub struct Event {
     pub worker: Worker,
     pub msg: String,
     pub timestamp: String,
     pub event_type: EventType,
     pub log_level: LogLevel,
+    /// Optional state information for state change events
+    pub prover_state: Option<ProverState>,
 }
 
-impl Event {
-    pub fn new(kind: Worker, msg: String, event_type: EventType) -> Self {
-        Self {
-            worker: kind,
-            msg,
-            timestamp: Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
-            event_type,
-            log_level: LogLevel::Info,
-        }
+impl PartialEq for Event {
+    fn eq(&self, other: &Self) -> bool {
+        self.worker == other.worker
+            && self.msg == other.msg
+            && self.timestamp == other.timestamp
+            && self.event_type == other.event_type
+            && self.log_level == other.log_level
+            && self.prover_state == other.prover_state
+        // Note: We don't compare state_start_time since Instant doesn't implement Eq
     }
+}
 
-    pub fn new_with_level(
-        kind: Worker,
-        msg: String,
-        event_type: EventType,
-        log_level: LogLevel,
-    ) -> Self {
+impl Eq for Event {}
+
+impl Event {
+    fn new(worker: Worker, msg: String, event_type: EventType, log_level: LogLevel) -> Self {
         Self {
-            worker: kind,
+            worker,
             msg,
             timestamp: Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
             event_type,
             log_level,
+            prover_state: None,
+        }
+    }
+
+    pub fn state_change(state: ProverState, msg: String) -> Self {
+        Self {
+            worker: Worker::TaskFetcher,
+            msg,
+            timestamp: Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
+            event_type: EventType::StateChange,
+            log_level: LogLevel::Info,
+            prover_state: Some(state),
         }
     }
 
@@ -68,20 +87,7 @@ impl Event {
         event_type: EventType,
         log_level: LogLevel,
     ) -> Self {
-        Self::new_with_level(Worker::TaskFetcher, msg, event_type, log_level)
-    }
-
-    pub fn prover(worker_id: usize, msg: String, event_type: EventType) -> Self {
-        Self::new(Worker::Prover(worker_id), msg, event_type)
-    }
-
-    pub fn prover_with_level(
-        worker_id: usize,
-        msg: String,
-        event_type: EventType,
-        log_level: LogLevel,
-    ) -> Self {
-        Self::new_with_level(Worker::Prover(worker_id), msg, event_type, log_level)
+        Self::new(Worker::TaskFetcher, msg, event_type, log_level)
     }
 
     pub fn proof_submitter_with_level(
@@ -89,21 +95,26 @@ impl Event {
         event_type: EventType,
         log_level: LogLevel,
     ) -> Self {
-        Self::new_with_level(Worker::ProofSubmitter, msg, event_type, log_level)
+        Self::new(Worker::ProofSubmitter, msg, event_type, log_level)
     }
 
-    pub fn version_checker_with_level(
+    pub fn prover_with_level(
+        thread_id: usize,
         msg: String,
         event_type: EventType,
         log_level: LogLevel,
     ) -> Self {
-        Self::new_with_level(Worker::VersionChecker, msg, event_type, log_level)
+        Self::new(Worker::Prover(thread_id), msg, event_type, log_level)
     }
 
     pub fn should_display(&self) -> bool {
         // Always show success events and info level events
         if self.event_type == EventType::Success || self.log_level >= LogLevel::Info {
             return true;
+        }
+        // StateChange events should be handled separately (not displayed in logs)
+        if self.event_type == EventType::StateChange {
+            return false;
         }
         should_log_with_env(self.log_level)
     }
