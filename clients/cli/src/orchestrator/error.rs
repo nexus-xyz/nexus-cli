@@ -59,9 +59,16 @@ impl OrchestratorError {
     /// Get the Retry-After header value in seconds, if present
     pub fn get_retry_after_seconds(&self) -> Option<u32> {
         match self {
-            Self::Http { headers, .. } => headers
-                .get("retry-after")
-                .and_then(|value| value.parse::<u32>().ok()),
+            Self::Http {
+                status, headers, ..
+            } => {
+                if (500..=599).contains(status) {
+                    return Some(30);
+                }
+                headers
+                    .get("retry-after")
+                    .and_then(|value| value.parse::<u32>().ok())
+            }
             _ => None,
         }
     }
