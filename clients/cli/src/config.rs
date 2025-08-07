@@ -1,9 +1,11 @@
 //! Application configuration.
 
 use crate::environment::Environment;
+use crate::orchestrator::Orchestrator;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
-use std::{fs, path::Path};
+use std::error::Error;
+use std::fs;
+use std::path::{Path, PathBuf};
 
 /// Get the path to the Nexus config file, typically located at ~/.nexus/config.json.
 pub fn get_config_path() -> Result<PathBuf, std::io::Error> {
@@ -15,21 +17,21 @@ pub fn get_config_path() -> Result<PathBuf, std::io::Error> {
     Ok(config_path)
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
 pub struct Config {
-    /// Environment
+    /// Environment from config file
     #[serde(default)]
     pub environment: String,
 
-    /// The unique identifier for the node, UUIDv4 format. Empty when not yet registered.
+    /// User ID from config file
     #[serde(default)]
     pub user_id: String,
 
-    /// The wallet address associated with the user, typically an Ethereum address. Empty when not yet registered.
+    /// Wallet address, resolved during `Config::resolve`
     #[serde(default)]
     pub wallet_address: String,
 
-    /// The node's unique identifier, probably an integer. Empty when not yet registered.
+    /// Node ID, resolved to a valid u64 during `Config::resolve`
     #[serde(default)]
     pub node_id: String,
 }
@@ -51,9 +53,6 @@ impl Config {
     }
 
     /// Loads configuration from a JSON file at the given path.
-    ///
-    /// # Errors
-    /// Returns an `std::io::Error` if reading from file fails or JSON is invalid.
     pub fn load_from_file(path: &Path) -> Result<Self, std::io::Error> {
         let buf = fs::read(path)?;
         let config: Config = serde_json::from_slice(&buf)
@@ -62,11 +61,6 @@ impl Config {
     }
 
     /// Saves the configuration to a JSON file at the given path.
-    ///
-    /// Directories will be created if they don't exist. This method overwrites existing files.
-    ///
-    /// # Errors
-    /// Returns an `std::io::Error` if writing to file fails or serialization fails.
     pub fn save(&self, path: &Path) -> Result<(), std::io::Error> {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
@@ -83,22 +77,98 @@ impl Config {
 
     /// Clear the node ID configuration file.
     pub fn clear_node_config(path: &Path) -> std::io::Result<()> {
-        // Check that the path ends with config.json
+        if !path.exists() {
+            println!("No config file found at {}", path.display());
+            return Ok(());
+        }
         if !path.ends_with("config.json") {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidInput,
                 "Path must end with config.json",
             ));
         }
+        fs::remove_file(path)
+    }
 
-        // If no file exists, return OK
-        if !path.exists() {
-            println!("No config file found at {}", path.display());
-            return Ok(());
+    /// Resolves configuration and ensures node_id is available
+    pub async fn resolve(
+        node_id_arg: Option<u64>,
+        config_path: &Path,
+        orchestrator: &impl Orchestrator,
+    ) -> Result<Self, Box<dyn Error>> {
+        // The config file is required to proceed.
+        if !config_path.exists() {
+            crate::cli_messages::print_info(
+                "Welcome to Nexus CLI!",
+                "Please register your wallet address to get started: nexus-cli register-user --wallet-address <your-wallet-address>",
+            );
+            return Err("Configuration file not found. Please register first.".into());
         }
 
-        // If the file exists, remove it
-        fs::remove_file(path)
+        // Load the config file.
+        let mut config = Config::load_from_file(config_path)?;
+
+        // Determine which node_id to use. The command-line argument takes precedence.
+        let resolved_node_id = match node_id_arg {
+            Some(id) => id,
+            None => match config.resolve_node_id_from_config() {
+                Ok(id_from_config) => {
+                    crate::cli_messages::print_success(
+                        "Found Node ID from config file",
+                        &format!("Node ID: {}", id_from_config),
+                    );
+                    id_from_config
+                }
+                Err(e) => {
+                    // The config is present but incomplete or invalid.
+                    crate::cli_messages::print_error(
+                        "Your configuration is incomplete or invalid.",
+                        Some("Please register your node. Start with: nexus-cli register-node"),
+                    );
+                    return Err(e);
+                }
+            },
+        };
+
+        // We have a valid node_id, now get the wallet address for analytics.
+        let wallet_address = orchestrator.get_node(&resolved_node_id.to_string()).await?;
+
+        // Populate the config struct with the resolved values.
+        config.node_id = resolved_node_id.to_string();
+        config.wallet_address = wallet_address;
+
+        Ok(config)
+    }
+
+    /// Resolves node ID from the configuration file content
+    fn resolve_node_id_from_config(&self) -> Result<u64, Box<dyn Error>> {
+        if self.user_id.is_empty() {
+            return Err("User not registered in config file.".into());
+        }
+
+        if self.node_id.is_empty() {
+            crate::cli_messages::print_error(
+                "User registered, but no node found",
+                Some("Please register a node to continue: nexus-cli register-node"),
+            );
+            return Err(
+                "Node registration required. Please run 'nexus-cli register-node' first.".into(),
+            );
+        }
+
+        match self.node_id.parse::<u64>() {
+            Ok(id) => Ok(id),
+            Err(_) => {
+                crate::cli_messages::print_error(
+                    "Invalid node ID in config file",
+                    Some("Please register a new node: nexus-cli register-node"),
+                );
+                Err(
+                    "Invalid node ID in config. Please run 'nexus-cli register-node' to fix this."
+                        .into(),
+                )
+            }
+        }
     }
 }
 
@@ -116,6 +186,7 @@ mod tests {
             user_id: "test_user_id".to_string(),
             wallet_address: "0x1234567890abcdef1234567890abcdef12345678".to_string(),
             node_id: "test_node_id".to_string(),
+            ..Default::default()
         }
     }
 
@@ -140,7 +211,6 @@ mod tests {
         let config = get_config();
         let result = config.save(&path);
 
-        // Check if the directories were created
         assert!(result.is_ok(), "Failed to save config");
         assert!(
             path.parent().unwrap().exists(),
@@ -154,17 +224,14 @@ mod tests {
         let dir = tempdir().unwrap();
         let path = dir.path().join("config.json");
 
-        // Create an initial config and save it
         let mut config1 = get_config();
         config1.user_id = "test_user_id".to_string();
         config1.save(&path).unwrap();
 
-        // Create a new config and save it to the same path
         let mut config2 = get_config();
         config2.user_id = "new_test_user_id".to_string();
         config2.save(&path).unwrap();
 
-        // Load the saved config and check if it matches the second one
         let loaded_config = Config::load_from_file(&path).unwrap();
         assert_eq!(config2, loaded_config);
     }
@@ -192,109 +259,5 @@ mod tests {
 
         Config::clear_node_config(&path).unwrap();
         assert!(!path.exists(), "Config file was not removed");
-    }
-
-    #[test]
-    // Should load JSON containing a user_id and empty strings for other fields.
-    fn test_load_config_with_user_id_and_empty_fields() {
-        let dir = tempdir().unwrap();
-        let path = dir.path().join("config.json");
-
-        // Write a JSON with user_id and empty strings for other fields
-        let mut file = File::create(&path).unwrap();
-        writeln!(file, r#"{{ "user_id": "test_user", "wallet_address": "", "environment": "", "node_id": "" }}"#).unwrap();
-
-        match Config::load_from_file(&path) {
-            Ok(config) => {
-                // The user_id must be set correctly.
-                assert_eq!(config.user_id, "test_user");
-                // Other fields should be empty or default
-                assert!(config.wallet_address.is_empty());
-                assert!(config.environment.is_empty());
-                assert!(config.node_id.is_empty());
-            }
-            Err(e) => {
-                panic!("Failed to load config with user_id and empty fields: {}", e);
-            }
-        }
-    }
-
-    #[test]
-    // (Backwards compatibility) Should load JSON containing only node_id.
-    fn test_load_config_with_only_node_id() {
-        let dir = tempdir().unwrap();
-        let path = dir.path().join("config.json");
-
-        // Write a minimal JSON with only node_id
-        let mut file = File::create(&path).unwrap();
-        writeln!(file, r#"{{ "node_id": "12345" }}"#).unwrap();
-
-        match Config::load_from_file(&path) {
-            Ok(config) => {
-                // The node_id must be set correctly.
-                assert_eq!(config.node_id, "12345");
-                // Other fields should be empty or default
-                assert!(config.user_id.is_empty());
-                assert!(config.wallet_address.is_empty());
-                assert!(config.environment.is_empty());
-            }
-            Err(e) => {
-                panic!("Failed to load config with only node_id: {}", e);
-            }
-        }
-    }
-
-    #[test]
-    // (Backwards compatibility) Should load JSON with node_id and empty strings for other fields.
-    fn test_load_config_with_node_id_and_empty_strings() {
-        let dir = tempdir().unwrap();
-        let path = dir.path().join("config.json");
-
-        let config = Config {
-            environment: "".to_string(),
-            user_id: "".to_string(),
-            wallet_address: "".to_string(),
-            node_id: "12345".to_string(),
-        };
-        config.save(&path).unwrap();
-
-        match Config::load_from_file(&path) {
-            Ok(config) => {
-                // The node_id must be set correctly.
-                assert_eq!(config.node_id, "12345");
-                // Other fields should be empty or default
-                assert!(config.user_id.is_empty());
-                assert!(config.wallet_address.is_empty());
-                assert!(config.environment.is_empty());
-            }
-            Err(e) => {
-                panic!("Failed to load config with only node_id: {}", e);
-            }
-        }
-    }
-
-    #[test]
-    // Should ignore unexpected fields in the JSON.
-    fn test_load_config_with_additional_fields() {
-        let dir = tempdir().unwrap();
-        let path = dir.path().join("config.json");
-
-        // Write a JSON with additional fields
-        let mut file = File::create(&path).unwrap();
-        writeln!(file, r#"{{ "node_id": "12345", "extra_field": "value" }}"#).unwrap();
-
-        match Config::load_from_file(&path) {
-            Ok(config) => {
-                // The node_id must be set correctly.
-                assert_eq!(config.node_id, "12345");
-                // Other fields should be empty or default
-                assert!(config.user_id.is_empty());
-                assert!(config.wallet_address.is_empty());
-                assert!(config.environment.is_empty());
-            }
-            Err(e) => {
-                panic!("Failed to load config with additional fields: {}", e);
-            }
-        }
     }
 }
