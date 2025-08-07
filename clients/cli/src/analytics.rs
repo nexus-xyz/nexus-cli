@@ -328,23 +328,3 @@ pub async fn track_authenticated_proof_analytics(
     .await;
     // TODO: Catch errors and log them
 }
-
-/// Track analytics for anonymous proof (non-blocking)
-pub async fn track_anonymous_proof_analytics(environment: Environment, client_id: String) {
-    // Anonymous proofs use hardcoded input: (n=9, init_a=1, init_b=1)
-    let public_input = (9, 1, 1);
-
-    let _ = track(
-        vec!["cli_proof_anon_v3".to_string()],
-        json!({
-            "program_name": "fib_input_initial",
-            "public_input": public_input.0,
-            "public_input_2": public_input.1,
-            "public_input_3": public_input.2,
-        }),
-        &environment,
-        client_id,
-    )
-    .await;
-    // TODO: Catch errors and log them
-}
