@@ -3,7 +3,7 @@
 # Build script for guest programs
 # This script creates a guest program using cargo nexus host and builds it
 
-set -e  # Exit on any error
+set -e # Exit on any error
 
 # Configuration
 GUEST_NAME="${1:-fib_input_initial}"
@@ -28,12 +28,12 @@ cd "${PROGRAMS_PATH}"
 
 # Check if the guest program already exists
 if [ -d "${GUEST_NAME}" ]; then
-    echo -e "${YELLOW}Guest program ${GUEST_NAME} already exists, rebuilding...${NC}"
-    cd "${GUEST_NAME}"
+	echo -e "${YELLOW}Guest program ${GUEST_NAME} already exists, rebuilding...${NC}"
+	cd "${GUEST_NAME}"
 else
-    echo -e "${GREEN}Creating new guest program with cargo nexus host...${NC}"
-    cargo nexus host "${GUEST_NAME}"
-    cd "${GUEST_NAME}"
+	echo -e "${GREEN}Creating new guest program with cargo nexus host...${NC}"
+	cargo nexus host "${GUEST_NAME}"
+	cd "${GUEST_NAME}"
 fi
 
 echo -e "${GREEN}Building guest program...${NC}"
@@ -42,8 +42,8 @@ cargo build --release --target riscv32i-unknown-none-elf
 
 # Check if build was successful
 if [ $? -ne 0 ]; then
-    echo -e "${RED}Error: Build failed${NC}"
-    exit 1
+	echo -e "${RED}Error: Build failed${NC}"
+	exit 1
 fi
 
 # Copy the built ELF to CLI assets
@@ -52,10 +52,10 @@ cp "../../target/riscv32i-unknown-none-elf/release/guest" "${CLI_ASSETS_PATH}/${
 
 # Check if copy was successful
 if [ $? -eq 0 ]; then
-    echo -e "${GREEN}Successfully built and copied ${GUEST_NAME} to CLI assets${NC}"
-    echo -e "${YELLOW}ELF file: ${CLI_ASSETS_PATH}/${GUEST_NAME}${NC}"
-    echo -e "${YELLOW}Guest source: ${PROGRAMS_PATH}/${GUEST_NAME}/src/guest/src/main.rs${NC}"
+	echo -e "${GREEN}Successfully built and copied ${GUEST_NAME} to CLI assets${NC}"
+	echo -e "${YELLOW}ELF file: ${CLI_ASSETS_PATH}/${GUEST_NAME}${NC}"
+	echo -e "${YELLOW}Guest source: ${PROGRAMS_PATH}/${GUEST_NAME}/src/guest/src/main.rs${NC}"
 else
-    echo -e "${RED}Error: Failed to copy ELF file${NC}"
-    exit 1
-fi 
+	echo -e "${RED}Error: Failed to copy ELF file${NC}"
+	exit 1
+fi

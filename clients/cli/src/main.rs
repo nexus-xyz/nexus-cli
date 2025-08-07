@@ -354,7 +354,8 @@ async fn start(
         {
             let shutdown_sender_clone2 = shutdown_sender.clone();
             tokio::spawn(async move {
-                if tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).is_ok() {
+                if tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).is_ok()
+                {
                     if let Ok(mut signal) =
                         tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
                     {
