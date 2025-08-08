@@ -495,6 +495,7 @@ async fn submit_proof_to_orchestrator(
     task: &Task,
     proof: &Proof,
     proof_hash: &str,
+    individual_proof_hashes: &[String],
     orchestrator: &dyn Orchestrator,
     signing_key: &SigningKey,
     num_workers: usize,
@@ -525,6 +526,7 @@ async fn submit_proof_to_orchestrator(
             signing_key.clone(),
             num_workers,
             task.task_type,
+            individual_proof_hashes,
         )
         .await
     {
@@ -584,6 +586,7 @@ async fn process_proof_submission(
         &task,
         &proof,
         &proof_hash,
+        &individual_proof_hashes,
         orchestrator,
         signing_key,
         num_workers,

@@ -317,11 +317,16 @@ mod tests {
         let client_id = "test_client".to_string();
 
         match authenticated_proving(&task, &environment, &client_id, None).await {
-            Ok((_proof, combined_hash)) => {
+            Ok((_proof, combined_hash, individual_hashes)) => {
                 // Should succeed with multiple inputs and return the first proof hash for ProofRequired
                 assert!(
                     !combined_hash.is_empty(),
                     "Expected proof hash for ProofRequired task type"
+                );
+                assert_eq!(
+                    individual_hashes.len(),
+                    2,
+                    "Expected 2 individual proof hashes for 2 inputs"
                 );
                 println!(
                     "Multiple inputs with ProofRequired works (returns first proof hash): {}",
@@ -356,11 +361,16 @@ mod tests {
         let client_id = "test_client".to_string();
 
         match authenticated_proving(&task, &environment, &client_id, None).await {
-            Ok((_proof, combined_hash)) => {
+            Ok((_proof, combined_hash, individual_hashes)) => {
                 // Should have a combined hash for multiple inputs
                 assert!(
                     !combined_hash.is_empty(),
                     "Expected combined hash for multiple inputs"
+                );
+                assert_eq!(
+                    individual_hashes.len(),
+                    2,
+                    "Expected 2 individual proof hashes for 2 inputs"
                 );
                 println!("Combined hash: {}", combined_hash);
             }
@@ -385,11 +395,16 @@ mod tests {
         let client_id = "test_client".to_string();
 
         match authenticated_proving(&task, &environment, &client_id, None).await {
-            Ok((_proof, combined_hash)) => {
+            Ok((_proof, combined_hash, individual_hashes)) => {
                 // Should have combined hash for ProofHash task type, even with single input
                 assert!(
                     !combined_hash.is_empty(),
                     "Expected combined hash for ProofHash task type"
+                );
+                assert_eq!(
+                    individual_hashes.len(),
+                    1,
+                    "Expected 1 individual proof hash for 1 input"
                 );
                 println!(
                     "Single input with ProofHash - combined hash: {}",
@@ -419,7 +434,7 @@ mod tests {
         let client_id = "test_client".to_string();
 
         match authenticated_proving(&task, &environment, &client_id, None).await {
-            Ok((_proof, combined_hash)) => {
+            Ok((_proof, combined_hash, individual_hashes)) => {
                 // Should have proof hash for single input with ProofRequired
                 assert!(
                     !combined_hash.is_empty(),
@@ -535,7 +550,7 @@ mod tests {
         let (event_sender, mut event_receiver) = tokio::sync::mpsc::channel::<WorkerEvent>(10);
 
         match authenticated_proving(&task, &environment, &client_id, Some(&event_sender)).await {
-            Ok((_proof, combined_hash)) => {
+            Ok((_proof, combined_hash, individual_hashes)) => {
                 // Should have combined hash for multiple inputs with ProofHash
                 assert!(
                     !combined_hash.is_empty(),

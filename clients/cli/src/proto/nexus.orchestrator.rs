@@ -130,7 +130,7 @@ pub struct SubmitProofRequest {
     #[prost(string, repeated, tag = "9")]
     pub all_proof_hashes: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     /// ZK proofs of the program running on each set of inputs.
-    /// To be sent on PROOF_REQUIRED tasks only.
+    /// To be sent on PROOF_REQUIRED tasks, empty on other task types.
     #[prost(bytes = "vec", repeated, tag = "10")]
     pub proofs: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
 }

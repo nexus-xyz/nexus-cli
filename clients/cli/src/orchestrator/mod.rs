@@ -47,5 +47,6 @@ pub trait Orchestrator: Send + Sync {
         signing_key: SigningKey,
         num_provers: usize,
         task_type: crate::nexus_orchestrator::TaskType,
+        individual_proof_hashes: &[String],
     ) -> Result<(), OrchestratorError>;
 }
