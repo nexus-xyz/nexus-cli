@@ -105,8 +105,7 @@ message SubmitProofRequest {
   NodeType node_type = 2;
 
   // Hash of the concatenated proof bytes.
-  // Not sent for PROOF_REQUIRED task type.
-  optional string proof_hash = 3;
+  string proof_hash = 3;
 
   // Telemetry data about the node
   NodeTelemetry node_telemetry = 4;
@@ -132,8 +131,8 @@ message SubmitProofRequest {
   repeated string all_proof_hashes = 9;
 
   // ZK proofs of the program running on each set of inputs.
-  // To be sent on PROOF_REQUIRED tasks only.
-  optional repeated bytes proofs = 10;
+  // To be sent on PROOF_REQUIRED tasks, empty on other task types.
+  repeated bytes proofs = 10;
 }
 
 // Performance stats of a node.

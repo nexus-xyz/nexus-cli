@@ -63,7 +63,7 @@ pub async fn authenticated_proving(
     environment: &Environment,
     client_id: &str,
     event_sender: Option<&tokio::sync::mpsc::Sender<WorkerEvent>>,
-) -> Result<(Proof, String), ProverError> {
+) -> Result<(Proof, String, Vec<String>), ProverError> {
     // Check for multiple inputs with proof_required task type (not supported yet)
     // TODO: Uncomment this if we actually receive such tasks from orchestrator
     /*
@@ -80,7 +80,7 @@ pub async fn authenticated_proving(
     }
     */
 
-    let (view, proof, combined_hash) = match task.program_id.as_str() {
+    let (view, proof, combined_hash, individual_hashes) = match task.program_id.as_str() {
         "fib_input_initial" => {
             // Handle multiple inputs if present
             let all_inputs = task.all_inputs();
@@ -204,7 +204,7 @@ pub async fn authenticated_proving(
                 })?;
                 let proof = final_proof
                     .ok_or_else(|| ProverError::Stwo("Failed to generate proof".to_string()))?;
-                (view, proof, final_proof_hash)
+                (view, proof, final_proof_hash, proof_hashes)
             } else {
                 // For ProofRequired tasks, return the actual proof
                 let view = final_view.ok_or_else(|| {
@@ -212,7 +212,7 @@ pub async fn authenticated_proving(
                 })?;
                 let proof = final_proof
                     .ok_or_else(|| ProverError::Stwo("Failed to generate proof".to_string()))?;
-                (view, proof, final_proof_hash)
+                (view, proof, final_proof_hash, proof_hashes)
             }
         }
         _ => {
@@ -234,7 +234,7 @@ pub async fn authenticated_proving(
         )));
     }
 
-    Ok((proof, combined_hash))
+    Ok((proof, combined_hash, individual_hashes))
 }
 
 fn parse_triple_public_input(input_data: &[u8]) -> Result<(u32, u32, u32), ProverError> {

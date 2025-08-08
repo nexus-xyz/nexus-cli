@@ -323,6 +323,8 @@ impl Orchestrator for OrchestratorClient {
             }),
             ed25519_public_key: public_key,
             signature,
+            all_proof_hashes: Vec::new(),
+            proofs: Vec::new(),
         };
         let request_bytes = Self::encode_request(&request);
         self.post_request_no_response("v3/tasks/submit", request_bytes)
