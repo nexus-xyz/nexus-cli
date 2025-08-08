@@ -440,6 +440,11 @@ mod tests {
                     !combined_hash.is_empty(),
                     "Expected proof hash for single input with ProofRequired"
                 );
+                assert_eq!(
+                    individual_hashes.len(),
+                    1,
+                    "Expected exactly 1 individual proof hash for single input"
+                );
                 println!(
                     "Single input with ProofRequired - returns proof hash: {}",
                     combined_hash
@@ -555,6 +560,11 @@ mod tests {
                 assert!(
                     !combined_hash.is_empty(),
                     "Expected combined hash for ProofHash task type"
+                );
+                assert_eq!(
+                    individual_hashes.len(),
+                    2,
+                    "Expected exactly 2 individual proof hashes for 2 inputs"
                 );
 
                 // Check that progress events were sent

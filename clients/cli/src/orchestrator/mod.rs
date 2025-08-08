@@ -39,6 +39,7 @@ pub trait Orchestrator: Send + Sync {
     ) -> Result<Task, OrchestratorError>;
 
     /// Submits a proof to the orchestrator.
+    #[allow(clippy::too_many_arguments)]
     async fn submit_proof(
         &self,
         task_id: &str,
