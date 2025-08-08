@@ -288,13 +288,15 @@ pub async fn track_authenticated_proof_analytics(
                 // Use safe slicing that won't panic
                 if let (Some(n_bytes), Some(a_bytes), Some(b_bytes)) = (
                     input_data.get(0..4),
-                    input_data.get(4..8), 
-                    input_data.get(8..12)
+                    input_data.get(4..8),
+                    input_data.get(8..12),
                 ) {
                     let n = u32::from_le_bytes([n_bytes[0], n_bytes[1], n_bytes[2], n_bytes[3]]);
-                    let init_a = u32::from_le_bytes([a_bytes[0], a_bytes[1], a_bytes[2], a_bytes[3]]);
-                    let init_b = u32::from_le_bytes([b_bytes[0], b_bytes[1], b_bytes[2], b_bytes[3]]);
-                        let inputs = (n, init_a, init_b);
+                    let init_a =
+                        u32::from_le_bytes([a_bytes[0], a_bytes[1], a_bytes[2], a_bytes[3]]);
+                    let init_b =
+                        u32::from_le_bytes([b_bytes[0], b_bytes[1], b_bytes[2], b_bytes[3]]);
+                    let inputs = (n, init_a, init_b);
 
                     json!({
                         "program_name": "fib_input_initial",
