@@ -93,16 +93,15 @@ impl From<&crate::nexus_orchestrator::Task> for Task {
 // From GetProofTaskResponse
 impl From<&crate::nexus_orchestrator::GetProofTaskResponse> for Task {
     fn from(response: &crate::nexus_orchestrator::GetProofTaskResponse) -> Self {
-        let task_type = crate::nexus_orchestrator::TaskType::try_from(
-            response.task.as_ref().unwrap().task_type,
-        )
-        .unwrap();
+        let task = response.task.as_ref().expect("Task field is required");
+        let task_type = crate::nexus_orchestrator::TaskType::try_from(task.task_type)
+            .expect("Invalid task type");
 
         Task {
-            task_id: response.task_id.clone(),
-            program_id: response.program_id.clone(),
-            public_inputs: response.public_inputs.clone(),
-            public_inputs_list: vec![response.public_inputs.clone()],
+            task_id: task.task_id.clone(),
+            program_id: task.program_id.clone(),
+            public_inputs: task.public_inputs_list.first().cloned().unwrap_or_default(),
+            public_inputs_list: task.public_inputs_list.clone(),
             task_type,
         }
     }

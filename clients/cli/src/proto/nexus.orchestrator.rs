@@ -79,16 +79,21 @@ pub struct GetProofTaskRequest {
 /// A Prover task.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetProofTaskResponse {
+    /// Deprecated: use field in Task instead.
     /// Program id. (Assuming client-side default programs)
+    #[deprecated]
     #[prost(string, tag = "1")]
     pub program_id: ::prost::alloc::string::String,
+    /// Deprecated: use field in Task instead.
     /// Public inputs to the program.
+    #[deprecated]
     #[prost(bytes = "vec", tag = "2")]
     pub public_inputs: ::prost::alloc::vec::Vec<u8>,
+    /// Deprecated: use field in Task instead.
     /// The task's ID.
+    #[deprecated]
     #[prost(string, tag = "3")]
     pub task_id: ::prost::alloc::string::String,
-    /// The task assigned.
     #[prost(message, optional, tag = "4")]
     pub task: ::core::option::Option<Task>,
 }
@@ -98,13 +103,13 @@ pub struct SubmitProofRequest {
     /// The type of this node.
     #[prost(enumeration = "NodeType", tag = "2")]
     pub node_type: i32,
-    /// Hash of the proof.
+    /// Hash of the concatenated proof bytes.
     #[prost(string, tag = "3")]
     pub proof_hash: ::prost::alloc::string::String,
     /// Telemetry data about the node
     #[prost(message, optional, tag = "4")]
     pub node_telemetry: ::core::option::Option<NodeTelemetry>,
-    /// ZK proof of the proof activity
+    /// ZK proof of the program and first set of inputs.
     #[prost(bytes = "vec", tag = "5")]
     pub proof: ::prost::alloc::vec::Vec<u8>,
     /// The task's ID.
@@ -120,6 +125,14 @@ pub struct SubmitProofRequest {
     /// corresponding to the public key.
     #[prost(bytes = "vec", tag = "8")]
     pub signature: ::prost::alloc::vec::Vec<u8>,
+    /// Hash of each individual proof.
+    /// Sent only on ALL_PROOF_HASHES task type.
+    #[prost(string, repeated, tag = "9")]
+    pub all_proof_hashes: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    /// ZK proofs of the program running on each set of inputs.
+    /// To be sent on PROOF_REQUIRED tasks, empty on other task types.
+    #[prost(bytes = "vec", repeated, tag = "10")]
+    pub proofs: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
 }
 /// Performance stats of a node.
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -235,8 +248,12 @@ impl TaskDifficulty {
 pub enum TaskType {
     /// Task requires a proof to be submitted
     ProofRequired = 0,
-    /// Task does not require a proof to be submitted
+    /// Task does not require a proof to be submitted.
+    /// All proof hashes should be hashed together.
     ProofHash = 1,
+    /// Task does not require a proof to be submitted,
+    /// but alll proof hashes should be sent.
+    AllProofHashes = 2,
 }
 impl TaskType {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -247,6 +264,7 @@ impl TaskType {
         match self {
             Self::ProofRequired => "PROOF_REQUIRED",
             Self::ProofHash => "PROOF_HASH",
+            Self::AllProofHashes => "ALL_PROOF_HASHES",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -254,6 +272,7 @@ impl TaskType {
         match value {
             "PROOF_REQUIRED" => Some(Self::ProofRequired),
             "PROOF_HASH" => Some(Self::ProofHash),
+            "ALL_PROOF_HASHES" => Some(Self::AllProofHashes),
             _ => None,
         }
     }

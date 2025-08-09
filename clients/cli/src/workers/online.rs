@@ -30,6 +30,7 @@ use tokio::task::JoinHandle;
 pub struct ProofResult {
     pub proof: Proof,
     pub combined_hash: String,
+    pub individual_proof_hashes: Vec<String>,
 }
 
 /// Helper to send events with consistent error handling
@@ -425,6 +426,7 @@ pub async fn submit_proofs(
                                 task,
                                 proof_result.proof,
                                 proof_result.combined_hash,
+                                proof_result.individual_proof_hashes,
                                 &*orchestrator,
                                 &signing_key,
                                 num_workers,
@@ -493,6 +495,7 @@ async fn submit_proof_to_orchestrator(
     task: &Task,
     proof: &Proof,
     proof_hash: &str,
+    individual_proof_hashes: &[String],
     orchestrator: &dyn Orchestrator,
     signing_key: &SigningKey,
     num_workers: usize,
@@ -523,6 +526,7 @@ async fn submit_proof_to_orchestrator(
             signing_key.clone(),
             num_workers,
             task.task_type,
+            individual_proof_hashes,
         )
         .await
     {
@@ -559,6 +563,7 @@ async fn process_proof_submission(
     task: Task,
     proof: Proof,
     combined_hash: String,
+    individual_proof_hashes: Vec<String>,
     orchestrator: &dyn Orchestrator,
     signing_key: &SigningKey,
     num_workers: usize,
@@ -581,6 +586,7 @@ async fn process_proof_submission(
         &task,
         &proof,
         &proof_hash,
+        &individual_proof_hashes,
         orchestrator,
         signing_key,
         num_workers,
