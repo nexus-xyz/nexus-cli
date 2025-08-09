@@ -91,13 +91,25 @@ jobs:
         working-directory: clients/cli/target/x86_64-unknown-linux-gnu/release/
         run: cp nexus-network nexus-network-linux-x86_64
 
+      - name: Integration Test
+        working-directory: clients/cli
+        timeout-minutes: 5
+        run: |
+          if [ -n "${{ secrets.SMOKE_TEST_NODE_IDS }}" ]; then
+            echo "Running integration test with secret node IDs"
+            SMOKE_TEST_NODE_IDS="${{ secrets.SMOKE_TEST_NODE_IDS }}" ../../tests/integration_test.sh ./target/x86_64-unknown-linux-gnu/release/nexus-network-linux-x86_64 --max-tasks 1
+          else
+            echo "Running integration test with fallback node IDs"
+            ../../tests/integration_test.sh ./target/x86_64-unknown-linux-gnu/release/nexus-network-linux-x86_64 --max-tasks 1
+          fi
+
       # Upload the binary as an artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: nexus-network-linux-x86_64 # Name of the artifact
           path: clients/cli/target/x86_64-unknown-linux-gnu/release/nexus-network-linux-x86_64 # Path to file to upload
-
+                            
 
   build-linux-arm64:
     name: Build Linux (ARM64)
@@ -163,7 +175,7 @@ jobs:
         with:
           name: nexus-network-linux-arm64 # Name of the artifact
           path: clients/cli/target/aarch64-unknown-linux-gnu/release/nexus-network-linux-arm64 # Path to file to upload
-
+                            
   build-macos-x86_64:
     name: Build macOS (x86_64)
     runs-on: macos-latest
@@ -219,6 +231,17 @@ jobs:
         working-directory: clients/cli/target/x86_64-apple-darwin/release/
         run: cp nexus-network nexus-network-macos-x86_64
 
+      - name: Integration Test
+        working-directory: clients/cli
+        timeout-minutes: 5
+        run: |
+          if [ -n "${{ secrets.SMOKE_TEST_NODE_IDS }}" ]; then
+            echo "Running integration test with secret node IDs"
+            SMOKE_TEST_NODE_IDS="${{ secrets.SMOKE_TEST_NODE_IDS }}" ../../tests/integration_test.sh ./target/x86_64-apple-darwin/release/nexus-network-macos-x86_64 --max-tasks 1
+          else
+            echo "Running integration test with fallback node IDs"
+            ../../tests/integration_test.sh ./target/x86_64-apple-darwin/release/nexus-network-macos-x86_64 --max-tasks 1
+          fi
 
       # Upload the binary as an artifact
       - name: Upload artifact
@@ -226,7 +249,7 @@ jobs:
         with:
           name: nexus-network-macos-x86_64 # Name of the artifact
           path: clients/cli/target/x86_64-apple-darwin/release/nexus-network-macos-x86_64 # Path to file to upload
-
+                            
 
   build-macos-arm64:
     name: Build macOS (ARM64)
@@ -275,13 +298,25 @@ jobs:
         working-directory: clients/cli/target/aarch64-apple-darwin/release/
         run: cp nexus-network nexus-network-macos-arm64
 
+      - name: Integration Test
+        working-directory: clients/cli
+        timeout-minutes: 5
+        run: |
+          if [ -n "${{ secrets.SMOKE_TEST_NODE_IDS }}" ]; then
+            echo "Running integration test with secret node IDs"
+            SMOKE_TEST_NODE_IDS="${{ secrets.SMOKE_TEST_NODE_IDS }}" ../../tests/integration_test.sh ./target/aarch64-apple-darwin/release/nexus-network-macos-arm64 --max-tasks 1
+          else
+            echo "Running integration test with fallback node IDs"
+            ../../tests/integration_test.sh ./target/aarch64-apple-darwin/release/nexus-network-macos-arm64 --max-tasks 1
+          fi
+
       # Upload the binary as an artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: nexus-network-macos-arm64 # Name of the artifact
           path: clients/cli/target/aarch64-apple-darwin/release/nexus-network-macos-arm64 # Path to file to upload
-
+                            
 
   build-windows-x86_64:
     name: Build Windows (x86_64)
@@ -327,13 +362,25 @@ jobs:
         working-directory: clients/cli/target/x86_64-pc-windows-msvc/release/
         run: cp nexus-network.exe nexus-network-windows-x86_64.exe
 
+      - name: Integration Test
+        working-directory: clients/cli
+        timeout-minutes: 5
+        run: |
+          if [ -n "${{ secrets.SMOKE_TEST_NODE_IDS }}" ]; then
+            echo "Running integration test with secret node IDs"
+            SMOKE_TEST_NODE_IDS="${{ secrets.SMOKE_TEST_NODE_IDS }}" ../../tests/integration_test.sh ./target/x86_64-pc-windows-msvc/release/nexus-network-windows-x86_64.exe --max-tasks 1
+          else
+            echo "Running integration test with fallback node IDs"
+            ../../tests/integration_test.sh ./target/x86_64-pc-windows-msvc/release/nexus-network-windows-x86_64.exe --max-tasks 1
+          fi
+
       # Upload the binary as an artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: nexus-network-windows-x86_64.exe # Name of the artifact
           path: clients/cli/target/x86_64-pc-windows-msvc/release/nexus-network-windows-x86_64.exe # Path to file to upload
-
+                            
 
   release:
     name: Create Release
