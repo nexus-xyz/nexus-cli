@@ -169,13 +169,6 @@ jobs:
         working-directory: clients/cli/target/aarch64-unknown-linux-gnu/release/
         run: cp nexus-network nexus-network-linux-arm64
 
-      # Skip integration test for ARM64 Linux (cross-compiled, can't run on x86_64 runner)
-      # - name: Integration Test
-      #   working-directory: clients/cli
-      #   timeout-minutes: 5
-      #   run: |
-      #     echo "Skipping integration test for ARM64 Linux (cross-compiled binary)"
-
       # Upload the binary as an artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
