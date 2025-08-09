@@ -39,6 +39,7 @@ pub trait Orchestrator: Send + Sync {
     ) -> Result<Task, OrchestratorError>;
 
     /// Submits a proof to the orchestrator.
+    #[allow(clippy::too_many_arguments)]
     async fn submit_proof(
         &self,
         task_id: &str,
@@ -47,5 +48,6 @@ pub trait Orchestrator: Send + Sync {
         signing_key: SigningKey,
         num_provers: usize,
         task_type: crate::nexus_orchestrator::TaskType,
+        individual_proof_hashes: &[String],
     ) -> Result<(), OrchestratorError>;
 }

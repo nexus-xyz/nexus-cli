@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use thiserror::Error;
 
-const CONFIG_URL: &str = "https://cli.nexus.xyz/version.json";
+const PRIMARY_CONFIG_URL: &str = "https://cli.nexus.xyz/version.json";
+const CACHE_CONFIG_URL: &str = "https://us-central1-nexus-cli.cloudfunctions.net/version";
 const FALLBACK_CONFIG_URL: &str =
     "https://raw.githubusercontent.com/nexus-xyz/nexus-cli/refs/heads/main/public/version.json";
 const CONFIG_TIMEOUT: Duration = Duration::from_secs(10);
@@ -51,7 +52,8 @@ pub struct VersionCheckResult {
 }
 
 impl VersionRequirements {
-    /// Fetch version requirements from the remote config file with fallback to GitHub
+    /// Fetch version requirements from remote config with multiple fallbacks
+    /// Priority: Firebase Hosting -> Cloud Function Cache -> GitHub
     pub async fn fetch() -> Result<Self, VersionRequirementsError> {
         let client = Client::builder()
             .timeout(CONFIG_TIMEOUT)
@@ -59,19 +61,30 @@ impl VersionRequirements {
             .build()
             .expect("Failed to create HTTP client");
 
-        // Try primary URL first
-        match Self::fetch_from_url(&client, CONFIG_URL).await {
+        // Try primary URL first (Firebase Hosting)
+        match Self::fetch_from_url(&client, PRIMARY_CONFIG_URL).await {
             Ok(config) => Ok(config),
             Err(primary_error) => {
-                // If primary URL fails, try GitHub fallback
-                match Self::fetch_from_url(&client, FALLBACK_CONFIG_URL).await {
+                // If primary URL fails, try cloud function cache
+                match Self::fetch_from_url(&client, CACHE_CONFIG_URL).await {
                     Ok(config) => Ok(config),
-                    Err(fallback_error) => {
-                        // Return the primary error but include fallback info
-                        Err(VersionRequirementsError::Fetch(format!(
-                            "Failed to fetch from primary URL ({}): {}. Also failed to fetch from fallback URL ({}): {}",
-                            CONFIG_URL, primary_error, FALLBACK_CONFIG_URL, fallback_error
-                        )))
+                    Err(cache_error) => {
+                        // If cache fails, try GitHub fallback
+                        match Self::fetch_from_url(&client, FALLBACK_CONFIG_URL).await {
+                            Ok(config) => Ok(config),
+                            Err(fallback_error) => {
+                                // Return comprehensive error with all attempts
+                                Err(VersionRequirementsError::Fetch(format!(
+                                    "Failed to fetch from all sources. Primary ({}): {}. Cache ({}): {}. Fallback ({}): {}",
+                                    PRIMARY_CONFIG_URL,
+                                    primary_error,
+                                    CACHE_CONFIG_URL,
+                                    cache_error,
+                                    FALLBACK_CONFIG_URL,
+                                    fallback_error
+                                )))
+                            }
+                        }
                     }
                 }
             }

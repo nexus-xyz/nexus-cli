@@ -63,7 +63,7 @@ pub async fn authenticated_proving(
     environment: &Environment,
     client_id: &str,
     event_sender: Option<&tokio::sync::mpsc::Sender<WorkerEvent>>,
-) -> Result<(Proof, String), ProverError> {
+) -> Result<(Proof, String, Vec<String>), ProverError> {
     // Check for multiple inputs with proof_required task type (not supported yet)
     // TODO: Uncomment this if we actually receive such tasks from orchestrator
     /*
@@ -80,7 +80,7 @@ pub async fn authenticated_proving(
     }
     */
 
-    let (view, proof, combined_hash) = match task.program_id.as_str() {
+    let (view, proof, combined_hash, individual_hashes) = match task.program_id.as_str() {
         "fib_input_initial" => {
             // Handle multiple inputs if present
             let all_inputs = task.all_inputs();
@@ -204,7 +204,7 @@ pub async fn authenticated_proving(
                 })?;
                 let proof = final_proof
                     .ok_or_else(|| ProverError::Stwo("Failed to generate proof".to_string()))?;
-                (view, proof, final_proof_hash)
+                (view, proof, final_proof_hash, proof_hashes)
             } else {
                 // For ProofRequired tasks, return the actual proof
                 let view = final_view.ok_or_else(|| {
@@ -212,7 +212,7 @@ pub async fn authenticated_proving(
                 })?;
                 let proof = final_proof
                     .ok_or_else(|| ProverError::Stwo("Failed to generate proof".to_string()))?;
-                (view, proof, final_proof_hash)
+                (view, proof, final_proof_hash, proof_hashes)
             }
         }
         _ => {
@@ -234,7 +234,7 @@ pub async fn authenticated_proving(
         )));
     }
 
-    Ok((proof, combined_hash))
+    Ok((proof, combined_hash, individual_hashes))
 }
 
 fn parse_triple_public_input(input_data: &[u8]) -> Result<(u32, u32, u32), ProverError> {
@@ -317,11 +317,16 @@ mod tests {
         let client_id = "test_client".to_string();
 
         match authenticated_proving(&task, &environment, &client_id, None).await {
-            Ok((_proof, combined_hash)) => {
+            Ok((_proof, combined_hash, individual_hashes)) => {
                 // Should succeed with multiple inputs and return the first proof hash for ProofRequired
                 assert!(
                     !combined_hash.is_empty(),
                     "Expected proof hash for ProofRequired task type"
+                );
+                assert_eq!(
+                    individual_hashes.len(),
+                    2,
+                    "Expected 2 individual proof hashes for 2 inputs"
                 );
                 println!(
                     "Multiple inputs with ProofRequired works (returns first proof hash): {}",
@@ -356,11 +361,16 @@ mod tests {
         let client_id = "test_client".to_string();
 
         match authenticated_proving(&task, &environment, &client_id, None).await {
-            Ok((_proof, combined_hash)) => {
+            Ok((_proof, combined_hash, individual_hashes)) => {
                 // Should have a combined hash for multiple inputs
                 assert!(
                     !combined_hash.is_empty(),
                     "Expected combined hash for multiple inputs"
+                );
+                assert_eq!(
+                    individual_hashes.len(),
+                    2,
+                    "Expected 2 individual proof hashes for 2 inputs"
                 );
                 println!("Combined hash: {}", combined_hash);
             }
@@ -385,11 +395,16 @@ mod tests {
         let client_id = "test_client".to_string();
 
         match authenticated_proving(&task, &environment, &client_id, None).await {
-            Ok((_proof, combined_hash)) => {
+            Ok((_proof, combined_hash, individual_hashes)) => {
                 // Should have combined hash for ProofHash task type, even with single input
                 assert!(
                     !combined_hash.is_empty(),
                     "Expected combined hash for ProofHash task type"
+                );
+                assert_eq!(
+                    individual_hashes.len(),
+                    1,
+                    "Expected 1 individual proof hash for 1 input"
                 );
                 println!(
                     "Single input with ProofHash - combined hash: {}",
@@ -419,11 +434,16 @@ mod tests {
         let client_id = "test_client".to_string();
 
         match authenticated_proving(&task, &environment, &client_id, None).await {
-            Ok((_proof, combined_hash)) => {
+            Ok((_proof, combined_hash, individual_hashes)) => {
                 // Should have proof hash for single input with ProofRequired
                 assert!(
                     !combined_hash.is_empty(),
                     "Expected proof hash for single input with ProofRequired"
+                );
+                assert_eq!(
+                    individual_hashes.len(),
+                    1,
+                    "Expected exactly 1 individual proof hash for single input"
                 );
                 println!(
                     "Single input with ProofRequired - returns proof hash: {}",
@@ -535,11 +555,16 @@ mod tests {
         let (event_sender, mut event_receiver) = tokio::sync::mpsc::channel::<WorkerEvent>(10);
 
         match authenticated_proving(&task, &environment, &client_id, Some(&event_sender)).await {
-            Ok((_proof, combined_hash)) => {
+            Ok((_proof, combined_hash, individual_hashes)) => {
                 // Should have combined hash for multiple inputs with ProofHash
                 assert!(
                     !combined_hash.is_empty(),
                     "Expected combined hash for ProofHash task type"
+                );
+                assert_eq!(
+                    individual_hashes.len(),
+                    2,
+                    "Expected exactly 2 individual proof hashes for 2 inputs"
                 );
 
                 // Check that progress events were sent

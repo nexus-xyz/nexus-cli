@@ -104,13 +104,13 @@ message SubmitProofRequest {
   // The type of this node.
   NodeType node_type = 2;
 
-  // Hash of the proof.
+  // Hash of the concatenated proof bytes.
   string proof_hash = 3;
 
   // Telemetry data about the node
   NodeTelemetry node_telemetry = 4;
 
-  // ZK proof of the proof activity
+  // ZK proof of the program and first set of inputs.
   bytes proof = 5;
 
   // The task's ID.
@@ -125,6 +125,14 @@ message SubmitProofRequest {
   // task_id + hash(proof) with the Ed25519 private key
   // corresponding to the public key.
   bytes signature = 8;
+
+  // Hash of each individual proof.
+  // Sent only on ALL_PROOF_HASHES task type.
+  repeated string all_proof_hashes = 9;
+
+  // ZK proofs of the program running on each set of inputs.
+  // To be sent on PROOF_REQUIRED tasks, empty on other task types.
+  repeated bytes proofs = 10;
 }
 
 // Performance stats of a node.
@@ -169,8 +177,13 @@ enum TaskType {
   // Task requires a proof to be submitted
   PROOF_REQUIRED = 0;
   
-  // Task does not require a proof to be submitted
+  // Task does not require a proof to be submitted.
+  // All proof hashes should be hashed together.
   PROOF_HASH = 1;
+
+  // Task does not require a proof to be submitted,
+  // but alll proof hashes should be sent.
+  ALL_PROOF_HASHES = 2;
 }
 
 // Response to get a single node by ID

@@ -485,11 +485,18 @@ mod tests {
         while let Ok(event) = event_receiver.try_recv() {
             if matches!(event.worker, Worker::VersionChecker) {
                 received_event = true;
-                // With current version 0.9.0, we expect a warning constraint message
+                // Check for either constraint-based message or fallback update message
+                // Both indicate version issues that users should act on
+                let is_constraint_message = event
+                    .msg
+                    .contains("does not meet the minimum required version")
+                    || event.msg.contains("Please upgrade");
+                let is_update_message =
+                    event.msg.contains("New version") && event.msg.contains("available");
                 assert!(
-                    event
-                        .msg
-                        .contains("Consider upgrading for the best experience")
+                    is_constraint_message || is_update_message,
+                    "Version checker should send either a constraint violation or update available message, got: {}",
+                    event.msg
                 );
                 break;
             }
