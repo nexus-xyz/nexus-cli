@@ -9,197 +9,302 @@ package nexus.orchestrator;
 
 import "google/protobuf/timestamp.proto";
 
-// Register a User.
+// Register a user with a unique ID and wallet address.
 message RegisterUserRequest {
   // UUIDv4 identifier for the user.
-  string uuid = 1;
+  string user_id = 1;
 
-  // The user's wallet public address.
+  // The user's wallet public address (e.g., Ethereum or Solana address).
   string wallet_address = 2;
 }
 
+// Enum defining the type of node in the Nexus network.
 enum NodeType {
-  // The node is a web prover.
+  // A web-based prover node running in a browser.
   WEB_PROVER = 0;
 
-  // The node is a CLI prover.
+  // A command-line interface (CLI) prover node.
   CLI_PROVER = 1;
 }
 
-// Register a node.
+// Register a node in the Nexus network.
 message RegisterNodeRequest {
   // The type of this node.
   NodeType node_type = 1;
 
-  // The owner of the node.
+  // The UUID of the user owning this node.
   string user_id = 2;
+
+  // The software version of the node (e.g., "1.2.3").
+  string version = 3;
 }
 
 // Response to a node registration request.
 message RegisterNodeResponse {
-  // The node's ID.
+  // The unique ID assigned to the registered node.
   string node_id = 1;
 }
 
-// A Prover task
+// A prover task for generating zero-knowledge proofs or hashes.
 message Task {
+  // Unique ID of the task.
   string task_id = 1;
+
+  // ID of the program to execute.
   string program_id = 2;
+
+  // Deprecated: Use input_sets instead.
   bytes public_inputs = 3 [deprecated = true];
+
+  // Timestamp when the task was created.
   google.protobuf.Timestamp created_at = 4;
-  repeated bytes public_inputs_list = 5;
-  // The type of task (proof required or only hash)
+
+  // List of public input sets for the program.
+  repeated bytes input_sets = 5;
+
+  // The type of task (proof or hash submission).
   TaskType task_type = 6;
+
+  // Priority level of the task (1 = lowest, 10 = highest).
+  int32 priority = 7;
+
+  // Custom metadata for the task (e.g., configuration parameters).
+  map<string, string> metadata = 8;
 }
 
-// Get outstanding tasks for a node.
+// Enum defining the type of task.
+enum TaskType {
+  // Task requires a full ZK proof to be submitted.
+  PROOF_REQUIRED = 0;
+
+  // Task requires a single hash of all proofs.
+  HASH_REQUIRED = 1;
+
+  // Task requires individual hashes for each proof.
+  INDIVIDUAL_HASHES = 2;
+}
+
+// Enum defining task difficulty levels.
+enum TaskDifficulty {
+  // Small difficulty tasks (e.g., simple computations).
+  SMALL = 0;
+
+  // Reserved for future small-tier difficulty levels.
+  reserved 1 to 4;
+
+  // Medium difficulty tasks (e.g., moderate computations).
+  MEDIUM = 5;
+
+  // Reserved for future medium-tier difficulty levels.
+  reserved 6 to 9;
+
+  // Large difficulty tasks (e.g., complex ZK proofs).
+  LARGE = 10;
+}
+
+// Request to fetch outstanding tasks for a node.
 message GetTasksRequest {
+  // ID of the node requesting tasks.
   string node_id = 1;
+
+  // Cursor for pagination (empty for first page).
   string next_cursor = 2;
+
+  // Maximum number of tasks to return (default: 100).
+  int32 limit = 3;
 }
 
-// Tasks assigned to a node.
+// Response containing tasks assigned to a node.
 message GetTasksResponse {
+  // List of tasks assigned to the node.
   repeated Task tasks = 1;
+
+  // Cursor for the next page of tasks (empty if no more tasks).
   string next_cursor = 2;
 }
 
-// Request a prover task.
+// Request a specific proof task for a node.
 message GetProofTaskRequest {
-  // This node's ID.
+  // ID of the requesting node.
   string node_id = 1;
 
-  // The type of this node.
+  // Type of the requesting node.
   NodeType node_type = 2;
 
-  // The client's Ed25519 public key for proof authentication.Add commentMore actions
+  // Ed25519 public key for proof authentication (~32 bytes).
   bytes ed25519_public_key = 3;
 
-  // The maximum difficulty level the client wants to handle
+  // Maximum difficulty level the node can handle.
   TaskDifficulty max_difficulty = 4;
 }
 
-// A Prover task.
+// Response containing a single proof task.
 message GetProofTaskResponse {
-  // Deprecated: use field in Task instead.
-  // Program id. (Assuming client-side default programs)
+  // Deprecated: Use task field instead.
   string program_id = 1 [deprecated = true];
 
-  // Deprecated: use field in Task instead.
-  // Public inputs to the program.
+  // Deprecated: Use task field instead.
   bytes public_inputs = 2 [deprecated = true];
 
-  // Deprecated: use field in Task instead.
-  // The task's ID.
+  // Deprecated: Use task field instead.
   string task_id = 3 [deprecated = true];
 
+  // The assigned task.
   Task task = 4;
 }
 
 // Submit the result of a prover task.
 message SubmitProofRequest {
-  reserved 1;
-  reserved "node_id";
+  // ID of the node submitting the proof.
+  string node_id = 1;
 
-  // The type of this node.
+  // Type of the submitting node.
   NodeType node_type = 2;
 
-  // Hash of the concatenated proof bytes.
+  // Hash of the concatenated proof bytes (for HASH_REQUIRED tasks).
   string proof_hash = 3;
 
-  // Telemetry data about the node
+  // Telemetry data about the node.
   NodeTelemetry node_telemetry = 4;
 
-  // ZK proof of the program and first set of inputs.
+  // ZK proof for the program and first input set (for PROOF_REQUIRED tasks).
   bytes proof = 5;
 
-  // The task's ID.
+  // ID of the task being submitted.
   string task_id = 6;
 
-  // A Ed25519 public key (~32 bytes) generated by
-  // the node to uniquely identify this request,
-  // used for DoS protection.
+  // Ed25519 public key for DoS protection (~32 bytes).
   bytes ed25519_public_key = 7;
 
-  // A signature of the proof, generated by signing
-  // task_id + hash(proof) with the Ed25519 private key
-  // corresponding to the public key.
+  // Ed25519 signature of task_id + hash(proof).
   bytes signature = 8;
 
-  // Hash of each individual proof.
-  // Sent only on ALL_PROOF_HASHES task type.
-  repeated string all_proof_hashes = 9;
+  // Individual proof hashes (for INDIVIDUAL_HASHES tasks).
+  repeated string individual_proof_hashes = 9;
 
-  // ZK proofs of the program running on each set of inputs.
-  // To be sent on PROOF_REQUIRED tasks, empty on other task types.
+  // ZK proofs for each input set (for PROOF_REQUIRED tasks).
   repeated bytes proofs = 10;
 }
 
-// Performance stats of a node.
+// Response to a proof submission.
+message SubmitProofResponse {
+  // Status of the proof verification (e.g., "ACCEPTED", "REJECTED").
+  string verification_status = 1;
+
+  // Optional error message if verification failed.
+  string error_message = 2;
+}
+
+// Performance and status data of a node.
 message NodeTelemetry {
-  // Flops per second
-  optional int32 flops_per_sec = 1;
+  // Flops per second (required for performance tracking).
+  int32 flops_per_sec = 1;
 
-  // Memory used in bytes for the proof activity
-  optional int32 memory_used = 2;
+  // Memory used in bytes for proof activity (required).
+  int32 memory_used = 2;
 
-  // Memory capacity in bytes of the node
-  optional int32 memory_capacity = 3;
+  // Memory capacity in bytes of the node (required).
+  int32 memory_capacity = 3;
 
-  // Geo location of the node
-  optional string location = 4;
+  // Geolocation coordinates of the node.
+  GeoLocation geo_location = 4;
+
+  // Custom metadata for telemetry (e.g., OS, hardware specs).
+  map<string, string> metadata = 5;
 }
 
-// Node information
+// Structured geolocation data.
+message GeoLocation {
+  // Latitude in degrees (-90 to 90).
+  float latitude = 1;
+
+  // Longitude in degrees (-180 to 180).
+  float longitude = 2;
+
+  // Optional country code (ISO 3166-1 alpha-2, e.g., "US").
+  string country_code = 3;
+}
+
+// Information about a node.
 message Node {
-  // The node's ID
+  // Unique ID of the node.
   string node_id = 1;
-  // The type of node
+
+  // Type of the node.
   NodeType node_type = 2;
+
+  // Software version of the node (e.g., "1.2.3").
+  string version = 3;
+
+  // Custom metadata for the node (e.g., configuration details).
+  map<string, string> metadata = 4;
 }
 
-enum TaskDifficulty {
-  // Small difficulty bucket
-  SMALL = 0;
+// Enum defining task status.
+enum TaskStatus {
+  // Task is pending assignment.
+  PENDING = 0;
 
-  reserved 1 to 4;
+  // Task is assigned to a node.
+  ASSIGNED = 1;
 
-  // Medium difficulty bucket
-  MEDIUM = 5;
-  
-  reserved 6 to 9;
+  // Task is completed and proof submitted.
+  COMPLETED = 2;
 
-  // Large difficulty bucket
-  LARGE = 10;
+  // Task failed or proof was rejected.
+  FAILED = 3;
 }
 
-enum TaskType {
-  // Task requires a proof to be submitted
-  PROOF_REQUIRED = 0;
-  
-  // Task does not require a proof to be submitted.
-  // All proof hashes should be hashed together.
-  PROOF_HASH = 1;
-
-  // Task does not require a proof to be submitted,
-  // but alll proof hashes should be sent.
-  ALL_PROOF_HASHES = 2;
+// Request to check the status of a task.
+message GetTaskStatusRequest {
+  // ID of the task to query.
+  string task_id = 1;
 }
 
-// Response to get a single node by ID
+// Response containing the status of a task.
+message GetTaskStatusResponse {
+  // ID of the task.
+  string task_id = 1;
+
+  // Current status of the task.
+  TaskStatus status = 2;
+
+  // Optional error message if the task failed.
+  string error_message = 3;
+}
+
+// Response to get a single node by ID.
 message GetNodeResponse {
-  // The wallet address of the node's owner
+  // Wallet address of the node's owner.
   string wallet_address = 1;
+
+  // Details of the node.
+  Node node = 2;
 }
 
-// Response returning all nodes associated with a user
+// Response containing all nodes associated with a user.
 message UserResponse {
-  // The user's registered nodes
+  // List of nodes registered by the user.
   repeated Node nodes = 1;
-  // Cursor to fetch the next page of nodes, empty if there are no more results
+
+  // Cursor for the next page of nodes (empty if no more results).
   string nodes_next_cursor = 2;
-  // The user's ID.
+
+  // UUID of the user.
   string user_id = 3;
-  // The user's wallet address
+
+  // Wallet address of the user.
   string wallet_address = 4;
+}
+
+// Generic error response for RPC methods.
+message ErrorResponse {
+  // Error code (e.g., "INVALID_REQUEST", "NOT_FOUND").
+  string code = 1;
+
+  // Detailed error message.
+  string message = 2;
+
+  // Optional additional details (e.g., field causing the error).
+  map<string, string> details = 3;
 }
