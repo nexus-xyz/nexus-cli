@@ -1,4 +1,5 @@
 use crate::environment::Environment;
+use crate::prover::input::InputParser;
 use crate::system::{estimate_peak_gflops, measure_gflops, num_cores};
 use crate::task::Task;
 use chrono::Datelike;
@@ -32,7 +33,7 @@ pub const PRODUCTION_MEASUREMENT_ID: &str = "G-GLH0GMEEFH";
 pub const PRODUCTION_API_SECRET: &str = "3wxu8FjVSPqOlxSsZEnBOw";
 
 // Expected input size for fib_input_initial (3 u32 values = 12 bytes)
-const FIB_INPUT_INITIAL_BYTES: usize = 12;
+const FIB_INPUT_INITIAL_BYTES: usize = (u32::BITS / 8 * 3) as usize;
 
 pub fn analytics_id(environment: &Environment) -> String {
     match environment {
@@ -284,25 +285,27 @@ pub async fn track_authenticated_proof_analytics(
             };
 
             // Check if we have the expected number of bytes for fib_input_initial
-            if input_data.len() == FIB_INPUT_INITIAL_BYTES {
-                let mut bytes = [0u8; 4];
-                bytes.copy_from_slice(&input_data[0..4]);
-                let n = u32::from_le_bytes(bytes);
-                bytes.copy_from_slice(&input_data[4..8]);
-                let init_a = u32::from_le_bytes(bytes);
-                bytes.copy_from_slice(&input_data[8..12]);
-                let init_b = u32::from_le_bytes(bytes);
-                let inputs = (n, init_a, init_b);
-
-                json!({
-                    "program_name": "fib_input_initial",
-                    "public_input": inputs.0,
-                    "public_input_2": inputs.1,
-                    "public_input_3": inputs.2,
-                    "task_id": task.task_id,
-                })
+            if input_data.len() >= FIB_INPUT_INITIAL_BYTES && FIB_INPUT_INITIAL_BYTES >= 12 {
+                // Use safe slicing that won't panic
+                
+                InputParser::parse_triple_input(input_data).map(|inputs| json!({
+                            "program_name": "fib_input_initial",
+                            "public_input": inputs.0,
+                            "public_input_2": inputs.1,
+                            "public_input_3": inputs.2,
+                            "task_id": task.task_id,
+                        }))
+                    .unwrap_or_else(|_| {
+                        // Fallback for slicing error - just log the program and task
+                        json!({
+                            "program_name": "fib_input_initial",
+                            "task_id": task.task_id,
+                            "input_size": input_data.len(),
+                            "expected_size": FIB_INPUT_INITIAL_BYTES,
+                            "error": "safe_slicing_failed",
+                        })
+                    })
             } else {
-                // Fallback for unexpected input size - just log the program and task
                 json!({
                     "program_name": "fib_input_initial",
                     "task_id": task.task_id,
@@ -322,26 +325,6 @@ pub async fn track_authenticated_proof_analytics(
     let _ = track(
         vec!["cli_proof_node_v4".to_string(), "proof_node".to_string()],
         analytics_data,
-        &environment,
-        client_id,
-    )
-    .await;
-    // TODO: Catch errors and log them
-}
-
-/// Track analytics for anonymous proof (non-blocking)
-pub async fn track_anonymous_proof_analytics(environment: Environment, client_id: String) {
-    // Anonymous proofs use hardcoded input: (n=9, init_a=1, init_b=1)
-    let public_input = (9, 1, 1);
-
-    let _ = track(
-        vec!["cli_proof_anon_v3".to_string()],
-        json!({
-            "program_name": "fib_input_initial",
-            "public_input": public_input.0,
-            "public_input_2": public_input.1,
-            "public_input_3": public_input.2,
-        }),
         &environment,
         client_id,
     )
