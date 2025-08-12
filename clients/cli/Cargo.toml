@@ -16,21 +16,24 @@ path = "src/main.rs"
 opt-level = 1
 
 [profile.release]
-opt-level = 3          # Maximum optimization level
-lto = true             # Link Time Optimization for better performance
+opt-level = 3          # Maximum optimization for best runtime performance
+lto = "fat"            # Full LTO for maximum optimization across crates
 codegen-units = 1      # Single codegen unit for maximum optimization
 panic = 'abort'        # Abort on panic (smaller binaries, better performance)
 strip = true           # Strip symbols for smaller binaries
-debug = true           # Keep debug symbols for easier debugging
+debug = false          # No debug symbols for faster builds
+incremental = false    # Disable incremental compilation for maximum optimization
 
 [profile.ci-build]
 inherits = "dev"
-opt-level = 0
-debug = 0
-strip = "none"
-lto = false
-codegen-units = 256
-incremental = true
+opt-level = 0              # No optimization for fastest compilation.
+debug = 0                  # No debug info for faster builds.
+debug-assertions = false   # Disable debug assertions to remove `debug!` macro prints.
+strip = "none"             # No stripping to save time.
+lto = false                # No LTO for faster compilation.
+codegen-units = 256        # Maximum parallel codegen units for faster compilation.
+incremental = true         # Enable incremental compilation for faster rebuilds.
+panic = "unwind"           # Use unwind for panics to allow tests to catch them.
 
 [dependencies]
 async-trait = "0.1.88"
@@ -54,7 +57,7 @@ serde = { version = "1.0.217", features = ["derive"] }
 serde_json = { version = "1.0.138" }
 sha3 = "0.10.8"
 strum = "0.26.3"
-sysinfo = "0.33.1"
+sysinfo = "0.36"
 thiserror = "2.0.12"
 tokio = { version = "1.38", features = ["full"] }
 urlencoding = "2.1.3"
