@@ -60,7 +60,7 @@ enum Command {
         #[arg(long = "orchestrator-url", value_name = "URL")]
         orchestrator_url: Option<String>,
 
-        /// Disable background colors in the dashboard
+        /// Enable background colors in the dashboard
         #[arg(long = "with-background", action = ArgAction::SetTrue)]
         with_background: bool,
 
