@@ -53,15 +53,20 @@ impl ProvingPipeline {
             let proof = ProvingEngine::prove_and_validate(&inputs, task, environment, client_id)
                 .await
                 .map_err(|e| {
-                    // Track verification failure
-                    let error_msg = format!("Input {}: {}", input_index, e);
-                    tokio::spawn(track_verification_failed(
-                        task.clone(),
-                        error_msg.clone(),
-                        environment.clone(),
-                        client_id.to_string(),
-                    ));
-                    e
+                    match e {
+                        ProverError::Stwo | ProverError::GuestProgram => {
+                            // Track verification failure
+                            let error_msg = format!("Input {}: {}", input_index, e);
+                            tokio::spawn(track_verification_failed(
+                                task.clone(),
+                                error_msg.clone(),
+                                environment.clone(),
+                                client_id.to_string(),
+                            ));
+                            e
+                        }
+                        _ => e
+                    }
                 })?;
 
             // Step 3: Generate proof hash
