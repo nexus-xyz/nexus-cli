@@ -78,12 +78,18 @@ impl ProofSubmitter {
         let proof_bytes = postcard::to_allocvec(&proof_result.proof)?;
 
         // Submit through network client with retry logic
-        let submission = ProofSubmission::new(
+        let mut submission = ProofSubmission::new(
             task.task_id.clone(),
             proof_result.combined_hash.clone(),
             proof_bytes,
             task.task_type,
         );
+
+        // Populate individual hashes for ALL_PROOF_HASHES and optionally for ProofHash
+        if task.task_type == crate::nexus_orchestrator::TaskType::AllProofHashes {
+            submission =
+                submission.with_individual_hashes(proof_result.individual_proof_hashes.clone());
+        }
 
         match self
             .network_client

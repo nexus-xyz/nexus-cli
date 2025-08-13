@@ -22,4 +22,5 @@ pub enum ProverError {
 pub struct ProverResult {
     pub proof: Proof,
     pub combined_hash: String,
+    pub individual_proof_hashes: Vec<String>,
 }

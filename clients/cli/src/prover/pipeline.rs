@@ -18,7 +18,7 @@ impl ProvingPipeline {
         task: &Task,
         environment: &Environment,
         client_id: &str,
-    ) -> Result<(Proof, String), ProverError> {
+    ) -> Result<(Proof, String, Vec<String>), ProverError> {
         match task.program_id.as_str() {
             "fib_input_initial" => Self::prove_fib_task(task, environment, client_id).await,
             _ => Err(ProverError::MalformedTask(format!(
@@ -33,7 +33,7 @@ impl ProvingPipeline {
         task: &Task,
         environment: &Environment,
         client_id: &str,
-    ) -> Result<(Proof, String), ProverError> {
+    ) -> Result<(Proof, String, Vec<String>), ProverError> {
         let all_inputs = task.all_inputs();
 
         if all_inputs.is_empty() {
@@ -70,7 +70,11 @@ impl ProvingPipeline {
 
         let final_proof_hash = Self::combine_proof_hashes(task, &proof_hashes);
 
-        Ok((final_proof.expect("No proof found"), final_proof_hash))
+        Ok((
+            final_proof.expect("No proof found"),
+            final_proof_hash,
+            proof_hashes,
+        ))
     }
 
     /// Generate hash for a proof
