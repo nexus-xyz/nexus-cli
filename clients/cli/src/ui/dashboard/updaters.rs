@@ -45,52 +45,61 @@ impl DashboardState {
     /// We can improve this by using a more efficient approach, but this is a good starting point.
     /// TODO: Improve this by using a more efficient approach.
     fn update_task_fetch_info(&mut self) {
-        // Look for the most recent waiting message (first in reverse order)
-        for event in self.events.iter().rev().take(10) {
+        // Look for the most recent waiting message (expanded search window)
+        for event in self.events.iter().rev().take(20) {
             if matches!(event.worker, Worker::TaskFetcher) {
                 // Only process "ready for next task" messages
                 if event.msg.contains("ready for next task") {
-                    if let Some(start) = event.msg.find('(') {
-                        if let Some(end) = event.msg.find(')') {
-                            if start < end {
-                                let time_str = &event.msg[start + 1..end];
-                                if let Ok(original_wait_secs) = time_str.parse::<u64>() {
-                                    // Check if this is the EXACT SAME waiting message we've seen before
-                                    let is_same_message = match &self.waiting_start_info {
-                                        Some((_, prev_wait)) => *prev_wait == original_wait_secs,
-                                        None => false,
-                                    };
+                    // More robust parsing: look specifically for the pattern "(number) seconds"
+                    if let Some(seconds) = self.extract_wait_seconds(&event.msg) {
+                        // Check if this is the EXACT SAME waiting message we've seen before
+                        let is_same_message = match &self.waiting_start_info {
+                            Some((_, prev_wait)) => *prev_wait == seconds,
+                            None => false,
+                        };
 
-                                    if !is_same_message {
-                                        // This is a NEW waiting period - reset tracking
-                                        self.waiting_start_info =
-                                            Some((Instant::now(), original_wait_secs));
-                                    }
+                        if !is_same_message {
+                            // This is a NEW waiting period - reset tracking
+                            self.waiting_start_info = Some((Instant::now(), seconds));
+                        }
 
-                                    // Calculate elapsed time since we started tracking this specific wait period
-                                    if let Some((start_time, original_secs)) =
-                                        &self.waiting_start_info
-                                    {
-                                        let elapsed_secs = start_time.elapsed().as_secs();
-                                        let remaining_secs =
-                                            original_secs.saturating_sub(elapsed_secs);
+                        // Calculate elapsed time since we started tracking this specific wait period
+                        if let Some((start_time, original_secs)) = &self.waiting_start_info {
+                            let elapsed_secs = start_time.elapsed().as_secs();
+                            let remaining_secs = original_secs.saturating_sub(elapsed_secs);
 
-                                        self.task_fetch_info = TaskFetchInfo {
-                                            backoff_duration_secs: *original_secs,
-                                            time_since_last_fetch_secs: elapsed_secs,
-                                            can_fetch_now: remaining_secs == 0,
-                                        };
-                                        return;
-                                    }
-                                }
-                            }
+                            self.task_fetch_info = TaskFetchInfo {
+                                backoff_duration_secs: *original_secs,
+                                time_since_last_fetch_secs: elapsed_secs,
+                                can_fetch_now: remaining_secs == 0,
+                            };
+                            return;
                         }
                     }
                 }
             }
         }
 
-        // No recent rate limiting, assume we can fetch
+        // No recent waiting message found - preserve existing countdown if still valid
+        if let Some((start_time, original_secs)) = &self.waiting_start_info {
+            let elapsed_secs = start_time.elapsed().as_secs();
+            let remaining_secs = original_secs.saturating_sub(elapsed_secs);
+
+            // If we still have time remaining on the existing countdown, preserve it
+            if remaining_secs > 0 {
+                self.task_fetch_info = TaskFetchInfo {
+                    backoff_duration_secs: *original_secs,
+                    time_since_last_fetch_secs: elapsed_secs,
+                    can_fetch_now: false,
+                };
+                return;
+            } else {
+                // Countdown has expired, clear the waiting info
+                self.waiting_start_info = None;
+            }
+        }
+
+        // No active countdown, assume we can fetch
         self.task_fetch_info = TaskFetchInfo {
             backoff_duration_secs: 0,
             time_since_last_fetch_secs: 0,
@@ -113,9 +122,7 @@ impl DashboardState {
                 Worker::TaskFetcher => {
                     // Count successful task fetches (but not rate limit responses)
                     if matches!(event.event_type, EventType::Success)
-                        && !event.msg.contains("rate limited")
-                        && !event.msg.contains("retrying")
-                        && !event.msg.contains("Step 1 of 4")
+                        && event.msg.contains("Step 1 of 4: Got task")
                     {
                         tasks_fetched += 1;
                     }
@@ -163,8 +170,8 @@ impl DashboardState {
         let _total_points = (tasks_submitted as u64) * 300;
 
         self.zkvm_metrics = ZkVMMetrics {
-            tasks_executed: tasks_submitted.max(tasks_fetched), // Total tasks attempted
-            tasks_proved: tasks_submitted,                      // Successfully completed tasks
+            tasks_executed: tasks_fetched,                    // Total tasks fetched
+            tasks_proved: tasks_submitted,                    // Successfully completed tasks
             zkvm_runtime_secs: self.accumulated_runtime_secs, // Use accumulated runtime across all tasks
             last_task_status: last_status,
             _total_points,
@@ -248,5 +255,66 @@ impl DashboardState {
                 }
             }
         }
+    }
+
+    /// Extract wait seconds from log message using robust parsing.
+    /// Expected format: "Step 1 of 4: Waiting - ready for next task (30) seconds"
+    fn extract_wait_seconds(&self, msg: &str) -> Option<u64> {
+        // Look for pattern: (number) seconds
+        // Find the last opening parenthesis before "seconds"
+        if let Some(seconds_pos) = msg.find(" seconds") {
+            let before_seconds = &msg[..seconds_pos];
+
+            // Find the last opening parenthesis
+            if let Some(open_pos) = before_seconds.rfind('(') {
+                // Find the closing parenthesis after the opening one
+                let after_open = &msg[open_pos + 1..];
+                if let Some(close_pos) = after_open.find(')') {
+                    let number_str = &after_open[..close_pos];
+
+                    // Parse the number, trimming whitespace
+                    match number_str.trim().parse::<u64>() {
+                        Ok(seconds) => {
+                            // Debug: Successful parsing
+                            #[cfg(debug_assertions)]
+                            eprintln!(
+                                "[DEBUG] Successfully parsed wait time: {} seconds from: {}",
+                                seconds, msg
+                            );
+                            return Some(seconds);
+                        }
+                        Err(_) => {
+                            // Debug: Failed to parse number
+                            #[cfg(debug_assertions)]
+                            eprintln!(
+                                "[DEBUG] Failed to parse number '{}' from message: {}",
+                                number_str.trim(),
+                                msg
+                            );
+                        }
+                    }
+                } else {
+                    // Debug: No closing parenthesis found
+                    #[cfg(debug_assertions)]
+                    eprintln!(
+                        "[DEBUG] No closing parenthesis found after position {} in: {}",
+                        open_pos, msg
+                    );
+                }
+            } else {
+                // Debug: No opening parenthesis found
+                #[cfg(debug_assertions)]
+                eprintln!(
+                    "[DEBUG] No opening parenthesis found before 'seconds' in: {}",
+                    msg
+                );
+            }
+        } else {
+            // Debug: Pattern " seconds" not found
+            #[cfg(debug_assertions)]
+            eprintln!("[DEBUG] Pattern ' seconds' not found in: {}", msg);
+        }
+
+        None
     }
 }
