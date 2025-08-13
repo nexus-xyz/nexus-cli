@@ -67,7 +67,7 @@ impl ProvingEngine {
 
         if !output.status.success() {
             if let Some(code) = output.status.code() {
-                if code == 128 + 9 {
+                if code == crate::consts::cli_consts::SUBPROCESS_SUSPECTED_OOM_CODE {
                     // 128 + 9 = 137 means external sigkill, so likely killed by kernel due to OOM; track analytics event
                     tokio::spawn(track_likely_oom_error(
                         task.clone(),
@@ -76,7 +76,7 @@ impl ProvingEngine {
                     ));
                 }
 
-                if code == 3 {
+                if code == crate::consts::cli_consts::SUBPROCESS_INTERNAL_ERROR_CODE {
                     // error happened inside the subprocess, and so we know that it may be useful information to the user
                     return Err(ProverError::Subprocess(format!(
                         "Error while proving within subprocess, captured error: [{}]",

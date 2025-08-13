@@ -163,7 +163,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
                 Err(e) => {
                     eprintln!("{}", e);
-                    exit(3);
+                    exit(consts::cli_consts::SUBPROCESS_INTERNAL_ERROR_CODE);
                 }
             }
         }

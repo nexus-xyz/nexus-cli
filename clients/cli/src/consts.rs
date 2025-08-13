@@ -13,6 +13,12 @@ pub mod cli_consts {
     /// Maximum number of events that can be queued for UI updates
     pub const EVENT_QUEUE_SIZE: usize = 100;
 
+    /// Subprocess error code likely indicating an OOM error
+    pub const SUBPROCESS_SUSPECTED_OOM_CODE: i32 = 137;
+
+    /// Subprocess error code indicating an internal failure of the proving
+    pub const SUBPROCESS_INTERNAL_ERROR_CODE: i32 = 3;
+
     // =============================================================================
     // NETWORK CONFIGURATION
     // =============================================================================
