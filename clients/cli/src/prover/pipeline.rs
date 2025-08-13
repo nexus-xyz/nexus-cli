@@ -70,7 +70,11 @@ impl ProvingPipeline {
 
         let final_proof_hash = Self::combine_proof_hashes(task, &proof_hashes);
 
-        Ok((final_proof.expect("No proof found"), final_proof_hash, proof_hashes))
+        Ok((
+            final_proof.expect("No proof found"),
+            final_proof_hash,
+            proof_hashes,
+        ))
     }
 
     /// Generate hash for a proof

@@ -87,7 +87,8 @@ impl ProofSubmitter {
 
         // Populate individual hashes for ALL_PROOF_HASHES and optionally for ProofHash
         if task.task_type == crate::nexus_orchestrator::TaskType::AllProofHashes {
-            submission = submission.with_individual_hashes(proof_result.individual_proof_hashes.clone());
+            submission =
+                submission.with_individual_hashes(proof_result.individual_proof_hashes.clone());
         }
 
         match self
