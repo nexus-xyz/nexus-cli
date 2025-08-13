@@ -50,7 +50,7 @@ impl ProvingPipeline {
             let inputs = InputParser::parse_triple_input(input_data)?;
 
             // Step 2: Generate and verify proof
-            let proof = ProvingEngine::prove_and_validate(&inputs).map_err(|e| {
+            let proof = ProvingEngine::prove_and_validate(&inputs).await.map_err(|e| {
                 // Track verification failure
                 let error_msg = format!("Input {}: {}", input_index, e);
                 tokio::spawn(track_verification_failed(

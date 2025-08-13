@@ -30,6 +30,11 @@ use crate::session::{run_headless_mode, run_tui_mode, setup_session};
 use crate::version::manager::validate_version_requirements;
 use clap::{ArgAction, Parser, Subcommand};
 use std::error::Error;
+use std::io::Write;
+use std::process::exit;
+use postcard::to_allocvec;
+use serde_json;
+use crate::prover::engine::ProvingEngine;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -82,6 +87,13 @@ enum Command {
     },
     /// Clear the node configuration and logout.
     Logout,
+    /// Hidden command for subprocess proof generation
+    #[command(hide = true, name = "prove-fib-subprocess")]
+    ProveFibSubprocess {
+        /// Serialized inputs blob
+        #[arg(long)]
+        inputs: String,
+    },
 }
 
 #[tokio::main]
@@ -140,6 +152,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
         Command::RegisterNode { node_id } => {
             let orchestrator = Box::new(OrchestratorClient::new(environment));
             register_node(node_id, &config_path, orchestrator).await
+        }
+        Command::ProveFibSubprocess { inputs } => {
+            let inputs: (u32, u32, u32) = serde_json::from_str(&inputs)?;
+            match ProvingEngine::prove_fib_subprocess(&inputs) {
+                Ok(proof) => {
+                    let bytes = to_allocvec(&proof)?;
+                    let mut out = std::io::stdout().lock();
+                    out.write_all(&bytes)?;
+                    Ok(())
+                }
+                Err(e) => {
+                    eprintln!("Error generating proof: {}", e);
+                    exit(1);
+                }
+            }
         }
     }
 }

@@ -16,6 +16,15 @@ pub enum ProverError {
 
     #[error("Guest Program error: {0}")]
     GuestProgram(String),
+
+    #[error("I/O error: {0}")]
+    Io(#[from] std::io::Error),
+
+    #[error("Subprocess error: {0}")]
+    Subprocess(String),
+
+    #[error("Serde JSON error: {0}")]
+    SerdeJson(#[from] serde_json::Error),
 }
 
 /// Result of a proof generation, including combined hash for multiple inputs
