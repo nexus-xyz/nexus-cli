@@ -95,13 +95,14 @@ for node_id in "${NODE_IDS[@]}"; do
 
 	# Start the CLI process in background (release mode should have clean output)
 	(
-		ulimit -c 0
+		ulimit -c 0 || true
 		RUST_LOG=warn "$BINARY_PATH" start --headless --max-tasks 1 --node-id $node_id 2>&1 | tee "$TEMP_RAW_OUTPUT"
 	) &
 	CLI_PID=$!
 
 	# Wait for either completion or timeout (60 seconds)
 	TIMEOUT=60
+	RATE_LIMITED=false
 	for i in $(seq 1 $TIMEOUT); do
 		if ! kill -0 "$CLI_PID" 2>/dev/null; then
 			# Process has finished
@@ -110,7 +111,7 @@ for node_id in "${NODE_IDS[@]}"; do
 			break
 		fi
 
-		# Check for success pattern every 5 seconds and show progress
+		# Check for success pattern every 10 seconds and show progress
 		if [ $((i % 10)) -eq 0 ]; then
 			print_info "CLI still running... ($i/$TIMEOUT seconds)"
 			if [ -f "$TEMP_RAW_OUTPUT" ]; then
@@ -125,6 +126,7 @@ for node_id in "${NODE_IDS[@]}"; do
 			fi
 		fi
 
+		# Check for success every 5 seconds
 		if [ $((i % 5)) -eq 0 ] && [ -f "$TEMP_RAW_OUTPUT" ]; then
 			SUCCESS_FOUND=false
 			for pattern in "${SUCCESS_PATTERNS[@]}"; do
@@ -155,6 +157,18 @@ for node_id in "${NODE_IDS[@]}"; do
 					fi
 					wait "$CLI_PID" 2>/dev/null
 					CLI_EXIT_CODE=$?
+				fi
+				break
+			fi
+
+			# Early rate-limit detection: 429 or "Rate limit exceeded"
+			if grep -q "Rate limit exceeded" "$TEMP_RAW_OUTPUT" 2>/dev/null || grep -q '"httpCode":429' "$TEMP_RAW_OUTPUT" 2>/dev/null; then
+				print_info "Rate limited on node $node_id, trying next"
+				RATE_LIMITED=true
+				# Terminate current run and move on
+				if kill -0 "$CLI_PID" 2>/dev/null; then
+					kill -TERM "$CLI_PID" 2>/dev/null || true
+					wait "$CLI_PID" 2>/dev/null || true
 				fi
 				break
 			fi
@@ -202,7 +216,7 @@ for node_id in "${NODE_IDS[@]}"; do
 			print_info "Process exited with code: $CLI_EXIT_CODE"
 		fi
 
-		if grep -q "Rate limited" "$TEMP_RAW_OUTPUT" 2>/dev/null; then
+		if grep -q "Rate limited" "$TEMP_RAW_OUTPUT" 2>/dev/null || grep -q '"httpCode":429' "$TEMP_RAW_OUTPUT" 2>/dev/null; then
 			RATE_LIMITED=true
 		fi
 	fi
@@ -213,17 +227,13 @@ for node_id in "${NODE_IDS[@]}"; do
 		echo "  $line"
 	done
 
-	# Check if we found the success pattern
+	# Decide next action
 	if [ "$SUCCESS_FOUND" = true ]; then
 		print_status "Integration test PASSED - CLI successfully submitted proof"
 		exit 0
-	elif [ "$JUST_ONCE" = true ] && [ "$EXIT_EARLY" = true ]; then
-		# In --once mode, continue to next node ID if rate limited
+	elif [ "$JUST_ONCE" = true ] && [ "$RATE_LIMITED" = true ]; then
+		# In --max-tasks mode, continue to next node ID if rate limited
 		continue
-	else
-		if [ "$RATE_LIMITED" = true ]; then
-			print_info "Rate limited"
-		fi
 	fi
 
 	# Clean up temp files
