@@ -64,17 +64,27 @@ impl ProvingEngine {
             .stderr(Stdio::inherit());
 
         let output = cmd.output().await?;
+
         if !output.status.success() {
             if let Some(code) = output.status.code() {
                 if code == 128 + 9 {
-                    // 128 + 9 means external sigkill, so likely killed by kernel due to OOM; track analytics event
+                    // 128 + 9 = 137 means external sigkill, so likely killed by kernel due to OOM; track analytics event
                     tokio::spawn(track_likely_oom_error(
                         task.clone(),
                         environment.clone(),
                         client_id.to_string(),
                     ));
                 }
+
+                if code == 3 {
+                    // error happened inside the subprocess, and so we know that it may be useful information to the user
+                    return Err(ProverError::Subprocess(format!(
+                        "Error while proving within subprocess, captured error: [{}]",
+                        output.stderr
+                    )));
+                }
             }
+
             return Err(ProverError::Subprocess(format!(
                 "Prover subprocess failed with status: {}",
                 output.status

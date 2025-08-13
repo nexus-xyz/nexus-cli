@@ -163,8 +163,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     Ok(())
                 }
                 Err(e) => {
-                    eprintln!("Error generating proof: {}", e);
-                    exit(1);
+                    eprintln!("{}", e);
+                    exit(3);
                 }
             }
         }
