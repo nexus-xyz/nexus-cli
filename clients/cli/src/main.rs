@@ -32,7 +32,7 @@ use clap::{ArgAction, Parser, Subcommand};
 use std::error::Error;
 
 #[derive(Parser)]
-#[command(author, version, about, long_about = None)]
+#[command(author, version = concat!(env!("CARGO_PKG_VERSION"), " (build ", env!("BUILD_TIMESTAMP"), ")"), about, long_about = None)]
 /// Command-line arguments
 struct Args {
     /// Command to execute
