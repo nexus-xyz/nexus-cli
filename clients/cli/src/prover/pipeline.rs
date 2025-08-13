@@ -54,7 +54,7 @@ impl ProvingPipeline {
                 .await
                 .map_err(|e| {
                     match e {
-                        ProverError::Stwo | ProverError::GuestProgram => {
+                        ProverError::Stwo(_) | ProverError::GuestProgram(_) => {
                             // Track verification failure
                             let error_msg = format!("Input {}: {}", input_index, e);
                             tokio::spawn(track_verification_failed(

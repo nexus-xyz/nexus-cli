@@ -5,16 +5,15 @@ use crate::prover::verifier;
 use super::types::ProverError;
 use crate::analytics::track_likely_oom_error;
 use crate::environment::Environment;
+use crate::task::Task;
 use nexus_sdk::{
     Local, Prover,
     stwo::seq::{Proof, Stwo},
 };
-use postcard::{from_bytes, to_allocvec};
+use postcard::from_bytes;
 use serde_json;
 use std::env;
 use std::process::Stdio;
-use tokio::process::Command;
-use tokio::spawn;
 
 /// Core proving engine for ZK proof generation
 pub struct ProvingEngine;
@@ -57,7 +56,7 @@ impl ProvingEngine {
     ) -> Result<Proof, ProverError> {
         // Spawn a subprocess for proof generation to isolate memory usage
         let exe_path = env::current_exe()?;
-        let mut cmd = Command::new(exe_path);
+        let mut cmd = tokio::process::Command::new(exe_path);
         cmd.arg("prove-fib-subprocess")
             .arg("--inputs")
             .arg(serde_json::to_string(inputs)?)
