@@ -82,8 +82,19 @@ else
 	NODE_IDS=("${NODE_IDS[@]}")
 fi
 
-# Try each node ID until one works
-for node_id in "${NODE_IDS[@]}"; do
+# Try up to 2 passes over node IDs
+PASSES=2
+for attempt in $(seq 1 $PASSES); do
+	# Shuffle per attempt
+	if command -v shuf >/dev/null 2>&1; then
+		NODE_IDS_SHUFFLED=($(printf '%s\n' "${NODE_IDS[@]}" | shuf))
+	else
+		NODE_IDS_SHUFFLED=("${NODE_IDS[@]}")
+	fi
+	if [ "$attempt" -gt 1 ]; then
+		print_info "Retry attempt $attempt: rotating node IDs"
+	fi
+	for node_id in "${NODE_IDS_SHUFFLED[@]}"; do
 
 	# Use temporary files to capture output
 	TEMP_OUTPUT=$(mktemp)
@@ -238,7 +249,8 @@ for node_id in "${NODE_IDS[@]}"; do
 
 	# Clean up temp files
 	rm -f "$TEMP_OUTPUT" "$TEMP_RAW_OUTPUT"
-done
+	done
+ done
 
 # If we get here, none of the node IDs worked
 print_error "Integration test FAILED - No proof submission detected within $MAX_TIMEOUT_SECONDS seconds"
