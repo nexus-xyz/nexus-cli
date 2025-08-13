@@ -36,6 +36,11 @@ impl ProofSubmission {
             individual_proof_hashes: Vec::new(),
         }
     }
+
+    pub fn with_individual_hashes(mut self, hashes: Vec<String>) -> Self {
+        self.individual_proof_hashes = hashes;
+        self
+    }
 }
 
 /// Network client with built-in retry and request timing
