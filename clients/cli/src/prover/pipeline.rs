@@ -65,7 +65,7 @@ impl ProvingPipeline {
                             ));
                             e
                         }
-                        _ => e
+                        _ => e,
                     }
                 })?;
 
