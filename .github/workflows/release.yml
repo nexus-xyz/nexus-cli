@@ -200,7 +200,6 @@ jobs:
   build-macos-x86_64:
     name: Build macOS (x86_64)
     runs-on: macos-13
-    #    needs: build-linux   # Ensure Linux job (and release creation) runs first
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -276,7 +275,6 @@ jobs:
   build-macos-arm64:
     name: Build macOS (ARM64)
     runs-on: macos-latest
-    #    needs: build-linux   # Ensure Linux job (and release creation) runs first
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
