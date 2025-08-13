@@ -34,7 +34,7 @@ print_info() {
 # Configuration
 NODE_ID="${2:-6166715}" # Use second argument or default (fallback)
 MAX_TIMEOUT_SECONDS=180 # 3 minutes max timeout
-SUCCESS_PATTERNS=("Step 4 of 4: Proof submitted successfully" "Step 4 of 4: Submitted!")
+SUCCESS_PATTERN="Step 4 of 4: Submitted!"
 JUST_ONCE=false
 
 # Check for --max-tasks parameter (could be in position 2 or 3)
@@ -72,7 +72,7 @@ if [ ! -f "$BINARY_PATH" ]; then
 fi
 
 print_info "Using binary: $BINARY_PATH"
-print_info "Monitoring for any of the success patterns"
+print_info "Monitoring for: $SUCCESS_PATTERN"
 
 # Shuffle the node IDs array to load balance (portable)
 if command -v shuf >/dev/null 2>&1; then
@@ -139,14 +139,7 @@ for attempt in $(seq 1 $PASSES); do
 
 		# Check for success every 5 seconds
 		if [ $((i % 5)) -eq 0 ] && [ -f "$TEMP_RAW_OUTPUT" ]; then
-			SUCCESS_FOUND=false
-			for pattern in "${SUCCESS_PATTERNS[@]}"; do
-				if grep -q "$pattern" "$TEMP_RAW_OUTPUT" 2>/dev/null; then
-					SUCCESS_FOUND=true
-					break
-				fi
-			done
-			if [ "$SUCCESS_FOUND" = true ]; then
+			if grep -q "$SUCCESS_PATTERN" "$TEMP_RAW_OUTPUT" 2>/dev/null; then
 				print_status "Success pattern detected early, waiting for clean exit..."
 				# Give it 30 more seconds to exit cleanly
 				for j in $(seq 1 30); do
@@ -205,13 +198,17 @@ for attempt in $(seq 1 $PASSES); do
 		print_info "CLI process completed successfully"
 
 		SUCCESS_FOUND=false
-		for pattern in "${SUCCESS_PATTERNS[@]}"; do
-			if grep -q "$pattern" "$TEMP_RAW_OUTPUT" 2>/dev/null; then
-				print_status "Success pattern detected: $pattern"
+		if grep -q "$SUCCESS_PATTERN" "$TEMP_RAW_OUTPUT" 2>/dev/null; then
+			print_status "Success pattern detected: $SUCCESS_PATTERN"
+			SUCCESS_FOUND=true
+		else
+			# Some platforms may flush the final lines slightly late; wait briefly and re-check
+			sleep 2
+			if grep -q "$SUCCESS_PATTERN" "$TEMP_RAW_OUTPUT" 2>/dev/null; then
+				print_status "Success pattern detected after wait: $SUCCESS_PATTERN"
 				SUCCESS_FOUND=true
-				break
 			fi
-		done
+		fi
 		if [ "$SUCCESS_FOUND" != true ]; then
 			print_info "No success pattern found in output"
 		fi
@@ -255,7 +252,5 @@ for attempt in $(seq 1 $PASSES); do
 # If we get here, none of the node IDs worked
 print_error "Integration test FAILED - No proof submission detected within $MAX_TIMEOUT_SECONDS seconds"
 print_info "Checked for success patterns:"
-for pattern in "${SUCCESS_PATTERNS[@]}"; do
-	echo "  - $pattern"
-done
+echo "  - $SUCCESS_PATTERN"
 exit 1
