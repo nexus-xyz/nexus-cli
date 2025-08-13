@@ -51,6 +51,7 @@ impl ProvingEngine {
     /// Generate proof for given inputs using the fibonacci program in a subprocess
     pub async fn prove_and_validate(
         inputs: &(u32, u32, u32),
+        task: &Task,
         environment: &Environment,
         client_id: &str,
     ) -> Result<Proof, ProverError> {
@@ -66,9 +67,9 @@ impl ProvingEngine {
         let output = cmd.output().await?;
         if !output.status.success() {
             if let Some(code) = output.status.code() {
-                if code == 137 {
-                    // Likely killed by OOM; track analytics event
-                    spawn(track_likely_oom_error(
+                if code == 128 + 9 { // 128 + 9 means external sigkill, so likely killed by kernel due to OOM; track analytics event
+                    tokio::spawn(track_likely_oom_error(
+                        task.clone(),
                         environment.clone(),
                         client_id.to_string(),
                     ));

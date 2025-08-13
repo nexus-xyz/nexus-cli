@@ -29,22 +29,6 @@ pub enum TrackError {
     },
 }
 
-/// Track analytics for likely OOM error in proof subprocess (non-blocking)
-pub async fn track_likely_oom_error(environment: Environment, client_id: String) {
-    let analytics_data = json!({});
-    let _ = track(
-        vec![
-            "cli_likely_oom_error".to_string(),
-            "likely_oom_error".to_string(),
-        ],
-        analytics_data,
-        &environment,
-        client_id,
-    )
-    .await;
-    // TODO: Catch errors and log them
-}
-
 pub const PRODUCTION_MEASUREMENT_ID: &str = "G-GLH0GMEEFH";
 pub const PRODUCTION_API_SECRET: &str = "3wxu8FjVSPqOlxSsZEnBOw";
 
@@ -343,6 +327,26 @@ pub async fn track_authenticated_proof_analytics(
 
     let _ = track(
         vec!["cli_proof_node_v4".to_string(), "proof_node".to_string()],
+        analytics_data,
+        &environment,
+        client_id,
+    )
+    .await;
+    // TODO: Catch errors and log them
+}
+
+/// Track analytics for likely OOM error in proof subprocess (non-blocking)
+pub async fn track_likely_oom_error(task: Task, environment: Environment, client_id: String) {
+    let analytics_data = json!({
+        "program_name": task.program_id,
+        "task_id": task.task_id,
+    });
+
+    let _ = track(
+        vec![
+            "cli_likely_oom_error".to_string(),
+            "likely_oom_error".to_string(),
+        ],
         analytics_data,
         &environment,
         client_id,
