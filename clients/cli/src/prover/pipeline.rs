@@ -50,17 +50,19 @@ impl ProvingPipeline {
             let inputs = InputParser::parse_triple_input(input_data)?;
 
             // Step 2: Generate and verify proof
-            let proof = ProvingEngine::prove_and_validate(&inputs).await.map_err(|e| {
-                // Track verification failure
-                let error_msg = format!("Input {}: {}", input_index, e);
-                tokio::spawn(track_verification_failed(
-                    task.clone(),
-                    error_msg.clone(),
-                    environment.clone(),
-                    client_id.to_string(),
-                ));
-                e
-            })?;
+            let proof = ProvingEngine::prove_and_validate(&inputs, environment, client_id)
+                .await
+                .map_err(|e| {
+                    // Track verification failure
+                    let error_msg = format!("Input {}: {}", input_index, e);
+                    tokio::spawn(track_verification_failed(
+                        task.clone(),
+                        error_msg.clone(),
+                        environment.clone(),
+                        client_id.to_string(),
+                    ));
+                    e
+                })?;
 
             // Step 3: Generate proof hash
             let proof_hash = Self::generate_proof_hash(&proof);

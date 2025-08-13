@@ -3,20 +3,23 @@
 use crate::prover::verifier;
 
 use super::types::ProverError;
+use crate::analytics::track_likely_oom_error;
+use crate::environment::Environment;
 use nexus_sdk::{
     Local, Prover,
     stwo::seq::{Proof, Stwo},
 };
-use tokio::process::Command;
-use std::process::Stdio;
-use std::env;
 use postcard::{from_bytes, to_allocvec};
 use serde_json;
+use std::env;
+use std::process::Stdio;
+use tokio::process::Command;
+use tokio::spawn;
 
 /// Core proving engine for ZK proof generation
-    pub struct ProvingEngine;
+pub struct ProvingEngine;
 
-    impl ProvingEngine {
+impl ProvingEngine {
     /// Create a Stwo prover instance for the fibonacci program
     pub fn create_fib_prover() -> Result<Stwo<Local>, ProverError> {
         let elf_bytes = include_bytes!("../../assets/fib_input_initial");
@@ -46,7 +49,11 @@ use serde_json;
     }
 
     /// Generate proof for given inputs using the fibonacci program in a subprocess
-    pub async fn prove_and_validate(inputs: &(u32, u32, u32)) -> Result<Proof, ProverError> {
+    pub async fn prove_and_validate(
+        inputs: &(u32, u32, u32),
+        environment: &Environment,
+        client_id: &str,
+    ) -> Result<Proof, ProverError> {
         // Spawn a subprocess for proof generation to isolate memory usage
         let exe_path = env::current_exe()?;
         let mut cmd = Command::new(exe_path);
@@ -58,6 +65,15 @@ use serde_json;
 
         let output = cmd.output().await?;
         if !output.status.success() {
+            if let Some(code) = output.status.code() {
+                if code == 137 {
+                    // Likely killed by OOM; track analytics event
+                    spawn(track_likely_oom_error(
+                        environment.clone(),
+                        client_id.to_string(),
+                    ));
+                }
+            }
             return Err(ProverError::Subprocess(format!(
                 "Prover subprocess failed with status: {}",
                 output.status
