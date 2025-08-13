@@ -112,6 +112,7 @@ jobs:
         run: cp nexus-network nexus-network-linux-x86_64
 
       - name: Integration Test
+        shell: bash
         working-directory: clients/cli
         timeout-minutes: 5
         run: |
@@ -198,7 +199,7 @@ jobs:
                             
   build-macos-x86_64:
     name: Build macOS (x86_64)
-    runs-on: macos-latest
+    runs-on: macos-13
     #    needs: build-linux   # Ensure Linux job (and release creation) runs first
     steps:
       - name: Checkout code
@@ -252,6 +253,7 @@ jobs:
         run: cp nexus-network nexus-network-macos-x86_64
 
       - name: Integration Test
+        shell: bash
         working-directory: clients/cli
         timeout-minutes: 5
         run: |
@@ -319,6 +321,7 @@ jobs:
         run: cp nexus-network nexus-network-macos-arm64
 
       - name: Integration Test
+        shell: bash
         working-directory: clients/cli
         timeout-minutes: 5
         run: |
@@ -383,6 +386,7 @@ jobs:
         run: cp nexus-network.exe nexus-network-windows-x86_64.exe
 
       - name: Integration Test
+        shell: bash
         working-directory: clients/cli
         timeout-minutes: 5
         run: |

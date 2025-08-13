@@ -8,7 +8,7 @@
 set -e
 
 # Disable core dumps globally
-ulimit -c 0
+ulimit -c 0 || true
 
 # Colors for output
 RED='\033[0;31m'
@@ -34,7 +34,7 @@ print_info() {
 # Configuration
 NODE_ID="${2:-6166715}" # Use second argument or default (fallback)
 MAX_TIMEOUT_SECONDS=180 # 3 minutes max timeout
-SUCCESS_PATTERN="Step 4 of 4: Proof submitted successfully"
+SUCCESS_PATTERNS=("Step 4 of 4: Proof submitted successfully" "Step 4 of 4: Submitted!")
 JUST_ONCE=false
 
 # Check for --max-tasks parameter (could be in position 2 or 3)
@@ -72,10 +72,15 @@ if [ ! -f "$BINARY_PATH" ]; then
 fi
 
 print_info "Using binary: $BINARY_PATH"
-print_info "Monitoring for: $SUCCESS_PATTERN"
+print_info "Monitoring for any of the success patterns"
 
-# Shuffle the node IDs array to load balance
-NODE_IDS=($(printf '%s\n' "${NODE_IDS[@]}" | sort -R))
+# Shuffle the node IDs array to load balance (portable)
+if command -v shuf >/dev/null 2>&1; then
+	NODE_IDS=($(printf '%s\n' "${NODE_IDS[@]}" | shuf))
+else
+	# Fallback: leave order unchanged if shuf is unavailable
+	NODE_IDS=("${NODE_IDS[@]}")
+fi
 
 # Try each node ID until one works
 for node_id in "${NODE_IDS[@]}"; do
@@ -121,7 +126,14 @@ for node_id in "${NODE_IDS[@]}"; do
 		fi
 
 		if [ $((i % 5)) -eq 0 ] && [ -f "$TEMP_RAW_OUTPUT" ]; then
-			if grep -q "$SUCCESS_PATTERN" "$TEMP_RAW_OUTPUT" 2>/dev/null; then
+			SUCCESS_FOUND=false
+			for pattern in "${SUCCESS_PATTERNS[@]}"; do
+				if grep -q "$pattern" "$TEMP_RAW_OUTPUT" 2>/dev/null; then
+					SUCCESS_FOUND=true
+					break
+				fi
+			done
+			if [ "$SUCCESS_FOUND" = true ]; then
 				print_status "Success pattern detected early, waiting for clean exit..."
 				# Give it 30 more seconds to exit cleanly
 				for j in $(seq 1 30); do
@@ -167,10 +179,15 @@ for node_id in "${NODE_IDS[@]}"; do
 		# Process completed successfully
 		print_info "CLI process completed successfully"
 
-		if grep -q "$SUCCESS_PATTERN" "$TEMP_RAW_OUTPUT" 2>/dev/null; then
-			print_status "Success pattern detected: $SUCCESS_PATTERN"
-			SUCCESS_FOUND=true
-		else
+		SUCCESS_FOUND=false
+		for pattern in "${SUCCESS_PATTERNS[@]}"; do
+			if grep -q "$pattern" "$TEMP_RAW_OUTPUT" 2>/dev/null; then
+				print_status "Success pattern detected: $pattern"
+				SUCCESS_FOUND=true
+				break
+			fi
+		done
+		if [ "$SUCCESS_FOUND" != true ]; then
 			print_info "No success pattern found in output"
 		fi
 	else
@@ -216,5 +233,7 @@ done
 # If we get here, none of the node IDs worked
 print_error "Integration test FAILED - No proof submission detected within $MAX_TIMEOUT_SECONDS seconds"
 print_info "Checked for success patterns:"
-echo "  - $SUCCESS_PATTERN"
+for pattern in "${SUCCESS_PATTERNS[@]}"; do
+	echo "  - $pattern"
+done
 exit 1
