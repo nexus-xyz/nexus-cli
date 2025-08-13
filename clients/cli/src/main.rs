@@ -31,7 +31,6 @@ use crate::session::{run_headless_mode, run_tui_mode, setup_session};
 use crate::version::manager::validate_version_requirements;
 use clap::{ArgAction, Parser, Subcommand};
 use postcard::to_allocvec;
-use serde_json;
 use std::error::Error;
 use std::io::Write;
 use std::process::exit;

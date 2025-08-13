@@ -80,7 +80,7 @@ impl ProvingEngine {
                     // error happened inside the subprocess, and so we know that it may be useful information to the user
                     return Err(ProverError::Subprocess(format!(
                         "Error while proving within subprocess, captured error: [{}]",
-                        output.stderr
+                        &String::from_utf8_lossy(&output.stderr)
                     )));
                 }
             }
