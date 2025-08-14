@@ -64,6 +64,10 @@ enum Command {
         #[arg(long = "orchestrator-url", value_name = "URL")]
         orchestrator_url: Option<String>,
 
+        /// Enable checking for risk of memory errors, may slow down CLI startup
+        #[arg(long = "check-memory", default_value_t = false)]
+        check_mem: bool,
+
         /// Enable background colors in the dashboard
         #[arg(long = "with-background", action = ArgAction::SetTrue)]
         with_background: bool,
@@ -117,6 +121,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             headless,
             max_threads,
             orchestrator_url,
+            check_mem,
             with_background,
             max_tasks,
         } => {
@@ -134,6 +139,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 config_path,
                 headless,
                 max_threads,
+                check_mem,
                 with_background,
                 max_tasks,
             )
@@ -178,12 +184,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
 /// * `config_path` - Path to the configuration file.
 /// * `headless` - If true, runs without the terminal UI.
 /// * `max_threads` - Optional maximum number of threads to use for proving.
+/// * `check_mem` - Whether to check risky memory usage.
+/// * `with_background` - Whether to use the alternate TUI background color.
+/// * `max_tasks` - Optional maximum number of tasks to prove.
+#[allow(clippy::too_many_arguments)]
 async fn start(
     node_id: Option<u64>,
     env: Environment,
     config_path: std::path::PathBuf,
     headless: bool,
     max_threads: Option<u32>,
+    check_mem: bool,
     with_background: bool,
     max_tasks: Option<u32>,
 ) -> Result<(), Box<dyn Error>> {
@@ -195,7 +206,7 @@ async fn start(
     let config = Config::resolve(node_id, &config_path, &orchestrator_client).await?;
 
     // 3. Session setup (authenticated worker only)
-    let session = setup_session(config, env, max_threads, max_tasks).await?;
+    let session = setup_session(config, env, check_mem, max_threads, max_tasks).await?;
 
     // 4. Run appropriate mode
     if headless {
