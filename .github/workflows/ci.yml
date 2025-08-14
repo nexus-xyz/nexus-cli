@@ -22,6 +22,7 @@ jobs:
             clients/cli
             proto
             tests
+            scripts
 
       - name: Check system resources
         run: |
@@ -91,10 +92,10 @@ jobs:
         run: |
           if [ -n "${{ secrets.INTEGRATION_TEST_NODE_IDS }}" ]; then
             echo "Running integration tests with configured node IDs"
-                         INTEGRATION_TEST_NODE_IDS="${{ secrets.INTEGRATION_TEST_NODE_IDS }}" ../../scripts/run_integration_tests.sh
+            INTEGRATION_TEST_NODE_IDS="${{ secrets.INTEGRATION_TEST_NODE_IDS }}" bash "${{ github.workspace }}/scripts/run_integration_tests.sh"
           else
             echo "Running integration tests with fallback node IDs"
-                         ../../scripts/run_integration_tests.sh
+            bash "${{ github.workspace }}/scripts/run_integration_tests.sh"
           fi
 
       - name: Ensure checked in generated files are up to date
