@@ -92,10 +92,12 @@ impl ProvingPipeline {
 
     /// Combine multiple proof hashes based on task type
     fn combine_proof_hashes(task: &Task, proof_hashes: &[String]) -> String {
-        if task.task_type == crate::nexus_orchestrator::TaskType::ProofHash {
-            Task::combine_proof_hashes(proof_hashes)
-        } else {
-            proof_hashes.first().cloned().unwrap_or_default()
+        match task.task_type {
+            crate::nexus_orchestrator::TaskType::AllProofHashes
+            | crate::nexus_orchestrator::TaskType::ProofHash => {
+                Task::combine_proof_hashes(proof_hashes)
+            }
+            _ => proof_hashes.first().cloned().unwrap_or_default(),
         }
     }
 }

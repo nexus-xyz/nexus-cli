@@ -43,18 +43,21 @@ impl Task {
         }
     }
 
-    /// Combines multiple proof hashes into a single hash using Keccak-256
-    /// This matches the JavaScript implementation: combineHashes
+    /// Combines multiple proof hashes into a single hash using Keccak-256,
+    /// mimicking the JavaScript Buffer.concat approach.
     pub fn combine_proof_hashes(hashes: &[String]) -> String {
         if hashes.is_empty() {
             return String::new();
         }
 
-        // Concatenate all hash strings
-        let combined = hashes.join("");
+        // Convert each input string to bytes (empty string if None)
+        let all_bytes: Vec<u8> = hashes
+            .iter()
+            .flat_map(|input| input.as_bytes())
+            .copied()
+            .collect();
 
-        // Hash the combined string using Keccak-256
-        let hash = Keccak256::digest(combined.as_bytes());
+        let hash = Keccak256::digest(&all_bytes);
         format!("{:x}", hash)
     }
 
