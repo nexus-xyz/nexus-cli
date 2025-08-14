@@ -135,7 +135,7 @@ impl AuthenticatedWorker {
                 if self.tasks_completed >= max {
                     // Give a brief moment for the "Step 4 of 4" message to be processed
                     // before triggering shutdown
-                    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                    tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
 
                     self.event_sender
                         .send_event(Event::state_change(
