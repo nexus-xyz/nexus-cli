@@ -203,8 +203,8 @@ for attempt in $(seq 1 $PASSES); do
 			SUCCESS_FOUND=true
 		else
 			# Some platforms may flush the final lines slightly late; wait briefly and re-check
-			sleep 2
-			if grep -q "$SUCCESS_PATTERN" "$TEMP_RAW_OUTPUT" 2>/dev/null; then
+			sleep 3
+				if grep -q "$SUCCESS_PATTERN" "$TEMP_RAW_OUTPUT" 2>/dev/null; then
 				print_status "Success pattern detected after wait: $SUCCESS_PATTERN"
 				SUCCESS_FOUND=true
 			fi

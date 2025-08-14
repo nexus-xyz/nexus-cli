@@ -52,9 +52,30 @@ pub async fn run_headless_mode(mut session: SessionData) -> Result<(), Box<dyn E
                 println!("{}", event);
             }
             _ = shutdown_receiver.recv() => {
+                // Only attempt a brief drain in CI on Windows to help flush final lines
+                if cfg!(windows) && std::env::var("CI").is_ok() {
+                    for _ in 0..100 {
+                        match session.event_receiver.try_recv() {
+                            Ok(event) => println!("{}", event),
+                            Err(_) => {
+                                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+                            }
+                        }
+                    }
+                }
                 break;
             }
             _ = max_tasks_shutdown_receiver.recv() => {
+                if cfg!(windows) && std::env::var("CI").is_ok() {
+                    for _ in 0..100 {
+                        match session.event_receiver.try_recv() {
+                            Ok(event) => println!("{}", event),
+                            Err(_) => {
+                                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+                            }
+                        }
+                    }
+                }
                 break;
             }
         }
