@@ -24,7 +24,7 @@ use std::{error::Error, io};
 ///
 /// # Arguments
 /// * `session` - Session data from setup
-/// * `no_background_color` - Whether to disable background colors
+/// * `with_background` - Whether to enable background colors
 ///
 /// # Returns
 /// * `Ok(())` - TUI mode completed successfully
