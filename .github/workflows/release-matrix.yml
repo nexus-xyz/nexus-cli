@@ -62,12 +62,12 @@ jobs:
             rename_to: clients/cli/target/x86_64-unknown-linux-gnu/release/nexus-network-linux-x86_64
             rustflags: "-C target-feature=+crt-static"
           - id: linux-arm64
-            os: ubuntu-latest
+            os: ubuntu-24.04-arm64
             target: aarch64-unknown-linux-gnu
-            build_cmd: cargo build -Zbuild-std=std,panic_abort --release --target aarch64-unknown-linux-gnu
+            build_cmd: cargo build --release
             rename_from: clients/cli/target/aarch64-unknown-linux-gnu/release/nexus-network
             rename_to: clients/cli/target/aarch64-unknown-linux-gnu/release/nexus-network-linux-arm64
-            rustflags: "-C target-feature=+crt-static"
+            rustflags: ""
           - id: macos-x86_64
             os: macos-13
             target: x86_64-apple-darwin
@@ -118,8 +118,6 @@ jobs:
         run: |
           rustup target add aarch64-unknown-linux-gnu
           rustup component add rust-src --toolchain ${{ env.RUSTUP_TOOLCHAIN }}
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross
 
       - name: Debug Rust environment
         run: |
