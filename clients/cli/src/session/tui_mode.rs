@@ -61,7 +61,7 @@ pub async fn run_tui_mode(
 
     // Create the application and run it
     let ui_config = UIConfig::new(
-        !with_background,
+        with_background,
         session.num_workers,
         version_update_available,
         latest_version,

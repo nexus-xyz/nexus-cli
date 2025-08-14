@@ -171,9 +171,9 @@ impl SystemMetrics {
 #[derive(Debug, Clone)]
 pub struct ZkVMMetrics {
     /// Total number of tasks executed.
-    pub tasks_executed: usize,
+    pub tasks_fetched: usize,
     /// Number of tasks successfully proved.
-    pub tasks_proved: usize,
+    pub tasks_submitted: usize,
     /// Total zkVM runtime in seconds.
     pub zkvm_runtime_secs: u64,
     /// Status of the last task.
@@ -185,8 +185,8 @@ pub struct ZkVMMetrics {
 impl Default for ZkVMMetrics {
     fn default() -> Self {
         Self {
-            tasks_executed: 0,
-            tasks_proved: 0,
+            tasks_fetched: 0,
+            tasks_submitted: 0,
             zkvm_runtime_secs: 0,
             last_task_status: "None".to_string(),
             _total_points: 0,
@@ -197,10 +197,10 @@ impl Default for ZkVMMetrics {
 impl ZkVMMetrics {
     /// Calculate success rate as a percentage.
     pub fn success_rate(&self) -> f64 {
-        if self.tasks_executed == 0 {
+        if self.tasks_fetched == 0 {
             0.0
         } else {
-            (self.tasks_proved as f64 / self.tasks_executed as f64) * 100.0
+            (self.tasks_submitted as f64 / self.tasks_fetched as f64) * 100.0
         }
     }
 

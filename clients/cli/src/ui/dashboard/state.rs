@@ -28,6 +28,8 @@ pub struct DashboardState {
     pub environment: Environment,
     /// The start time of the application, used for computing uptime.
     pub start_time: Instant,
+    /// Last task fetched ID
+    pub last_task: Option<String>,
     /// The current task being executed by the node, if any.
     pub current_task: Option<String>,
     /// Total RAM available on the machine, in GB.
@@ -40,8 +42,8 @@ pub struct DashboardState {
     pub update_available: bool,
     /// The latest version string, if known.
     pub latest_version: Option<String>,
-    /// Whether to disable background colors
-    pub no_background_color: bool,
+    /// Whether to enable background colors
+    pub with_background_color: bool,
 
     /// System metrics (CPU, RAM, etc.)
     pub system_metrics: SystemMetrics,
@@ -66,6 +68,8 @@ pub struct DashboardState {
     pub accumulated_runtime_secs: u64,
     /// Track the start time and original wait duration for current waiting period
     pub waiting_start_info: Option<(Instant, u64)>, // (start_time, original_wait_secs)
+    /// Track the last processed event index to avoid reprocessing old events
+    pub last_processed_event_index: usize,
 }
 
 impl DashboardState {
@@ -81,13 +85,14 @@ impl DashboardState {
             node_id,
             environment,
             start_time,
+            last_task: None,
             current_task: None,
             total_ram_gb: crate::system::total_memory_gb(),
             num_threads: ui_config.num_threads,
             events: events.clone(),
             update_available: ui_config.update_available,
             latest_version: ui_config.latest_version,
-            no_background_color: ui_config.no_background_color,
+            with_background_color: ui_config.with_background_color,
 
             system_metrics: SystemMetrics::default(),
             zkvm_metrics: ZkVMMetrics::default(),
@@ -100,6 +105,7 @@ impl DashboardState {
             step2_start_time: None,
             accumulated_runtime_secs: 0,
             waiting_start_info: None,
+            last_processed_event_index: 0,
         }
     }
     // Getter methods for private fields

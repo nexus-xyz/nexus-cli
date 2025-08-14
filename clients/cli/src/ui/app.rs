@@ -16,7 +16,7 @@ use tokio::sync::{broadcast, mpsc};
 /// UI configuration data grouped by concern
 #[derive(Debug, Clone)]
 pub struct UIConfig {
-    pub no_background_color: bool,
+    pub with_background_color: bool,
     pub num_threads: usize,
     pub update_available: bool,
     pub latest_version: Option<String>,
@@ -24,13 +24,13 @@ pub struct UIConfig {
 
 impl UIConfig {
     pub fn new(
-        no_background_color: bool,
+        with_background_color: bool,
         num_threads: usize,
         update_available: bool,
         latest_version: Option<String>,
     ) -> Self {
         Self {
-            no_background_color,
+            with_background_color,
             num_threads,
             update_available,
             latest_version,
@@ -81,7 +81,7 @@ pub struct App {
     max_tasks_shutdown_receiver: broadcast::Receiver<()>,
 
     /// Whether to disable background colors
-    no_background_color: bool,
+    with_background_color: bool,
 
     /// Number of worker threads being used for proving.
     num_threads: usize,
@@ -112,7 +112,7 @@ impl App {
             event_receiver,
             shutdown_sender,
             max_tasks_shutdown_receiver,
-            no_background_color: ui_config.no_background_color,
+            with_background_color: ui_config.with_background_color,
             num_threads: ui_config.num_threads,
             version_update_available: ui_config.update_available,
             latest_version: ui_config.latest_version,
@@ -124,7 +124,7 @@ impl App {
     pub fn login(&mut self) {
         let node_id = Some(123); // Placeholder for node ID, replace with actual logic to get node ID
         let ui_config = UIConfig::new(
-            self.no_background_color,
+            self.with_background_color,
             self.num_threads,
             self.version_update_available,
             self.latest_version.clone(),
@@ -179,7 +179,7 @@ pub async fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::i
         if let Screen::Splash = app.current_screen {
             if splash_start.elapsed() >= splash_duration {
                 let ui_config = UIConfig::new(
-                    app.no_background_color,
+                    app.with_background_color,
                     app.num_threads,
                     app.version_update_available,
                     app.latest_version.clone(),
@@ -215,7 +215,7 @@ pub async fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::i
                         // Any key press will skip the splash screen
                         if key.code != KeyCode::Esc && key.code != KeyCode::Char('q') {
                             let ui_config = UIConfig::new(
-                                app.no_background_color,
+                                app.with_background_color,
                                 app.num_threads,
                                 app.version_update_available,
                                 app.latest_version.clone(),
