@@ -90,8 +90,7 @@ We provide a unified script that runs the integration tests for the Rust CLI. No
 
 ```bash
 # From repository root
-cd clients/cli
-INTEGRATION_TEST_NODE_IDS="id1,id2" ./run_integration_tests.sh
+INTEGRATION_TEST_NODE_IDS="id1,id2" ./scripts/run_integration_tests.sh
 ```
 
 - Positive test: succeeds if the CLI exits 0 (assumes a proof was submitted with `--max-tasks 1`).
