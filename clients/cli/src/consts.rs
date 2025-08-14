@@ -11,7 +11,7 @@ pub mod cli_consts {
     // to provide adequate buffering while preventing excessive memory usage.
 
     /// Maximum number of events that can be queued for UI updates
-    pub const EVENT_QUEUE_SIZE: usize = 100;
+    pub const EVENT_QUEUE_SIZE: usize = 100_000;
 
     // =============================================================================
     // PROVING CONFIGURATIONS
