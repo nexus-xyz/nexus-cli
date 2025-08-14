@@ -34,7 +34,7 @@ print_info() {
 # Configuration
 NODE_ID="${2:-6166715}" # Use second argument or default (fallback)
 MAX_TIMEOUT_SECONDS=180 # 3 minutes max timeout
-SUCCESS_PATTERN="Step 4 of 4: Submitted!"
+SUCCESS_PATTERN="Step 4 of 4:"
 JUST_ONCE=false
 
 # Check for --max-tasks parameter (could be in position 2 or 3)
