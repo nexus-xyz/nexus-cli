@@ -140,9 +140,6 @@ run_negative_test() {
 run_positive_test
 POSITIVE_CODE=$?
 if [ $POSITIVE_CODE -ne 0 ]; then
-	if [ $POSITIVE_CODE -eq 429 ]; then
-		exit 429
-	fi
 	exit $POSITIVE_CODE
 fi
 
