@@ -184,6 +184,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
 /// * `config_path` - Path to the configuration file.
 /// * `headless` - If true, runs without the terminal UI.
 /// * `max_threads` - Optional maximum number of threads to use for proving.
+/// * `check_mem` - Whether to check risky memory usage.
+/// * `with_background` - Whether to use the alternate TUI background color.
+/// * `max_tasks` - Optional maximum number of tasks to prove.
+#[allow(clippy::too_many_arguments)]
 async fn start(
     node_id: Option<u64>,
     env: Environment,
