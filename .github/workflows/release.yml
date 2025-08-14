@@ -41,7 +41,7 @@ jobs:
           username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Build Docker image (no push)
-        if: github.ref != 'refs/heads/main'
+        if: github.event_name != 'push' && github.event.inputs.docker_build == 'true' && github.event.inputs.docker_push != 'true'
         uses: docker/build-push-action@v6
         with:
           context: clients/cli
@@ -49,7 +49,7 @@ jobs:
           push: false
           platforms: linux/amd64,linux/arm64
       - name: Build and push Docker image
-        if: github.ref == 'refs/heads/main'
+        if: (github.event_name == 'push' || github.event.inputs.docker_push == 'true') && github.ref == 'refs/heads/main'
         uses: docker/build-push-action@v6
         with:
           context: clients/cli
@@ -160,7 +160,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ basename(matrix.rename_to) }}
+          name: nexus-network-${{ matrix.id }}
           path: ${{ matrix.rename_to }}
 
   release:
