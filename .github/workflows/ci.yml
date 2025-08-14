@@ -85,16 +85,16 @@ jobs:
         run: cargo test --release --tests
 
       # Integration test against production orchestrator
-      - name: Integration Test
+      - name: Integration Tests
         working-directory: clients/cli
-        timeout-minutes: 5
+        timeout-minutes: 7
         run: |
-          if [ -n "${{ secrets.SMOKE_TEST_NODE_IDS }}" ]; then
-            echo "Running integration test with secret node IDs"
-            SMOKE_TEST_NODE_IDS="${{ secrets.SMOKE_TEST_NODE_IDS }}" ../../tests/integration_test.sh ./target/release/nexus-network --max-tasks 1
+          if [ -n "${{ secrets.INTEGRATION_TEST_NODE_IDS }}" ]; then
+            echo "Running integration tests with configured node IDs"
+                         INTEGRATION_TEST_NODE_IDS="${{ secrets.INTEGRATION_TEST_NODE_IDS }}" ./scripts/run_integration_tests.sh
           else
-            echo "Running integration test with fallback node IDs"
-            ../../tests/integration_test.sh ./target/release/nexus-network --max-tasks 1
+            echo "Running integration tests with fallback node IDs"
+                         ./scripts/run_integration_tests.sh
           fi
 
       - name: Ensure checked in generated files are up to date

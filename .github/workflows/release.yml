@@ -111,18 +111,25 @@ jobs:
         working-directory: clients/cli/target/x86_64-unknown-linux-gnu/release/
         run: cp nexus-network nexus-network-linux-x86_64
 
-      - name: Integration Test
+      - name: Integration Tests (positive + negative)
         shell: bash
         working-directory: clients/cli
-        timeout-minutes: 5
+        timeout-minutes: 7
         run: |
-          if [ -n "${{ secrets.SMOKE_TEST_NODE_IDS }}" ]; then
-            echo "Running integration test with secret node IDs"
-            SMOKE_TEST_NODE_IDS="${{ secrets.SMOKE_TEST_NODE_IDS }}" ../../tests/integration_test.sh ./target/x86_64-unknown-linux-gnu/release/nexus-network-linux-x86_64 --max-tasks 1
+          if [ -n "${{ secrets.INTEGRATION_TEST_NODE_IDS }}" ]; then
+            echo "Running integration tests with configured node IDs"
+            INTEGRATION_TEST_NODE_IDS="${{ secrets.INTEGRATION_TEST_NODE_IDS }}" ./scripts/run_integration_tests.sh
           else
-            echo "Running integration test with fallback node IDs"
-            ../../tests/integration_test.sh ./target/x86_64-unknown-linux-gnu/release/nexus-network-linux-x86_64 --max-tasks 1
+            echo "Running integration tests with fallback node IDs"
+            ./scripts/run_integration_tests.sh
           fi
+
+      - name: Negative Integration Test (invalid node id)
+        shell: bash
+        working-directory: clients/cli
+        timeout-minutes: 3
+        run: |
+          ../../tests/integration_test_invalid_node.sh ./target/x86_64-unknown-linux-gnu/release/nexus-network-linux-x86_64
 
       # Upload the binary as an artifact
       - name: Upload artifact
@@ -251,17 +258,17 @@ jobs:
         working-directory: clients/cli/target/x86_64-apple-darwin/release/
         run: cp nexus-network nexus-network-macos-x86_64
 
-      - name: Integration Test
+      - name: Integration Tests (positive + negative)
         shell: bash
         working-directory: clients/cli
-        timeout-minutes: 5
+        timeout-minutes: 7
         run: |
-          if [ -n "${{ secrets.SMOKE_TEST_NODE_IDS }}" ]; then
-            echo "Running integration test with secret node IDs"
-            SMOKE_TEST_NODE_IDS="${{ secrets.SMOKE_TEST_NODE_IDS }}" ../../tests/integration_test.sh ./target/x86_64-apple-darwin/release/nexus-network-macos-x86_64 --max-tasks 1
+          if [ -n "${{ secrets.INTEGRATION_TEST_NODE_IDS }}" ]; then
+            echo "Running integration tests with configured node IDs"
+            INTEGRATION_TEST_NODE_IDS="${{ secrets.INTEGRATION_TEST_NODE_IDS }}" ./scripts/run_integration_tests.sh
           else
-            echo "Running integration test with fallback node IDs"
-            ../../tests/integration_test.sh ./target/x86_64-apple-darwin/release/nexus-network-macos-x86_64 --max-tasks 1
+            echo "Running integration tests with fallback node IDs"
+            ./scripts/run_integration_tests.sh
           fi
 
       # Upload the binary as an artifact
@@ -318,17 +325,17 @@ jobs:
         working-directory: clients/cli/target/aarch64-apple-darwin/release/
         run: cp nexus-network nexus-network-macos-arm64
 
-      - name: Integration Test
+      - name: Integration Tests (positive + negative)
         shell: bash
         working-directory: clients/cli
-        timeout-minutes: 5
+        timeout-minutes: 7
         run: |
-          if [ -n "${{ secrets.SMOKE_TEST_NODE_IDS }}" ]; then
-            echo "Running integration test with secret node IDs"
-            SMOKE_TEST_NODE_IDS="${{ secrets.SMOKE_TEST_NODE_IDS }}" ../../tests/integration_test.sh ./target/aarch64-apple-darwin/release/nexus-network-macos-arm64 --max-tasks 1
+          if [ -n "${{ secrets.INTEGRATION_TEST_NODE_IDS }}" ]; then
+            echo "Running integration tests with configured node IDs"
+            INTEGRATION_TEST_NODE_IDS="${{ secrets.INTEGRATION_TEST_NODE_IDS }}" ./scripts/run_integration_tests.sh
           else
-            echo "Running integration test with fallback node IDs"
-            ../../tests/integration_test.sh ./target/aarch64-apple-darwin/release/nexus-network-macos-arm64 --max-tasks 1
+            echo "Running integration tests with fallback node IDs"
+            ./scripts/run_integration_tests.sh
           fi
 
       # Upload the binary as an artifact
@@ -383,17 +390,17 @@ jobs:
         working-directory: clients/cli/target/x86_64-pc-windows-msvc/release/
         run: cp nexus-network.exe nexus-network-windows-x86_64.exe
 
-      - name: Integration Test
+      - name: Integration Tests (positive + negative)
         shell: bash
         working-directory: clients/cli
-        timeout-minutes: 5
+        timeout-minutes: 7
         run: |
-          if [ -n "${{ secrets.SMOKE_TEST_NODE_IDS }}" ]; then
-            echo "Running integration test with secret node IDs"
-            SMOKE_TEST_NODE_IDS="${{ secrets.SMOKE_TEST_NODE_IDS }}" ../../tests/integration_test.sh ./target/x86_64-pc-windows-msvc/release/nexus-network-windows-x86_64.exe --max-tasks 1
+          if [ -n "${{ secrets.INTEGRATION_TEST_NODE_IDS }}" ]; then
+            echo "Running integration tests with configured node IDs"
+            INTEGRATION_TEST_NODE_IDS="${{ secrets.INTEGRATION_TEST_NODE_IDS }}" ./scripts/run_integration_tests.sh
           else
-            echo "Running integration test with fallback node IDs"
-            ../../tests/integration_test.sh ./target/x86_64-pc-windows-msvc/release/nexus-network-windows-x86_64.exe --max-tasks 1
+            echo "Running integration tests with fallback node IDs"
+            ./scripts/run_integration_tests.sh
           fi
 
       # Upload the binary as an artifact
