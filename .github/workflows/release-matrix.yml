@@ -1,9 +1,6 @@
-name: Release
+name: Release (Matrix Trial)
 
 on:
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
     inputs:
       create_release:
@@ -65,12 +62,12 @@ jobs:
             rename_to: clients/cli/target/x86_64-unknown-linux-gnu/release/nexus-network-linux-x86_64
             rustflags: "-C target-feature=+crt-static"
           - id: linux-arm64
-            os: ubuntu-24.04-arm64
+            os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
-            build_cmd: cargo build --release
+            build_cmd: cargo build -Zbuild-std=std,panic_abort --release --target aarch64-unknown-linux-gnu
             rename_from: clients/cli/target/aarch64-unknown-linux-gnu/release/nexus-network
             rename_to: clients/cli/target/aarch64-unknown-linux-gnu/release/nexus-network-linux-arm64
-            rustflags: ""
+            rustflags: "-C target-feature=+crt-static"
           - id: macos-x86_64
             os: macos-13
             target: x86_64-apple-darwin
@@ -116,6 +113,14 @@ jobs:
           targets: ${{ matrix.target }}
           components: rustfmt, rust-src
 
+      - name: Ensure Linux ARM64 toolchain
+        if: matrix.id == 'linux-arm64'
+        run: |
+          rustup target add aarch64-unknown-linux-gnu
+          rustup component add rust-src --toolchain ${{ env.RUSTUP_TOOLCHAIN }}
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross
+
       - name: Debug Rust environment
         run: |
           echo "Rust version: $(rustc --version --verbose)"
@@ -156,7 +161,7 @@ jobs:
   release:
     name: Create Release
     needs: [ build ]
-    if: github.event.inputs.create_release == 'true' || github.event_name == 'push'
+    if: github.event.inputs.create_release == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -186,4 +191,4 @@ jobs:
           prerelease: false
           generate_release_notes: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
