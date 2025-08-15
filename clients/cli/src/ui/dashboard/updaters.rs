@@ -23,27 +23,17 @@ impl DashboardState {
             Some(&previous_metrics),
         );
 
-        // Single efficient pass through new events
-        self.process_new_events();
+        // Process all queued events one by one
+        while let Some(event) = self.pending_events.pop_front() {
+            // Add to activity logs for display
+            self.add_to_activity_log(event.clone());
+
+            // Process the event for state updates
+            self.process_event(&event);
+        }
 
         // Handle timeout logic (doesn't need events)
         self.check_fetching_timeout();
-    }
-
-    /// Process all new events in a single efficient pass
-    fn process_new_events(&mut self) {
-        let start_index = self.last_processed_event_index;
-
-        // Clone only the new events to avoid borrowing issues while being efficient
-        let new_events: Vec<_> = self.events.iter().skip(start_index).cloned().collect();
-        let total_events = self.events.len();
-
-        // Process each new event
-        for event in &new_events {
-            self.process_event(event);
-        }
-
-        self.last_processed_event_index = total_events;
 
         // Update task fetch info based on current state
         self.update_task_fetch_countdown();
@@ -74,6 +64,11 @@ impl DashboardState {
             if let Some(task_id) = Self::extract_task_id(&event.msg) {
                 self.last_task = self.current_task.clone();
                 self.current_task = Some(task_id);
+
+                // Count this as a task fetch if we haven't seen this task before
+                self.zkvm_metrics.tasks_fetched += 1;
+                // Track Step 2 start (proving begins at the end of Step 1)
+                self.step2_start_time = Some(Instant::now());
             }
         }
 
@@ -101,35 +96,22 @@ impl DashboardState {
                 }
             }
         }
-
-        // Count successful task fetches for zkVM metrics
-        if matches!(event.event_type, EventType::Success)
-            && event.msg.contains("Step 1 of 4: Got task")
-        {
-            self.zkvm_metrics.tasks_fetched += 1;
-        }
     }
 
     /// Handle Prover events
     fn handle_prover_event(&mut self, event: &WorkerEvent) {
         if matches!(event.event_type, EventType::Success) {
-            // Track Step 2 start (proving begins)
-            if event.msg.contains("Step 2 of 4: Proving task") {
-                self.step2_start_time = Some(Instant::now());
-            }
             // Track Step 3 completion (proof generated)
-            else if event.msg.contains("Step 3 of 4: Proof generated for task") {
-                if let Some(start_time) = self.step2_start_time.take() {
-                    let duration_secs = start_time.elapsed().as_secs_f64() as u64;
-                    if duration_secs > 0 {
-                        self.accumulated_runtime_secs += duration_secs;
-                        self.zkvm_metrics.zkvm_runtime_secs = self.accumulated_runtime_secs;
-                        self.zkvm_metrics.last_task_status = "Proved".to_string();
-                    }
+            if event.msg.contains("Step 3 of 4: Proof generated for task") {
+                if let Some(start_time) = self.step2_start_time {
+                    self.zkvm_metrics.zkvm_runtime_secs += start_time.elapsed().as_secs();
+                    self.zkvm_metrics.last_task_status = "Proved".to_string();
+                    self.step2_start_time = None;
                 }
             }
         } else if matches!(event.event_type, EventType::Error) {
             self.zkvm_metrics.last_task_status = "Proof Failed".to_string();
+            self.step2_start_time = None; // Clear timing for failed proof
         }
     }
 
@@ -140,7 +122,14 @@ impl DashboardState {
                 .msg
                 .contains("Step 4 of 4: Proof submitted successfully")
         {
+            // If we see a Step 4 completion but have fewer fetched tasks,
+            // it means we missed earlier events (dashboard started after task began)
             self.zkvm_metrics.tasks_submitted += 1;
+            self.zkvm_metrics.tasks_fetched = self
+                .zkvm_metrics
+                .tasks_fetched
+                .max(self.zkvm_metrics.tasks_submitted);
+
             self.zkvm_metrics.last_task_status = "Success".to_string();
             self.set_last_submission_timestamp(Some(event.timestamp.clone()));
 

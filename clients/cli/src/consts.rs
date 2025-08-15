@@ -10,7 +10,10 @@ pub mod cli_consts {
     // All queue sizes are chosen to be larger than the API page size (currently 50)
     // to provide adequate buffering while preventing excessive memory usage.
 
-    /// Maximum number of events that can be queued for UI updates
+    /// The maximum number of events to keep in the activity logs.
+    pub const MAX_ACTIVITY_LOGS: usize = 100;
+
+    /// Maximum number of event buffer size for worker threads
     pub const EVENT_QUEUE_SIZE: usize = 100;
 
     // =============================================================================
