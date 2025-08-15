@@ -66,6 +66,29 @@ impl OrchestratorClient {
         T::decode(bytes).map_err(OrchestratorError::Decode)
     }
 
+    pub(crate) fn select_proof_payload(
+        task_type: crate::nexus_orchestrator::TaskType,
+        legacy_proof: Vec<u8>,
+        proofs: Vec<Vec<u8>>,
+        individual_proof_hashes: &[String],
+    ) -> (Vec<u8>, Vec<Vec<u8>>, Vec<String>) {
+        match task_type {
+            crate::nexus_orchestrator::TaskType::ProofHash => {
+                // For ProofHash tasks, don't send proof or individual hashes
+                (Vec::new(), Vec::new(), Vec::new())
+            }
+            crate::nexus_orchestrator::TaskType::AllProofHashes => {
+                // For AllProofHashes tasks, don't send proof but send all individual hashes
+                (Vec::new(), Vec::new(), individual_proof_hashes.to_vec())
+            }
+            _ => {
+                // For ProofRequired and backward compatibility, attach legacy proof if single input
+                let legacy = if proofs.len() == 1 { legacy_proof } else { Vec::new() };
+                (legacy, proofs, Vec::new())
+            }
+        }
+    }
+
     async fn handle_response_status(response: Response) -> Result<Response, OrchestratorError> {
         if !response.status().is_success() {
             return Err(OrchestratorError::from_response(response).await);
@@ -305,29 +328,8 @@ impl Orchestrator for OrchestratorClient {
         // Detect country for network optimization (privacy-preserving: only country code, no precise location)
         let location = self.get_country().await;
         // Handle different task types
-        let (proof_to_send, proofs_to_send, all_proof_hashes_to_send) = match task_type {
-            crate::nexus_orchestrator::TaskType::ProofHash => {
-                // For ProofHash tasks, don't send proof or individual hashes
-                (Vec::new(), Vec::new(), Vec::new())
-            }
-            crate::nexus_orchestrator::TaskType::AllProofHashes => {
-                // For AllProofHashes tasks, don't send proof but send all individual hashes
-                // Add warning for large numbers of inputs
-                if individual_proof_hashes.len() > 100 {
-                    eprintln!(
-                        "WARNING: Task with {} individual proof hashes may not scale well for ALL_PROOF_HASHES task type",
-                        individual_proof_hashes.len()
-                    );
-                }
-                (Vec::new(), Vec::new(), individual_proof_hashes.to_vec())
-            }
-            _ => {
-                // For ProofRequired and backward compatibility, attach legacy proof if single input
-                // and include the proofs array always (with one element if single input)
-                let legacy = if proofs.len() == 1 { proof } else { Vec::new() };
-                (legacy, proofs, Vec::new())
-            }
-        };
+        let (proof_to_send, proofs_to_send, all_proof_hashes_to_send) =
+            Self::select_proof_payload(task_type, proof, proofs, individual_proof_hashes);
 
         let request = SubmitProofRequest {
             task_id: task_id.to_string(),
@@ -349,6 +351,29 @@ impl Orchestrator for OrchestratorClient {
         let request_bytes = Self::encode_request(&request);
         self.post_request_no_response("v3/tasks/submit", request_bytes)
             .await
+    }
+
+    fn select_proof_payload(
+        task_type: crate::nexus_orchestrator::TaskType,
+        legacy_proof: Vec<u8>,
+        proofs: Vec<Vec<u8>>,
+        individual_proof_hashes: &[String],
+    ) -> (Vec<u8>, Vec<Vec<u8>>, Vec<String>) {
+        match task_type {
+            crate::nexus_orchestrator::TaskType::ProofHash => {
+                // For ProofHash tasks, don't send proof or individual hashes
+                (Vec::new(), Vec::new(), Vec::new())
+            }
+            crate::nexus_orchestrator::TaskType::AllProofHashes => {
+                // For AllProofHashes tasks, don't send proof but send all individual hashes
+                (Vec::new(), Vec::new(), individual_proof_hashes.to_vec())
+            }
+            _ => {
+                // For ProofRequired and backward compatibility, attach legacy proof if single input
+                let legacy = if proofs.len() == 1 { legacy_proof } else { Vec::new() };
+                (legacy, proofs, Vec::new())
+            }
+        }
     }
 }
 
@@ -441,44 +466,56 @@ mod tests {
     use crate::nexus_orchestrator::TaskType;
 
     #[tokio::test]
-    /// Should conditionally attach proof based on task type.
-    async fn test_conditional_proof_attachment() {
-        let client = OrchestratorClient::new(Environment::Production);
-        let signing_key = ed25519_dalek::SigningKey::generate(&mut rand::thread_rng());
-        let proof = vec![1, 2, 3, 4, 5]; // Example proof bytes
-        let task_id = "test_task_123";
-        let proof_hash = "test_hash_456";
-        let num_workers = 4;
+    /// select_proof_payload rules: only ProofRequired sets proof/proofs.
+    async fn test_select_proof_payload() {
+        // Common inputs
+        let legacy = vec![9, 9, 9];
+        let proofs_multi = vec![vec![1], vec![2]];
+        let proofs_single = vec![vec![7]];
+        let hashes = vec!["a".to_string(), "b".to_string()];
 
-        // Test with ProofRequired task type - should attach proof
-        let result = client
-            .submit_proof(
-                task_id,
-                proof_hash,
-                proof.clone(),
-                signing_key.clone(),
-                num_workers,
-                TaskType::ProofRequired,
-                &[], // No individual proof hashes for this test
-            )
-            .await;
-        // This will fail because we're not actually submitting to a real orchestrator,
-        // but the important thing is that the proof was attached in the request
-        assert!(result.is_err()); // Expected to fail due to network error
+        // PROOF_HASH: both proof and proofs empty; no hashes
+        let (p, ps, hs) = OrchestratorClient::select_proof_payload(
+            TaskType::ProofHash,
+            legacy.clone(),
+            proofs_multi.clone(),
+            &hashes,
+        );
+        assert!(p.is_empty());
+        assert!(ps.is_empty());
+        assert!(hs.is_empty());
 
-        // Test with ProofHash task type - should not attach proof
-        let result = client
-            .submit_proof(
-                task_id,
-                proof_hash,
-                proof,
-                signing_key,
-                num_workers,
-                TaskType::ProofHash,
-                &[], // No individual proof hashes for this test
-            )
-            .await;
-        // This will also fail, but the proof should be empty in the request
-        assert!(result.is_err()); // Expected to fail due to network error
+        // ALL_PROOF_HASHES: both proof and proofs empty; hashes present
+        let (p, ps, hs) = OrchestratorClient::select_proof_payload(
+            TaskType::AllProofHashes,
+            legacy.clone(),
+            proofs_multi.clone(),
+            &hashes,
+        );
+        assert!(p.is_empty());
+        assert!(ps.is_empty());
+        assert_eq!(hs, hashes);
+
+        // PROOF_REQUIRED with multiple proofs: legacy proof empty, proofs set
+        let (p, ps, hs) = OrchestratorClient::select_proof_payload(
+            TaskType::ProofRequired,
+            legacy.clone(),
+            proofs_multi.clone(),
+            &hashes,
+        );
+        assert!(p.is_empty());
+        assert_eq!(ps, proofs_multi);
+        assert!(hs.is_empty());
+
+        // PROOF_REQUIRED with single proof: legacy proof set, proofs set with one element
+        let (p, ps, hs) = OrchestratorClient::select_proof_payload(
+            TaskType::ProofRequired,
+            legacy.clone(),
+            proofs_single.clone(),
+            &hashes,
+        );
+        assert_eq!(p, legacy);
+        assert_eq!(ps, proofs_single);
+        assert!(hs.is_empty());
     }
 }
