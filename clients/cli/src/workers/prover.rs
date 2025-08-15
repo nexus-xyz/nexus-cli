@@ -49,7 +49,11 @@ impl TaskProver {
                     self.config.client_id.clone(),
                 ));
 
-                Ok(ProverResult { proofs, combined_hash, individual_proof_hashes })
+                Ok(ProverResult {
+                    proofs,
+                    combined_hash,
+                    individual_proof_hashes,
+                })
             }
             Err(e) => {
                 // Log proof generation failure

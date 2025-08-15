@@ -83,7 +83,11 @@ impl OrchestratorClient {
             }
             _ => {
                 // For ProofRequired and backward compatibility, attach legacy proof if single input
-                let legacy = if proofs.len() == 1 { legacy_proof } else { Vec::new() };
+                let legacy = if proofs.len() == 1 {
+                    legacy_proof
+                } else {
+                    Vec::new()
+                };
                 (legacy, proofs, Vec::new())
             }
         }
@@ -329,7 +333,12 @@ impl Orchestrator for OrchestratorClient {
         let location = self.get_country().await;
         // Handle different task types
         let (proof_to_send, proofs_to_send, all_proof_hashes_to_send) =
-            Self::select_proof_payload(task_type, proof, proofs, individual_proof_hashes);
+            OrchestratorClient::select_proof_payload(
+                task_type,
+                proof,
+                proofs,
+                individual_proof_hashes,
+            );
 
         let request = SubmitProofRequest {
             task_id: task_id.to_string(),
@@ -351,29 +360,6 @@ impl Orchestrator for OrchestratorClient {
         let request_bytes = Self::encode_request(&request);
         self.post_request_no_response("v3/tasks/submit", request_bytes)
             .await
-    }
-
-    fn select_proof_payload(
-        task_type: crate::nexus_orchestrator::TaskType,
-        legacy_proof: Vec<u8>,
-        proofs: Vec<Vec<u8>>,
-        individual_proof_hashes: &[String],
-    ) -> (Vec<u8>, Vec<Vec<u8>>, Vec<String>) {
-        match task_type {
-            crate::nexus_orchestrator::TaskType::ProofHash => {
-                // For ProofHash tasks, don't send proof or individual hashes
-                (Vec::new(), Vec::new(), Vec::new())
-            }
-            crate::nexus_orchestrator::TaskType::AllProofHashes => {
-                // For AllProofHashes tasks, don't send proof but send all individual hashes
-                (Vec::new(), Vec::new(), individual_proof_hashes.to_vec())
-            }
-            _ => {
-                // For ProofRequired and backward compatibility, attach legacy proof if single input
-                let legacy = if proofs.len() == 1 { legacy_proof } else { Vec::new() };
-                (legacy, proofs, Vec::new())
-            }
-        }
     }
 }
 
