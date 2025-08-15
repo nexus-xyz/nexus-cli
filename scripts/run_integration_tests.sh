@@ -20,8 +20,42 @@ fail()  { echo -e "${RED}[FAIL]${NC} $1"; }
 
 cd "$CLI_DIR"
 
+# Require a prebuilt release binary (from the build job) to avoid rebuilds during CI.
+resolve_prebuilt_binary() {
+	HOST_TRIPLE=$(rustc -vV | awk '/host/ {print $2}')
+	BIN_PATH="target/${HOST_TRIPLE}/release/nexus-network"
+	if [ -f "${BIN_PATH}.exe" ]; then
+		echo "${BIN_PATH}.exe"
+		return 0
+	fi
+	if [ -f "$BIN_PATH" ]; then
+		echo "$BIN_PATH"
+		return 0
+	fi
+	# Also check default target dir (without explicit target), just in case
+	if [ -f "target/release/nexus-network" ]; then
+		echo "target/release/nexus-network"
+		return 0
+	fi
+	if [ -f "target/release/nexus-network.exe" ]; then
+		echo "target/release/nexus-network.exe"
+		return 0
+	fi
+	# No prebuilt binary found
+	echo ""
+}
+
+run_cli() {
+	BIN=$(resolve_prebuilt_binary)
+	if [ -z "$BIN" ] || [ ! -x "$BIN" ]; then
+		fail "Prebuilt binary not found. Please run the Build step first."
+		exit 1
+	fi
+	RUST_LOG=warn "$BIN" start "$@"
+}
+
 run_positive_test() {
-	info "Starting positive integration test (cargo run --release)..."
+	info "Starting positive integration test (prebuilt binary required)..."
 	ulimit -c 0 || true
 
 	# Node IDs
@@ -46,43 +80,17 @@ run_positive_test() {
 		trap "rm -f $TEMP_RAW_OUTPUT" EXIT
 		info "Running CLI (attempt $ATTEMPT_COUNT) with node $node_id..."
 
-		RATE_LIMITED=false
-		(
-			set -o pipefail
-			ulimit -c 0 || true
-			RUST_LOG=warn cargo run --release -- start --headless --max-tasks 1 --node-id $node_id 2>&1 | tee "$TEMP_RAW_OUTPUT"
-		) &
-		CLI_PID=$!
-
-		TIMEOUT=150
-		for i in $(seq 1 $TIMEOUT); do
-			if ! kill -0 "$CLI_PID" 2>/dev/null; then
-				set +e
-				wait "$CLI_PID"; CLI_EXIT_CODE=$?
-				set -e
-				break
-			fi
-			if [ $((i % 5)) -eq 0 ] && [ -f "$TEMP_RAW_OUTPUT" ]; then
-				if grep -q "Rate limit exceeded" "$TEMP_RAW_OUTPUT" 2>/dev/null || grep -q '"httpCode":429' "$TEMP_RAW_OUTPUT" 2>/dev/null; then
-					RATE_LIMITED=true
-				fi
-			fi
-			sleep 1
-		done
-
-		if kill -0 "$CLI_PID" 2>/dev/null; then
-			info "CLI process timed out after $TIMEOUT seconds, terminating..."
-			kill -TERM "$CLI_PID" 2>/dev/null || true
-			wait "$CLI_PID" 2>/dev/null || true
-			CLI_EXIT_CODE=$?
-		fi
+		set +e
+		run_cli --headless --max-tasks 1 --node-id $node_id 2>&1 | tee "$TEMP_RAW_OUTPUT"
+		CLI_EXIT_CODE=$?
+		set -e
 
 		if [ "$CLI_EXIT_CODE" -eq 0 ]; then
 			pass "Positive test passed"
 			return 0
 		fi
 
-		if [ "$RATE_LIMITED" = true ]; then
+		if grep -q "Rate limit exceeded" "$TEMP_RAW_OUTPUT" 2>/dev/null || grep -q '"httpCode":429' "$TEMP_RAW_OUTPUT" 2>/dev/null; then
 			if [ $ATTEMPT_COUNT -lt 2 ]; then
 				info "Rate limited (attempt $ATTEMPT_COUNT). Retrying with next node id..."
 				rm -f "$TEMP_RAW_OUTPUT"
@@ -109,31 +117,10 @@ run_negative_test() {
 	TMP_OUT=$(mktemp)
 	trap "rm -f $TMP_OUT" EXIT
 
-	(
-		set -o pipefail
-		ulimit -c 0 || true
-		cargo run --release -- start --headless --max-tasks 1 --node-id "$INVALID_NODE_ID" 2>&1 | tee "$TMP_OUT"
-	) &
-	PID=$!
-
-	EXIT_CODE=0
-	for i in $(seq 1 150); do
-		if ! kill -0 "$PID" 2>/dev/null; then
-			set +e
-			wait "$PID"; EXIT_CODE=$?
-			set -e
-			break
-		fi
-		sleep 1
-	done
-
-	if kill -0 "$PID" 2>/dev/null; then
-		info "Process still running after timeout; terminating..."
-		kill -TERM "$PID" 2>/dev/null || true
-		wait "$PID" 2>/dev/null || true
-		pass "Negative test passed (CLI did not exit successfully)"
-		return 0
-	fi
+	set +e
+	run_cli --headless --max-tasks 1 --node-id "$INVALID_NODE_ID" 2>&1 | tee "$TMP_OUT"
+	EXIT_CODE=$?
+	set -e
 
 	if [ "$EXIT_CODE" -ne 0 ]; then
 		pass "Negative test passed (non-zero exit: $EXIT_CODE)"
@@ -145,7 +132,7 @@ run_negative_test() {
 	fi
 }
 
-# Run tests
+# Run tests sequentially in foreground
 run_positive_test
 POSITIVE_CODE=$?
 if [ $POSITIVE_CODE -ne 0 ]; then
