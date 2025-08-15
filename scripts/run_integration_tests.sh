@@ -4,6 +4,7 @@
 # Usage: ./scripts/run_integration_tests.sh
 
 set -e
+set -o pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CLI_DIR="$ROOT_DIR/clients/cli"
@@ -47,6 +48,7 @@ run_positive_test() {
 
 		RATE_LIMITED=false
 		(
+			set -o pipefail
 			ulimit -c 0 || true
 			RUST_LOG=warn cargo run --release -- start --headless --max-tasks 1 --node-id $node_id 2>&1 | tee "$TEMP_RAW_OUTPUT"
 		) &
@@ -105,6 +107,7 @@ run_negative_test() {
 	trap "rm -f $TMP_OUT" EXIT
 
 	(
+		set -o pipefail
 		ulimit -c 0 || true
 		cargo run --release -- start --headless --max-tasks 1 --node-id "$INVALID_NODE_ID" 2>&1 | tee "$TMP_OUT"
 	) &
