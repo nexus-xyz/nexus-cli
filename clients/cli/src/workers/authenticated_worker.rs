@@ -120,7 +120,16 @@ impl AuthenticatedWorker {
 
         let proof_result = match self.prover.prove_task(&task).await {
             Ok(proof_result) => proof_result,
-            Err(_) => return false, // Don't exit on proof error, just retry
+            Err(_) => {
+                // Send state change back to Waiting on proof failure
+                self.event_sender
+                    .send_event(Event::state_change(
+                        ProverState::Waiting,
+                        "Proof generation failed, ready for next task".to_string(),
+                    ))
+                    .await;
+                return false; // Don't exit on proof error, just retry
+            }
         };
 
         // Step 3: Submit proof
@@ -150,6 +159,14 @@ impl AuthenticatedWorker {
                 }
             }
         }
+
+        // Send state change back to Waiting at the end of the work cycle
+        self.event_sender
+            .send_event(Event::state_change(
+                ProverState::Waiting,
+                "Task completed, ready for next task".to_string(),
+            ))
+            .await;
 
         false // Continue with more tasks
     }

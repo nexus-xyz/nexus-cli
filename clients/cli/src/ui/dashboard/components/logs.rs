@@ -19,7 +19,7 @@ pub fn render_logs_panel(f: &mut Frame, area: ratatui::layout::Rect, state: &Das
     let log_count = if max_logs > 0 { max_logs } else { 1 };
 
     let log_lines: Vec<Line> = state
-        .events
+        .activity_logs
         .iter()
         .filter(|event| event.should_display())
         .rev()

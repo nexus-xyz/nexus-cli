@@ -2,6 +2,7 @@
 //!
 //! Contains the main dashboard state struct and related enums
 
+use crate::consts::cli_consts::MAX_ACTIVITY_LOGS;
 use crate::environment::Environment;
 use crate::events::{Event as WorkerEvent, ProverState};
 use crate::ui::app::UIConfig;
@@ -36,8 +37,10 @@ pub struct DashboardState {
     pub total_ram_gb: f64,
     /// Number of worker threads being used for proving.
     pub num_threads: usize,
-    /// A queue of events received from worker threads.
-    pub events: VecDeque<WorkerEvent>,
+    /// Queue of events waiting to be processed
+    pub pending_events: VecDeque<WorkerEvent>,
+    /// Activity logs for display (last 50 events)
+    pub activity_logs: VecDeque<WorkerEvent>,
     /// Whether a new version is available.
     pub update_available: bool,
     /// The latest version string, if known.
@@ -64,12 +67,8 @@ pub struct DashboardState {
     current_prover_state: ProverState,
     /// Track when Step 2 started for current task
     pub step2_start_time: Option<Instant>,
-    /// Accumulated total proving runtime across all completed tasks
-    pub accumulated_runtime_secs: u64,
     /// Track the start time and original wait duration for current waiting period
     pub waiting_start_info: Option<(Instant, u64)>, // (start_time, original_wait_secs)
-    /// Track the last processed event index to avoid reprocessing old events
-    pub last_processed_event_index: usize,
 }
 
 impl DashboardState {
@@ -78,7 +77,6 @@ impl DashboardState {
         node_id: Option<u64>,
         environment: Environment,
         start_time: Instant,
-        events: &VecDeque<WorkerEvent>,
         ui_config: UIConfig,
     ) -> Self {
         Self {
@@ -89,7 +87,8 @@ impl DashboardState {
             current_task: None,
             total_ram_gb: crate::system::total_memory_gb(),
             num_threads: ui_config.num_threads,
-            events: events.clone(),
+            pending_events: VecDeque::new(),
+            activity_logs: VecDeque::new(),
             update_available: ui_config.update_available,
             latest_version: ui_config.latest_version,
             with_background_color: ui_config.with_background_color,
@@ -103,9 +102,7 @@ impl DashboardState {
             sysinfo: System::new_all(), // Initialize with all data for first refresh
             current_prover_state: ProverState::Waiting,
             step2_start_time: None,
-            accumulated_runtime_secs: 0,
             waiting_start_info: None,
-            last_processed_event_index: 0,
         }
     }
     // Getter methods for private fields
@@ -122,6 +119,10 @@ impl DashboardState {
         self.fetching_state = state;
     }
 
+    pub fn current_prover_state(&self) -> ProverState {
+        self.current_prover_state
+    }
+
     pub fn set_current_prover_state(&mut self, state: ProverState) {
         self.current_prover_state = state;
     }
@@ -132,5 +133,18 @@ impl DashboardState {
 
     pub fn get_sysinfo_mut(&mut self) -> &mut System {
         &mut self.sysinfo
+    }
+
+    /// Add an event to activity logs with size limit
+    pub fn add_to_activity_log(&mut self, event: WorkerEvent) {
+        if self.activity_logs.len() >= MAX_ACTIVITY_LOGS {
+            self.activity_logs.pop_front();
+        }
+        self.activity_logs.push_back(event);
+    }
+
+    /// Add an event to the processing queue
+    pub fn add_event(&mut self, event: WorkerEvent) {
+        self.pending_events.push_back(event);
     }
 }
