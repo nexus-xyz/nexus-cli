@@ -292,6 +292,7 @@ impl Orchestrator for OrchestratorClient {
         task_id: &str,
         proof_hash: &str,
         proof: Vec<u8>,
+        proofs: Vec<Vec<u8>>,
         signing_key: SigningKey,
         num_provers: usize,
         task_type: crate::nexus_orchestrator::TaskType,
@@ -304,10 +305,10 @@ impl Orchestrator for OrchestratorClient {
         // Detect country for network optimization (privacy-preserving: only country code, no precise location)
         let location = self.get_country().await;
         // Handle different task types
-        let (proof_to_send, all_proof_hashes_to_send) = match task_type {
+        let (proof_to_send, proofs_to_send, all_proof_hashes_to_send) = match task_type {
             crate::nexus_orchestrator::TaskType::ProofHash => {
                 // For ProofHash tasks, don't send proof or individual hashes
-                (Vec::new(), Vec::new())
+                (Vec::new(), Vec::new(), Vec::new())
             }
             crate::nexus_orchestrator::TaskType::AllProofHashes => {
                 // For AllProofHashes tasks, don't send proof but send all individual hashes
@@ -318,11 +319,13 @@ impl Orchestrator for OrchestratorClient {
                         individual_proof_hashes.len()
                     );
                 }
-                (Vec::new(), individual_proof_hashes.to_vec())
+                (Vec::new(), Vec::new(), individual_proof_hashes.to_vec())
             }
             _ => {
-                // For ProofRequired and backward compatibility, attach proof
-                (proof, Vec::new())
+                // For ProofRequired and backward compatibility, attach legacy proof if single input
+                // and include the proofs array always (with one element if single input)
+                let legacy = if proofs.len() == 1 { proof } else { Vec::new() };
+                (legacy, proofs, Vec::new())
             }
         };
 
@@ -331,6 +334,7 @@ impl Orchestrator for OrchestratorClient {
             node_type: NodeType::CliProver as i32,
             proof_hash: proof_hash.to_string(),
             proof: proof_to_send,
+            proofs: proofs_to_send,
             node_telemetry: Some(crate::nexus_orchestrator::NodeTelemetry {
                 flops_per_sec: Some(flops as i32),
                 memory_used: Some(program_memory),
@@ -341,7 +345,6 @@ impl Orchestrator for OrchestratorClient {
             ed25519_public_key: public_key,
             signature,
             all_proof_hashes: all_proof_hashes_to_send,
-            proofs: Vec::new(),
         };
         let request_bytes = Self::encode_request(&request);
         self.post_request_no_response("v3/tasks/submit", request_bytes)
