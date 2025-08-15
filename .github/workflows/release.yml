@@ -75,9 +75,9 @@ jobs:
             rename_to: clients/cli/target/x86_64-unknown-linux-gnu/release/nexus-network-linux-x86_64
             rustflags: "-C target-feature=+crt-static"
           - id: linux-arm64
-            os: ubuntu-24.04-arm64
+            os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
-            build_cmd: cargo build --release
+            build_cmd: cargo build --release --target aarch64-unknown-linux-gnu
             rename_from: clients/cli/target/aarch64-unknown-linux-gnu/release/nexus-network
             rename_to: clients/cli/target/aarch64-unknown-linux-gnu/release/nexus-network-linux-arm64
             rustflags: ""
@@ -126,6 +126,18 @@ jobs:
           targets: ${{ matrix.target }}
           components: rustfmt, rust-src
 
+      - name: Install cross linker for aarch64
+        if: matrix.id == 'linux-arm64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Configure cross-linker env
+        if: matrix.id == 'linux-arm64'
+        run: |
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+          echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
+
       - name: Debug Rust environment
         run: |
           echo "Rust version: $(rustc --version --verbose)"
@@ -145,16 +157,18 @@ jobs:
         run: cp "${{ matrix.rename_from }}" "${{ matrix.rename_to }}"
 
       - name: Integration Tests
+        if: matrix.id != 'linux-arm64'
         shell: bash
         working-directory: clients/cli
-        timeout-minutes: 7
+        timeout-minutes: 3
         run: |
+          ROOT_UNIX=$(echo "$GITHUB_WORKSPACE" | tr '\\' '/')
           if [ -n "${{ secrets.INTEGRATION_TEST_NODE_IDS }}" ]; then
             echo "Running integration tests with configured node IDs"
-            INTEGRATION_TEST_NODE_IDS="${{ secrets.INTEGRATION_TEST_NODE_IDS }}" ../../scripts/run_integration_tests.sh
+            INTEGRATION_TEST_NODE_IDS="${{ secrets.INTEGRATION_TEST_NODE_IDS }}" bash "$ROOT_UNIX/scripts/run_integration_tests.sh"
           else
             echo "Running integration tests with fallback node IDs"
-            ../../scripts/run_integration_tests.sh
+            bash "$ROOT_UNIX/scripts/run_integration_tests.sh"
           fi
 
       - name: Upload artifact

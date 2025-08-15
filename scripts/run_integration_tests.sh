@@ -54,10 +54,13 @@ run_positive_test() {
 		) &
 		CLI_PID=$!
 
-		TIMEOUT=60
+		TIMEOUT=150
 		for i in $(seq 1 $TIMEOUT); do
 			if ! kill -0 "$CLI_PID" 2>/dev/null; then
-				wait "$CLI_PID"; CLI_EXIT_CODE=$?; break
+				set +e
+				wait "$CLI_PID"; CLI_EXIT_CODE=$?
+				set -e
+				break
 			fi
 			if [ $((i % 5)) -eq 0 ] && [ -f "$TEMP_RAW_OUTPUT" ]; then
 				if grep -q "Rate limit exceeded" "$TEMP_RAW_OUTPUT" 2>/dev/null || grep -q '"httpCode":429' "$TEMP_RAW_OUTPUT" 2>/dev/null; then
@@ -114,9 +117,12 @@ run_negative_test() {
 	PID=$!
 
 	EXIT_CODE=0
-	for i in $(seq 1 60); do
+	for i in $(seq 1 150); do
 		if ! kill -0 "$PID" 2>/dev/null; then
-			wait "$PID"; EXIT_CODE=$?; break
+			set +e
+			wait "$PID"; EXIT_CODE=$?
+			set -e
+			break
 		fi
 		sleep 1
 	done

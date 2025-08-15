@@ -88,7 +88,7 @@ jobs:
       # Integration test against production orchestrator
       - name: Integration Tests
         working-directory: clients/cli
-        timeout-minutes: 7
+        timeout-minutes: 3
         run: |
           if [ -n "${{ secrets.INTEGRATION_TEST_NODE_IDS }}" ]; then
             echo "Running integration tests with configured node IDs"
