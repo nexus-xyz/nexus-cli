@@ -62,16 +62,17 @@ impl SystemMetrics {
         let last_cpu_update = if should_update_cpu {
             // Refresh CPU usage and processes according to sysinfo best practices
             sysinfo.refresh_cpu_usage(); // Essential for CPU usage calculation
+            // Refresh ALL processes to include subprocesses during proving
             sysinfo.refresh_processes_specifics(
-                ProcessesToUpdate::Some(&[current_pid]),
+                ProcessesToUpdate::All,
                 true, // Refresh exact processes
                 ProcessRefreshKind::nothing().with_cpu().with_memory(),
             );
             Some(now)
         } else {
-            // Still refresh memory even when not updating CPU
+            // Still refresh ALL processes for memory tracking (including subprocesses)
             sysinfo.refresh_processes_specifics(
-                ProcessesToUpdate::Some(&[current_pid]),
+                ProcessesToUpdate::All,
                 true,
                 ProcessRefreshKind::nothing().with_memory(),
             );
@@ -87,8 +88,22 @@ impl SystemMetrics {
                 // Use previous CPU value if not updating
                 previous_metrics.map(|m| m.cpu_percent).unwrap_or(0.0)
             };
-            // Use current process memory (as requested by user)
+            // Use current process memory as base
             ram_total = process.memory();
+        }
+
+        // Include CPU and memory from nexus proving subprocesses
+        for process in sysinfo.processes().values() {
+            if process.parent() == Some(current_pid) {
+                let process_name = process.name().to_string_lossy().to_lowercase();
+                // Include child processes that are nexus-related (proving subprocesses)
+                if process_name.contains("nexus") {
+                    ram_total += process.memory();
+                    if should_update_cpu {
+                        cpu_total += process.cpu_usage(); // Add subprocess CPU usage!
+                    }
+                }
+            }
         }
 
         // Track peak process RAM usage over application lifetime
