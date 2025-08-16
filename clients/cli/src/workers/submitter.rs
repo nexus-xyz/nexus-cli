@@ -78,7 +78,7 @@ impl ProofSubmitter {
         let proofs_bytes: Vec<Vec<u8>> = proof_result
             .proofs
             .iter()
-            .map(|p| postcard::to_allocvec(p))
+            .map(postcard::to_allocvec)
             .collect::<Result<_, _>>()?;
         let legacy_proof_bytes = proofs_bytes.first().cloned().unwrap_or_default();
 
