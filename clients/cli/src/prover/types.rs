@@ -29,7 +29,7 @@ pub enum ProverError {
 
 /// Result of a proof generation, including combined hash for multiple inputs
 pub struct ProverResult {
-    pub proof: Proof,
+    pub proofs: Vec<Proof>,
     pub combined_hash: String,
     pub individual_proof_hashes: Vec<String>,
 }

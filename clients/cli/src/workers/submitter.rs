@@ -74,14 +74,19 @@ impl ProofSubmitter {
             )
             .await;
 
-        // Serialize proof
-        let proof_bytes = postcard::to_allocvec(&proof_result.proof)?;
+        // Serialize proofs
+        let proofs_bytes: Vec<Vec<u8>> = proof_result
+            .proofs
+            .iter()
+            .map(postcard::to_allocvec)
+            .collect::<Result<_, _>>()?;
+        let legacy_proof_bytes = proofs_bytes.first().cloned().unwrap_or_default();
 
         // Submit through network client with retry logic
         let mut submission = ProofSubmission::new(
             task.task_id.clone(),
             proof_result.combined_hash.clone(),
-            proof_bytes,
+            legacy_proof_bytes,
             task.task_type,
         );
 
@@ -89,6 +94,11 @@ impl ProofSubmitter {
         if task.task_type == crate::nexus_orchestrator::TaskType::AllProofHashes {
             submission =
                 submission.with_individual_hashes(proof_result.individual_proof_hashes.clone());
+        }
+
+        // Populate proofs for PROOF_REQUIRED; leave empty otherwise
+        if task.task_type == crate::nexus_orchestrator::TaskType::ProofRequired {
+            submission = submission.with_proofs(proofs_bytes);
         }
 
         match self
