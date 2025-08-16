@@ -76,8 +76,13 @@ run_positive_test() {
 		fi
 		ATTEMPT_COUNT=$((ATTEMPT_COUNT+1))
 
-		TEMP_RAW_OUTPUT=$(mktemp)
-		trap "rm -f $TEMP_RAW_OUTPUT" EXIT
+		if [ -n "$GITHUB_ACTIONS" ] || [ -n "$CI" ]; then
+			TEMP_RAW_OUTPUT="$PWD/integration_positive.log"
+			rm -f "$TEMP_RAW_OUTPUT" 2>/dev/null || true
+		else
+			TEMP_RAW_OUTPUT=$(mktemp)
+			trap "rm -f $TEMP_RAW_OUTPUT" EXIT
+		fi
 		info "Running CLI (attempt $ATTEMPT_COUNT) with node $node_id..."
 
 		set +e
@@ -114,8 +119,13 @@ run_negative_test() {
 	info "Starting negative integration test (invalid node id)..."
 	ulimit -c 0 || true
 	INVALID_NODE_ID="0"
-	TMP_OUT=$(mktemp)
-	trap "rm -f $TMP_OUT" EXIT
+	if [ -n "$GITHUB_ACTIONS" ] || [ -n "$CI" ]; then
+		TMP_OUT="$PWD/integration_negative.log"
+		rm -f "$TMP_OUT" 2>/dev/null || true
+	else
+		TMP_OUT=$(mktemp)
+		trap "rm -f $TMP_OUT" EXIT
+	fi
 
 	set +e
 	run_cli --headless --max-tasks 1 --node-id "$INVALID_NODE_ID" 2>&1 | tee "$TMP_OUT"
