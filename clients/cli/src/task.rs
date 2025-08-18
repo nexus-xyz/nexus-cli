@@ -126,7 +126,7 @@ mod tests {
         let combined = Task::combine_proof_hashes(&hashes);
         assert!(!combined.is_empty());
         assert_eq!(combined.len(), 64);
-        assert_eq!(combined, "98400b67ac1179a39e81a37ff904cf6baf9d442faeced4ffa13adf00bca2f5e0")
+        assert_eq!(combined, "98400b67ac1179a39e81a37ff904cf6baf9d442faeced4ffa13adf00bca2f5e0");
 
         // Verify that the same hashes produce the same result
         let combined2 = Task::combine_proof_hashes(&hashes);
