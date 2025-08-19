@@ -102,7 +102,7 @@ jobs:
             build_cmd: cargo build --release --target=x86_64-pc-windows-msvc
             rename_from: clients/cli/target/x86_64-pc-windows-msvc/release/nexus-network.exe
             rename_to: clients/cli/target/x86_64-pc-windows-msvc/release/nexus-network-windows-x86_64.exe
-            rustflags: "-C target-feature=+sse4.2,+avx,+avx2"
+            rustflags: ""
 
     steps:
       - name: Checkout code
@@ -160,9 +160,18 @@ jobs:
         if: matrix.id != 'linux-arm64'
         shell: bash
         working-directory: clients/cli
-        timeout-minutes: 3
+        timeout-minutes: 5
         run: |
           ROOT_UNIX=$(echo "$GITHUB_WORKSPACE" | tr '\\' '/')
+          echo "Host triple: $(rustc -vV | awk '/host/ {print $2}')"
+          echo "Built binaries:"
+          find target -maxdepth 3 -type f -name 'nexus-network*' -print || true
+          if [ "${{ matrix.id }}" = "windows-x86_64" ]; then
+            echo "System memory info (Windows)"
+            wmic computersystem get TotalPhysicalMemory | findstr /r /v "^$" || true
+            wmic OS get FreePhysicalMemory | findstr /r /v "^$" || true
+            export RUST_BACKTRACE=1
+          fi
           if [ -n "${{ secrets.INTEGRATION_TEST_NODE_IDS }}" ]; then
             echo "Running integration tests with configured node IDs"
             INTEGRATION_TEST_NODE_IDS="${{ secrets.INTEGRATION_TEST_NODE_IDS }}" bash "$ROOT_UNIX/scripts/run_integration_tests.sh"
