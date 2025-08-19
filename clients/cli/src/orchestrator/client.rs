@@ -17,6 +17,32 @@ use reqwest::{Client, ClientBuilder, Response};
 use std::sync::OnceLock;
 use std::time::Duration;
 
+/// Proof payload returned by `select_proof_payload`.
+///
+/// Tuple components (in order):
+/// 1. `Vec<u8>`: legacy single-proof bytes (set only when exactly one proof is present and the
+///    server expects a single proof field; otherwise empty)
+/// 2. `Vec<Vec<u8>>`: list of full proof byte blobs for multi-input proofs (empty for
+///    `ProofHash`/`AllProofHashes`)
+/// 3. `Vec<String>`: list of per-input proof hashes (used for `AllProofHashes`; empty otherwise)
+pub(crate) type ProofPayload = (Vec<u8>, Vec<Vec<u8>>, Vec<String>);
+
+/// Container for the proof-related payload that may be attached to a task submission.
+///
+/// In the Nexus protocol we have several task types that require different
+/// data to be sent back to the orchestrator:
+/// - `legacy_proof`: a backwards-compatible single-proof byte blob used when
+///   there is exactly one input/proof and the server expects a single field.
+/// - `proofs`: a list of full proof byte blobs for multi-input tasks.
+/// - `individual_proof_hashes`: when the server only needs hashes (e.g.
+///   `AllProofHashes`), this contains all per-input proof hashes and no proof bytes.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub(crate) struct ProofPayload {
+    pub legacy_proof: Vec<u8>,
+    pub proofs: Vec<Vec<u8>>,
+    pub individual_proof_hashes: Vec<String>,
+}
+
 // Build timestamp in milliseconds since epoch
 static BUILD_TIMESTAMP: &str = match option_env!("BUILD_TIMESTAMP") {
     Some(timestamp) => timestamp,
@@ -66,12 +92,20 @@ impl OrchestratorClient {
         T::decode(bytes).map_err(OrchestratorError::Decode)
     }
 
+    /// Selects which proof data to attach based on the `task_type`.
+    ///
+    /// Returns a tuple `(legacy_proof, proofs, individual_proof_hashes)` with the appropriate
+    /// fields populated:
+    /// - For `ProofHash`: no proof bytes and no hashes (server derives hash elsewhere).
+    /// - For `AllProofHashes`: no proof bytes; `individual_proof_hashes` populated.
+    /// - For other types (e.g. `ProofRequired`): `legacy_proof` is set only when exactly
+    ///   one proof is present (back-compat), and `proofs` contains the vector of full proofs.
     pub(crate) fn select_proof_payload(
         task_type: crate::nexus_orchestrator::TaskType,
         legacy_proof: Vec<u8>,
         proofs: Vec<Vec<u8>>,
         individual_proof_hashes: &[String],
-    ) -> (Vec<u8>, Vec<Vec<u8>>, Vec<String>) {
+    ) -> ProofPayload {
         match task_type {
             crate::nexus_orchestrator::TaskType::ProofHash => {
                 // For ProofHash tasks, don't send proof or individual hashes
@@ -82,7 +116,10 @@ impl OrchestratorClient {
                 (Vec::new(), Vec::new(), individual_proof_hashes.to_vec())
             }
             _ => {
-                // For ProofRequired and backward compatibility, attach legacy proof if single input
+                // For ProofRequired and backward compatibility:
+                // - Always include `proofs` as provided
+                // - Include `legacy_proof` only when there is exactly one proof, for servers/paths
+                //   that still expect a single legacy proof field
                 let legacy = if proofs.len() == 1 {
                     legacy_proof
                 } else {
