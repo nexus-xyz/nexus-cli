@@ -2,7 +2,7 @@
 
 use super::core::{EventSender, WorkerConfig};
 use crate::analytics::{
-    track_proof_accepted, track_proof_submission_error, track_proof_submission_success,
+    report_proving_if_needed, track_proof_accepted, track_proof_submission_error, track_proof_submission_success,
 };
 use crate::consts::cli_consts::{proof_submission, rate_limiting};
 use crate::events::EventType;
@@ -132,6 +132,10 @@ impl ProofSubmitter {
 
                 // Track analytics for successful submission
                 self.track_successful_submission(task).await;
+
+                // Report proving (rate-limited per wallet address)
+                let addr = self.config.wallet_address.clone();
+                tokio::spawn(async move { report_proving_if_needed(&addr).await; });
 
                 Ok(())
             }

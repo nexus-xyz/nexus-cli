@@ -10,6 +10,9 @@ use std::{
     env,
     time::{SystemTime, UNIX_EPOCH},
 };
+use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant};
 
 #[derive(Debug, thiserror::Error)]
 pub enum TrackError {
@@ -144,6 +147,55 @@ pub async fn track(
     }
 
     Ok(())
+}
+
+/// Cloud Function endpoint for reporting proving activity
+const REPORT_PROVING_URL: &str = "https://us-central1-nexus-prove-staging.cloudfunctions.net/reportProving";
+/// User-Agent for nexus-cli requests (used by Cloud Function for special handling)
+const CLI_USER_AGENT: &str = concat!("nexus-cli/", env!("CARGO_PKG_VERSION"));
+
+/// Global, per-address, in-process rate limiter for reportProving calls
+static LAST_REPORT_BY_ADDRESS: OnceLock<Mutex<HashMap<String, Instant>>> = OnceLock::new();
+
+/// Report proving activity to our Cloud Function at most once per hour per wallet address
+pub async fn report_proving_if_needed(wallet_address: &str) {
+    // Initialize map
+    let map = LAST_REPORT_BY_ADDRESS.get_or_init(|| Mutex::new(HashMap::new()));
+
+    let now = Instant::now();
+
+    // Check and update last report time with a small critical section
+    let should_send = {
+        let mut guard = match map.lock() {
+            Ok(g) => g,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+
+        match guard.get(wallet_address) {
+            Some(&last) if now.duration_since(last) < Duration::from_secs(3600) => false,
+            _ => {
+                guard.insert(wallet_address.to_string(), now);
+                true
+            }
+        }
+    };
+
+    if !should_send {
+        return;
+    }
+
+    // Fire-and-forget POST; ignore errors
+    let client = reqwest::Client::new();
+    let body = json!({
+        "data": { "address": wallet_address }
+    });
+
+    let _ = client
+        .post(REPORT_PROVING_URL)
+        .header(reqwest::header::USER_AGENT, CLI_USER_AGENT)
+        .json(&body)
+        .send()
+        .await;
 }
 
 /// Track analytics for getting a task from orchestrator (non-blocking)

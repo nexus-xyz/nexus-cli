@@ -109,6 +109,7 @@ pub async fn setup_session(
         shutdown_sender.subscribe(),
         env,
         client_id,
+        config.wallet_address.clone(),
         max_tasks,
     )
     .await;
