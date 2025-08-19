@@ -115,7 +115,10 @@ mod tests {
         let result = Task::combine_proof_hashes(&[single_hash.to_string()]);
         assert!(!result.is_empty());
         assert_eq!(result.len(), 64); // Keccak-256 produces 32 bytes = 64 hex chars
-        assert_eq!(result, "966f43edb4fb988490ec112be0d646d119651650d74e4244ec3d291a1c073cf2");
+        assert_eq!(
+            result,
+            "966f43edb4fb988490ec112be0d646d119651650d74e4244ec3d291a1c073cf2"
+        );
 
         // Test with multiple hashes
         let hashes = vec![
@@ -126,7 +129,10 @@ mod tests {
         let combined = Task::combine_proof_hashes(&hashes);
         assert!(!combined.is_empty());
         assert_eq!(combined.len(), 64);
-        assert_eq!(combined, "98400b67ac1179a39e81a37ff904cf6baf9d442faeced4ffa13adf00bca2f5e0");
+        assert_eq!(
+            combined,
+            "98400b67ac1179a39e81a37ff904cf6baf9d442faeced4ffa13adf00bca2f5e0"
+        );
 
         // Verify that the same hashes produce the same result
         let combined2 = Task::combine_proof_hashes(&hashes);
