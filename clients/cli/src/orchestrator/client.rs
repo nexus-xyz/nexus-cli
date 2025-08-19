@@ -27,22 +27,6 @@ use std::time::Duration;
 /// 3. `Vec<String>`: list of per-input proof hashes (used for `AllProofHashes`; empty otherwise)
 pub(crate) type ProofPayload = (Vec<u8>, Vec<Vec<u8>>, Vec<String>);
 
-/// Container for the proof-related payload that may be attached to a task submission.
-///
-/// In the Nexus protocol we have several task types that require different
-/// data to be sent back to the orchestrator:
-/// - `legacy_proof`: a backwards-compatible single-proof byte blob used when
-///   there is exactly one input/proof and the server expects a single field.
-/// - `proofs`: a list of full proof byte blobs for multi-input tasks.
-/// - `individual_proof_hashes`: when the server only needs hashes (e.g.
-///   `AllProofHashes`), this contains all per-input proof hashes and no proof bytes.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub(crate) struct ProofPayload {
-    pub legacy_proof: Vec<u8>,
-    pub proofs: Vec<Vec<u8>>,
-    pub individual_proof_hashes: Vec<String>,
-}
-
 // Build timestamp in milliseconds since epoch
 static BUILD_TIMESTAMP: &str = match option_env!("BUILD_TIMESTAMP") {
     Some(timestamp) => timestamp,
