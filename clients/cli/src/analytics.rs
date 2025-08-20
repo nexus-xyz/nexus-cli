@@ -6,13 +6,13 @@ use chrono::Datelike;
 use chrono::Timelike;
 use reqwest::header::ACCEPT;
 use serde_json::{Value, json};
+use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant};
 use std::{
     env,
     time::{SystemTime, UNIX_EPOCH},
 };
-use std::collections::HashMap;
-use std::sync::{Mutex, OnceLock};
-use std::time::{Duration, Instant};
 
 #[derive(Debug, thiserror::Error)]
 pub enum TrackError {
@@ -150,15 +150,26 @@ pub async fn track(
 }
 
 /// Cloud Function endpoint for reporting proving activity
-const REPORT_PROVING_URL: &str = "https://us-central1-nexus-prove-staging.cloudfunctions.net/reportProving";
+const REPORT_PROVING_URL: &str =
+    "https://us-central1-nexus-prove-staging.cloudfunctions.net/reportProving";
 /// User-Agent for nexus-cli requests (used by Cloud Function for special handling)
 const CLI_USER_AGENT: &str = concat!("nexus-cli/", env!("CARGO_PKG_VERSION"));
 
 /// Global, per-address, in-process rate limiter for reportProving calls
 static LAST_REPORT_BY_ADDRESS: OnceLock<Mutex<HashMap<String, Instant>>> = OnceLock::new();
+/// Global wallet address for reporting; set once during session setup
+static REPORT_WALLET_ADDRESS: OnceLock<String> = OnceLock::new();
+
+/// Set the wallet address used for reporting proving activity
+pub fn set_wallet_address_for_reporting(address: String) {
+    let _ = REPORT_WALLET_ADDRESS.set(address);
+}
 
 /// Report proving activity to our Cloud Function at most once per hour per wallet address
-pub async fn report_proving_if_needed(wallet_address: &str) {
+pub async fn report_proving_if_needed() {
+    let Some(wallet_address) = REPORT_WALLET_ADDRESS.get() else {
+        return;
+    };
     // Initialize map
     let map = LAST_REPORT_BY_ADDRESS.get_or_init(|| Mutex::new(HashMap::new()));
 
@@ -294,6 +305,11 @@ pub async fn track_proof_accepted(
     )
     .await;
     // TODO: Catch errors and log them
+
+    // Rate-limited cloud ping
+    tokio::spawn(async move {
+        report_proving_if_needed().await;
+    });
 }
 
 /// Track analytics for proof submission success (non-blocking)
@@ -318,6 +334,11 @@ pub async fn track_proof_submission_success(
     )
     .await;
     // TODO: Catch errors and log them
+
+    // Rate-limited cloud ping
+    tokio::spawn(async move {
+        report_proving_if_needed().await;
+    });
 }
 
 /// Track analytics for authenticated proof (non-blocking)
