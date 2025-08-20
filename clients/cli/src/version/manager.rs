@@ -29,6 +29,31 @@ pub async fn validate_version_requirements() -> Result<(), Box<dyn Error>> {
     };
 
     let current_version = env!("CARGO_PKG_VERSION");
+    // Early OFAC block from server-provided list, if present
+    if let Some(country) = crate::orchestrator::client::COUNTRY_CODE.get() {
+        // Restriction check is against keys; printed names come from non-null values
+        if requirements
+            .ofac_country_names
+            .keys()
+            .any(|c| c.eq_ignore_ascii_case(country))
+        {
+            let names: Vec<String> = requirements
+                .ofac_country_names
+                .values()
+                .filter_map(|v| v.clone())
+                .collect();
+            let list = if names.is_empty() {
+                String::from("(no regions listed)")
+            } else {
+                names.join(", ")
+            };
+            eprintln!(
+                "Due to OFAC regulations, this service is not available in the following countries and regions: {}",
+                list
+            );
+            std::process::exit(1);
+        }
+    }
     match requirements.check_version_constraints(current_version, None, None) {
         Ok(Some(violation)) => {
             handle_version_violation(&violation.constraint_type, &violation.message);

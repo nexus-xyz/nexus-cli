@@ -10,5 +10,26 @@
       "type": "warning",
       "message": "Your version {current} is older than the recommended version {version}. Consider upgrading to unlock additional proving tasks."
     }
-  ]
+  ],
+  "ofac_country_names": {
+    "BY": "Belarus",
+    "CD": "Democratic Republic of Congo",
+    "CF": "Central African Republic",
+    "ET": "Ethiopia",
+    "IR": "Iran",
+    "KP": "North Korea",
+    "LB": "Lebanon",
+    "ML": "Mali",
+    "MM": "Myanmar (Burma)",
+    "RU": "Russia, including the occupied regions of Crimea, Donetsk, and Luhansk",
+    "SD": "Sudan",
+    "SO": "Somalia",
+    "SS": "South Sudan",
+    "SY": "Syria",
+    "VE": "Venezuela",
+    "YE": "Yemen",
+    "UA-43": null,
+    "UA-14": null,
+    "UA-09": null
+  }
 } 

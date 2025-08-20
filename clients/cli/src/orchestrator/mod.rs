@@ -3,7 +3,7 @@ use crate::orchestrator::error::OrchestratorError;
 use crate::task::Task;
 use ed25519_dalek::{SigningKey, VerifyingKey};
 
-mod client;
+pub(crate) mod client;
 pub use client::OrchestratorClient;
 pub mod error;
 

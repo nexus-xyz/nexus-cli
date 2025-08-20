@@ -1,6 +1,7 @@
 use reqwest::Client;
 use semver::Version;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use thiserror::Error;
 
@@ -25,6 +26,10 @@ pub enum VersionRequirementsError {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct VersionRequirements {
     pub version_constraints: Vec<VersionConstraint>,
+    /// Map of OFAC-restricted country/region codes to display names.
+    /// If the value is null, the code is still restricted but omitted from the printed list.
+    #[serde(default, alias = "ofac_restricted_map")]
+    pub ofac_country_names: HashMap<String, Option<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

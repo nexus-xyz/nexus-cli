@@ -40,7 +40,7 @@ const USER_AGENT: &str = concat!("nexus-cli/", env!("CARGO_PKG_VERSION"));
 // Only stores 2-letter country codes (e.g., "US", "CA", "GB") to help route
 // requests to the nearest Nexus network servers for better performance.
 // No precise location, IP addresses, or personal data is collected or stored.
-static COUNTRY_CODE: OnceLock<String> = OnceLock::new();
+pub(crate) static COUNTRY_CODE: OnceLock<String> = OnceLock::new();
 
 #[derive(Debug, Clone)]
 pub struct OrchestratorClient {
@@ -58,6 +58,11 @@ impl OrchestratorClient {
                 .expect("Failed to create HTTP client"),
             environment,
         }
+    }
+
+    /// Public accessor for privacy-preserving country code (cached during run)
+    pub async fn country(&self) -> String {
+        self.get_country().await
     }
 
     fn build_url(&self, endpoint: &str) -> String {
