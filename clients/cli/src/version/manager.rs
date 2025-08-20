@@ -42,15 +42,21 @@ pub async fn validate_version_requirements() -> Result<(), Box<dyn Error>> {
                 .values()
                 .filter_map(|v| v.clone())
                 .collect();
-            let list = if names.is_empty() {
-                String::from("(no regions listed)")
+            if names.is_empty() {
+                eprintln!(
+                    "Due to OFAC regulations, this service is not available in the following countries and regions."
+                );
             } else {
-                names.join(", ")
-            };
-            eprintln!(
-                "Due to OFAC regulations, this service is not available in the following countries and regions: {}",
-                list
-            );
+                let list = names
+                    .iter()
+                    .map(|n| format!("- {}", n))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                eprintln!(
+                    "Due to OFAC regulations, this service is not available in the following countries and regions:\n{}",
+                    list
+                );
+            }
             std::process::exit(1);
         }
     }

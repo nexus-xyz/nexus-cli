@@ -204,7 +204,7 @@ async fn start(
     // 2. Configuration resolution
     let orchestrator_client = OrchestratorClient::new(env.clone());
 
-    // 2a. Country detection warm-up; block decision is in version manager using version.json ofac_restricted
+    // 2a. Country detection warm-up; block decision is in version manager using version.json
     let _ = orchestrator_client.country().await;
     let config = Config::resolve(node_id, &config_path, &orchestrator_client).await?;
 
