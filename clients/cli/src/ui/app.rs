@@ -9,14 +9,13 @@ use crate::ui::login::render_login;
 use crate::ui::splash::render_splash;
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::{Frame, Terminal, backend::Backend};
-use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 use tokio::sync::{broadcast, mpsc};
 
 /// UI configuration data grouped by concern
 #[derive(Debug, Clone)]
 pub struct UIConfig {
-    pub no_background_color: bool,
+    pub with_background_color: bool,
     pub num_threads: usize,
     pub update_available: bool,
     pub latest_version: Option<String>,
@@ -24,13 +23,13 @@ pub struct UIConfig {
 
 impl UIConfig {
     pub fn new(
-        no_background_color: bool,
+        with_background_color: bool,
         num_threads: usize,
         update_available: bool,
         latest_version: Option<String>,
     ) -> Self {
         Self {
-            no_background_color,
+            with_background_color,
             num_threads,
             update_available,
             latest_version,
@@ -50,9 +49,6 @@ pub enum Screen {
     Dashboard(Box<DashboardState>),
 }
 
-/// The maximum number of events to keep in the event buffer.
-const MAX_EVENTS: usize = 100;
-
 /// Application state
 #[derive(Debug)]
 pub struct App {
@@ -68,9 +64,6 @@ pub struct App {
     /// The current screen being displayed in the application.
     current_screen: Screen,
 
-    /// Events received from worker threads.
-    events: VecDeque<WorkerEvent>,
-
     /// Receives events from worker threads.
     event_receiver: mpsc::Receiver<WorkerEvent>,
 
@@ -81,7 +74,7 @@ pub struct App {
     max_tasks_shutdown_receiver: broadcast::Receiver<()>,
 
     /// Whether to disable background colors
-    no_background_color: bool,
+    with_background_color: bool,
 
     /// Number of worker threads being used for proving.
     num_threads: usize,
@@ -108,11 +101,10 @@ impl App {
             node_id,
             environment,
             current_screen: Screen::Splash,
-            events: Default::default(),
             event_receiver,
             shutdown_sender,
             max_tasks_shutdown_receiver,
-            no_background_color: ui_config.no_background_color,
+            with_background_color: ui_config.with_background_color,
             num_threads: ui_config.num_threads,
             version_update_available: ui_config.update_available,
             latest_version: ui_config.latest_version,
@@ -124,7 +116,7 @@ impl App {
     pub fn login(&mut self) {
         let node_id = Some(123); // Placeholder for node ID, replace with actual logic to get node ID
         let ui_config = UIConfig::new(
-            self.no_background_color,
+            self.with_background_color,
             self.num_threads,
             self.version_update_available,
             self.latest_version.clone(),
@@ -133,7 +125,6 @@ impl App {
             node_id,
             self.environment.clone(),
             self.start_time,
-            &self.events,
             ui_config,
         );
         self.current_screen = Screen::Dashboard(Box::new(state));
@@ -154,12 +145,12 @@ pub async fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::i
             return Ok(());
         }
 
-        // Drain prover events from the async channel into app.events
+        // Queue all incoming events for processing
         while let Ok(event) = app.event_receiver.try_recv() {
-            if app.events.len() >= MAX_EVENTS {
-                app.events.pop_front();
+            // Add event to dashboard queue if it exists
+            if let Screen::Dashboard(state) = &mut app.current_screen {
+                state.add_event(event);
             }
-            app.events.push_back(event);
         }
 
         // Update the state based on the current screen
@@ -167,8 +158,6 @@ pub async fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::i
             Screen::Splash => {}
             Screen::Login => {}
             Screen::Dashboard(state) => {
-                // Update events in the dashboard state
-                state.events = app.events.clone();
                 // Update the dashboard with new tick and metrics
                 state.update();
             }
@@ -179,7 +168,7 @@ pub async fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::i
         if let Screen::Splash = app.current_screen {
             if splash_start.elapsed() >= splash_duration {
                 let ui_config = UIConfig::new(
-                    app.no_background_color,
+                    app.with_background_color,
                     app.num_threads,
                     app.version_update_available,
                     app.latest_version.clone(),
@@ -188,7 +177,6 @@ pub async fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::i
                     app.node_id,
                     app.environment.clone(),
                     app.start_time,
-                    &app.events,
                     ui_config,
                 )));
                 continue;
@@ -215,7 +203,7 @@ pub async fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::i
                         // Any key press will skip the splash screen
                         if key.code != KeyCode::Esc && key.code != KeyCode::Char('q') {
                             let ui_config = UIConfig::new(
-                                app.no_background_color,
+                                app.with_background_color,
                                 app.num_threads,
                                 app.version_update_available,
                                 app.latest_version.clone(),
@@ -224,7 +212,6 @@ pub async fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::i
                                 app.node_id,
                                 app.environment.clone(),
                                 app.start_time,
-                                &app.events,
                                 ui_config,
                             )));
                         }

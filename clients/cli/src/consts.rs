@@ -10,8 +10,24 @@ pub mod cli_consts {
     // All queue sizes are chosen to be larger than the API page size (currently 50)
     // to provide adequate buffering while preventing excessive memory usage.
 
-    /// Maximum number of events that can be queued for UI updates
+    /// The maximum number of events to keep in the activity logs.
+    pub const MAX_ACTIVITY_LOGS: usize = 100;
+
+    /// Maximum number of event buffer size for worker threads
     pub const EVENT_QUEUE_SIZE: usize = 100;
+
+    // =============================================================================
+    // PROVING CONFIGURATIONS
+    // =============================================================================
+
+    /// Subprocess error code likely indicating an OOM error
+    pub const SUBPROCESS_SUSPECTED_OOM_CODE: i32 = 137;
+
+    /// Subprocess error code indicating an internal failure of the proving
+    pub const SUBPROCESS_INTERNAL_ERROR_CODE: i32 = 3;
+
+    /// "Reasonable" generic projection task memory requirement.
+    pub const PROJECTED_MEMORY_REQUIREMENT: u64 = 4294967296; // 4gb
 
     // =============================================================================
     // NETWORK CONFIGURATION

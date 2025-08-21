@@ -6,6 +6,9 @@ use chrono::Datelike;
 use chrono::Timelike;
 use reqwest::header::ACCEPT;
 use serde_json::{Value, json};
+use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant};
 use std::{
     env,
     time::{SystemTime, UNIX_EPOCH},
@@ -146,6 +149,66 @@ pub async fn track(
     Ok(())
 }
 
+/// Cloud Function endpoint for reporting proving activity
+const REPORT_PROVING_URL: &str =
+    "https://us-central1-nexus-prove-staging.cloudfunctions.net/reportProving";
+/// User-Agent for nexus-cli requests (used by Cloud Function for special handling)
+const CLI_USER_AGENT: &str = concat!("nexus-cli/", env!("CARGO_PKG_VERSION"));
+
+/// Global, per-address, in-process rate limiter for reportProving calls
+static LAST_REPORT_BY_ADDRESS: OnceLock<Mutex<HashMap<String, Instant>>> = OnceLock::new();
+/// Global wallet address for reporting; set once during session setup
+static REPORT_WALLET_ADDRESS: OnceLock<String> = OnceLock::new();
+
+/// Set the wallet address used for reporting proving activity
+pub fn set_wallet_address_for_reporting(address: String) {
+    let _ = REPORT_WALLET_ADDRESS.set(address);
+}
+
+/// Report proving activity to our Cloud Function at most once per hour per wallet address
+pub async fn report_proving_if_needed() {
+    let Some(wallet_address) = REPORT_WALLET_ADDRESS.get() else {
+        return;
+    };
+    // Initialize map
+    let map = LAST_REPORT_BY_ADDRESS.get_or_init(|| Mutex::new(HashMap::new()));
+
+    let now = Instant::now();
+
+    // Check and update last report time with a small critical section
+    let should_send = {
+        let mut guard = match map.lock() {
+            Ok(g) => g,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+
+        match guard.get(wallet_address) {
+            Some(&last) if now.duration_since(last) < Duration::from_secs(3600) => false,
+            _ => {
+                guard.insert(wallet_address.to_string(), now);
+                true
+            }
+        }
+    };
+
+    if !should_send {
+        return;
+    }
+
+    // Fire-and-forget POST; ignore errors
+    let client = reqwest::Client::new();
+    let body = json!({
+        "data": { "address": wallet_address }
+    });
+
+    let _ = client
+        .post(REPORT_PROVING_URL)
+        .header(reqwest::header::USER_AGENT, CLI_USER_AGENT)
+        .json(&body)
+        .send()
+        .await;
+}
+
 /// Track analytics for getting a task from orchestrator (non-blocking)
 pub async fn track_got_task(task: crate::task::Task, environment: Environment, client_id: String) {
     let analytics_data = json!({
@@ -242,6 +305,11 @@ pub async fn track_proof_accepted(
     )
     .await;
     // TODO: Catch errors and log them
+
+    // Rate-limited cloud ping
+    tokio::spawn(async move {
+        report_proving_if_needed().await;
+    });
 }
 
 /// Track analytics for proof submission success (non-blocking)
@@ -266,6 +334,11 @@ pub async fn track_proof_submission_success(
     )
     .await;
     // TODO: Catch errors and log them
+
+    // Rate-limited cloud ping
+    tokio::spawn(async move {
+        report_proving_if_needed().await;
+    });
 }
 
 /// Track analytics for authenticated proof (non-blocking)
@@ -327,6 +400,26 @@ pub async fn track_authenticated_proof_analytics(
 
     let _ = track(
         vec!["cli_proof_node_v4".to_string(), "proof_node".to_string()],
+        analytics_data,
+        &environment,
+        client_id,
+    )
+    .await;
+    // TODO: Catch errors and log them
+}
+
+/// Track analytics for likely OOM error in proof subprocess (non-blocking)
+pub async fn track_likely_oom_error(task: Task, environment: Environment, client_id: String) {
+    let analytics_data = json!({
+        "program_name": task.program_id,
+        "task_id": task.task_id,
+    });
+
+    let _ = track(
+        vec![
+            "cli_likely_oom_error".to_string(),
+            "likely_oom_error".to_string(),
+        ],
         analytics_data,
         &environment,
         client_id,

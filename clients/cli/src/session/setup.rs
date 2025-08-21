@@ -1,5 +1,6 @@
 //! Session setup and initialization
 
+use crate::analytics::set_wallet_address_for_reporting;
 use crate::config::Config;
 use crate::environment::Environment;
 use crate::events::Event;
@@ -7,6 +8,7 @@ use crate::orchestrator::OrchestratorClient;
 use crate::runtime::start_authenticated_worker;
 use ed25519_dalek::SigningKey;
 use std::error::Error;
+use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
 use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;
 
@@ -29,6 +31,33 @@ pub struct SessionData {
     pub num_workers: usize,
 }
 
+/// Warn the user if their available memory seems insufficient for the task(s) at hand
+pub fn warn_memory_configuration(max_threads: Option<u32>) {
+    if let Some(threads) = max_threads {
+        let current_pid = Pid::from(std::process::id() as usize);
+
+        let mut sysinfo = System::new();
+        sysinfo.refresh_processes_specifics(
+            ProcessesToUpdate::Some(&[current_pid]),
+            true, // Refresh exact processes
+            ProcessRefreshKind::nothing().with_memory(),
+        );
+
+        if let Some(process) = sysinfo.process(current_pid) {
+            let ram_total = process.memory();
+            if threads as u64 * crate::consts::cli_consts::PROJECTED_MEMORY_REQUIREMENT >= ram_total
+            {
+                crate::print_cmd_warn!(
+                    "OOM warning",
+                    "Projected memory usage across {} requested threads exceeds memory currently available to process. In the event that proving fails due to an out-of-memory error, please restart the Nexus CLI with a smaller value supplied to `--max-threads`.",
+                    threads
+                );
+                std::thread::sleep(std::time::Duration::from_secs(3));
+            }
+        }
+    }
+}
+
 /// Sets up an authenticated worker session
 ///
 /// This function handles all the common setup required for both TUI and headless modes:
@@ -48,6 +77,7 @@ pub struct SessionData {
 pub async fn setup_session(
     config: Config,
     env: Environment,
+    check_mem: bool,
     max_threads: Option<u32>,
     max_tasks: Option<u32>,
 ) -> Result<SessionData, Box<dyn Error>> {
@@ -61,11 +91,19 @@ pub async fn setup_session(
     // Create orchestrator client
     let orchestrator_client = OrchestratorClient::new(env.clone());
 
+    // Warn the user if the memory demands of their configuration is risky
+    if check_mem {
+        warn_memory_configuration(max_threads);
+    }
+
     // Clamp the number of workers to [1,8]. Keep this low for now to avoid rate limiting.
     let num_workers: usize = max_threads.unwrap_or(1).clamp(1, 8) as usize;
 
     // Create shutdown channel - only one shutdown signal needed
     let (shutdown_sender, _) = broadcast::channel(1);
+
+    // Set wallet for reporting
+    set_wallet_address_for_reporting(config.wallet_address.clone());
 
     // Start authenticated worker (only mode we support now)
     let (event_receiver, join_handles, max_tasks_shutdown_sender) = start_authenticated_worker(

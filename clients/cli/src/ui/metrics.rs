@@ -62,16 +62,17 @@ impl SystemMetrics {
         let last_cpu_update = if should_update_cpu {
             // Refresh CPU usage and processes according to sysinfo best practices
             sysinfo.refresh_cpu_usage(); // Essential for CPU usage calculation
+            // Refresh ALL processes to include subprocesses during proving
             sysinfo.refresh_processes_specifics(
-                ProcessesToUpdate::Some(&[current_pid]),
+                ProcessesToUpdate::All,
                 true, // Refresh exact processes
                 ProcessRefreshKind::nothing().with_cpu().with_memory(),
             );
             Some(now)
         } else {
-            // Still refresh memory even when not updating CPU
+            // Still refresh ALL processes for memory tracking (including subprocesses)
             sysinfo.refresh_processes_specifics(
-                ProcessesToUpdate::Some(&[current_pid]),
+                ProcessesToUpdate::All,
                 true,
                 ProcessRefreshKind::nothing().with_memory(),
             );
@@ -87,8 +88,22 @@ impl SystemMetrics {
                 // Use previous CPU value if not updating
                 previous_metrics.map(|m| m.cpu_percent).unwrap_or(0.0)
             };
-            // Use current process memory (as requested by user)
+            // Use current process memory as base
             ram_total = process.memory();
+        }
+
+        // Include CPU and memory from nexus proving subprocesses
+        for process in sysinfo.processes().values() {
+            if process.parent() == Some(current_pid) {
+                let process_name = process.name().to_string_lossy().to_lowercase();
+                // Include child processes that are nexus-related (proving subprocesses)
+                if process_name.contains("nexus") {
+                    ram_total += process.memory();
+                    if should_update_cpu {
+                        cpu_total += process.cpu_usage(); // Add subprocess CPU usage!
+                    }
+                }
+            }
         }
 
         // Track peak process RAM usage over application lifetime
@@ -171,9 +186,9 @@ impl SystemMetrics {
 #[derive(Debug, Clone)]
 pub struct ZkVMMetrics {
     /// Total number of tasks executed.
-    pub tasks_executed: usize,
+    pub tasks_fetched: usize,
     /// Number of tasks successfully proved.
-    pub tasks_proved: usize,
+    pub tasks_submitted: usize,
     /// Total zkVM runtime in seconds.
     pub zkvm_runtime_secs: u64,
     /// Status of the last task.
@@ -185,8 +200,8 @@ pub struct ZkVMMetrics {
 impl Default for ZkVMMetrics {
     fn default() -> Self {
         Self {
-            tasks_executed: 0,
-            tasks_proved: 0,
+            tasks_fetched: 0,
+            tasks_submitted: 0,
             zkvm_runtime_secs: 0,
             last_task_status: "None".to_string(),
             _total_points: 0,
@@ -197,10 +212,10 @@ impl Default for ZkVMMetrics {
 impl ZkVMMetrics {
     /// Calculate success rate as a percentage.
     pub fn success_rate(&self) -> f64 {
-        if self.tasks_executed == 0 {
+        if self.tasks_fetched == 0 {
             0.0
         } else {
-            (self.tasks_proved as f64 / self.tasks_executed as f64) * 100.0
+            (self.tasks_submitted as f64 / self.tasks_fetched as f64) * 100.0
         }
     }
 

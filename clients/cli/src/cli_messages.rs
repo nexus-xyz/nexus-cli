@@ -13,6 +13,16 @@ pub fn print_info(title: &str, details: &str) {
     }
 }
 
+/// Print CLI command warn message
+pub fn print_warn(title: &str, details: &str) {
+    print!("\x1b[1;91m[WARN]\x1b[0m {}", title);
+    if !details.is_empty() {
+        println!("\t {}", details);
+    } else {
+        println!();
+    }
+}
+
 /// Print CLI command error
 pub fn print_error(title: &str, details: Option<&str>) {
     println!("\x1b[1;31m[ERROR]\x1b[0m {}", title);
@@ -36,6 +46,14 @@ pub fn print_success(title: &str, details: &str) {
 macro_rules! print_cmd_info {
     ($title:expr, $($details:tt)*) => {
         $crate::cli_messages::print_info($title, &format!($($details)*))
+    };
+}
+
+/// Macro for print_cmd_warn! usage
+#[macro_export]
+macro_rules! print_cmd_warn {
+    ($title:expr, $($details:tt)*) => {
+        $crate::cli_messages::print_warn($title, &format!($($details)*))
     };
 }
 

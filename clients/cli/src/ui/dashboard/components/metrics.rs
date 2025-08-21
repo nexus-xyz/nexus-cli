@@ -118,7 +118,7 @@ pub fn render_zkvm_metrics(f: &mut Frame, area: ratatui::layout::Rect, state: &D
     zkvm_lines.push(Line::from(vec![
         Span::styled("Tasks: ", Style::default().fg(Color::Gray)),
         Span::styled(
-            format!("{}", metrics.tasks_executed),
+            format!("{}", metrics.tasks_fetched),
             Style::default()
                 .fg(Color::White)
                 .add_modifier(Modifier::BOLD),
@@ -128,7 +128,7 @@ pub fn render_zkvm_metrics(f: &mut Frame, area: ratatui::layout::Rect, state: &D
     zkvm_lines.push(Line::from(vec![
         Span::styled("Completed: ", Style::default().fg(Color::Gray)),
         Span::styled(
-            format!("{} / {}", metrics.tasks_proved, metrics.tasks_executed),
+            format!("{} / {}", metrics.tasks_submitted, metrics.tasks_fetched),
             Style::default()
                 .fg(Color::Green)
                 .add_modifier(Modifier::BOLD),

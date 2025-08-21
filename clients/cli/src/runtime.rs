@@ -10,6 +10,7 @@ use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;
 
 /// Start single authenticated worker
+#[allow(clippy::too_many_arguments)]
 pub async fn start_authenticated_worker(
     node_id: u64,
     signing_key: SigningKey,

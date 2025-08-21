@@ -8,7 +8,7 @@ use ratatui::prelude::{Color, Style};
 use ratatui::widgets::Block;
 
 pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
-    if !state.no_background_color {
+    if state.with_background_color {
         f.render_widget(
             Block::default().style(Style::default().bg(Color::Rgb(16, 20, 24))),
             f.area(),

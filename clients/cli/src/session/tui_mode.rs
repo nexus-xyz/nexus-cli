@@ -24,7 +24,7 @@ use std::{error::Error, io};
 ///
 /// # Arguments
 /// * `session` - Session data from setup
-/// * `no_background_color` - Whether to disable background colors
+/// * `with_background` - Whether to enable background colors
 ///
 /// # Returns
 /// * `Ok(())` - TUI mode completed successfully
@@ -61,7 +61,7 @@ pub async fn run_tui_mode(
 
     // Create the application and run it
     let ui_config = UIConfig::new(
-        !with_background,
+        with_background,
         session.num_workers,
         version_update_available,
         latest_version,
