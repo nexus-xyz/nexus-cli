@@ -198,14 +198,11 @@ async fn start(
     with_background: bool,
     max_tasks: Option<u32>,
 ) -> Result<(), Box<dyn Error>> {
-    // 1. Version checking
+    // 1. Version checking (will internally perform country detection without race)
     validate_version_requirements().await?;
 
     // 2. Configuration resolution
     let orchestrator_client = OrchestratorClient::new(env.clone());
-
-    // 2a. Country detection warm-up; block decision is in version manager using version.json
-    let _ = orchestrator_client.country().await;
     let config = Config::resolve(node_id, &config_path, &orchestrator_client).await?;
 
     // 3. Session setup (authenticated worker only)

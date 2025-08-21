@@ -10,7 +10,7 @@ use std::error::Error;
 /// - Blocking: Exits the application with error code 1
 /// - Warning/Notice: Displays message but allows continuation
 pub async fn validate_version_requirements() -> Result<(), Box<dyn Error>> {
-    let requirements = match VersionRequirements::fetch().await {
+    let mut requirements = match VersionRequirements::fetch().await {
         Ok(requirements) => requirements,
         Err(e) if e.to_string().contains("Failed to fetch") => {
             eprintln!("❌ Failed to fetch version requirements: {}", e);
@@ -30,35 +30,23 @@ pub async fn validate_version_requirements() -> Result<(), Box<dyn Error>> {
 
     let current_version = env!("CARGO_PKG_VERSION");
     // Early OFAC block from server-provided list, if present
-    if let Some(country) = crate::orchestrator::client::COUNTRY_CODE.get() {
-        // Restriction check is against keys; printed names come from non-null values
-        if requirements
+    let country = crate::orchestrator::client::detect_country_once().await;
+    // Restriction check is against keys; printed names come from non-null values
+    if requirements
+        .ofac_country_names
+        .keys()
+        .any(|c| c.eq_ignore_ascii_case(&country))
+    {
+        let display_name = requirements
             .ofac_country_names
-            .keys()
-            .any(|c| c.eq_ignore_ascii_case(country))
-        {
-            let names: Vec<String> = requirements
-                .ofac_country_names
-                .values()
-                .filter_map(|v| v.clone())
-                .collect();
-            if names.is_empty() {
-                eprintln!(
-                    "Due to OFAC regulations, this service is not available in the following countries and regions."
-                );
-            } else {
-                let list = names
-                    .iter()
-                    .map(|n| format!("- {}", n))
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                eprintln!(
-                    "Due to OFAC regulations, this service is not available in the following countries and regions:\n{}",
-                    list
-                );
-            }
-            std::process::exit(1);
-        }
+            .get(&country)
+            .and_then(|v| v.clone())
+            .unwrap_or_else(|| country.clone());
+        eprintln!(
+            "Due to OFAC regulations, this service is not available in {}.\nSee https://nexus.xyz/terms-of-use for more information.",
+            display_name
+        );
+        std::process::exit(1);
     }
     match requirements.check_version_constraints(current_version, None, None) {
         Ok(Some(violation)) => {
