@@ -10,7 +10,7 @@ use std::error::Error;
 /// - Blocking: Exits the application with error code 1
 /// - Warning/Notice: Displays message but allows continuation
 pub async fn validate_version_requirements() -> Result<(), Box<dyn Error>> {
-    let mut requirements = match VersionRequirements::fetch().await {
+    let requirements = match VersionRequirements::fetch().await {
         Ok(requirements) => requirements,
         Err(e) if e.to_string().contains("Failed to fetch") => {
             eprintln!("❌ Failed to fetch version requirements: {}", e);
