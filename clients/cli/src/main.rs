@@ -1,3 +1,11 @@
+// jemalloc 作为全局分配器
+#[cfg(not(target_env = "msvc"))]
+use jemallocator::Jemalloc;
+
+#[cfg(not(target_env = "msvc"))]
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
+
 // Copyright (c) 2025 Nexus. All rights reserved.
 
 mod analytics;
