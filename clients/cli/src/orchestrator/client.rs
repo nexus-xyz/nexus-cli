@@ -290,7 +290,11 @@ pub(crate) async fn detect_country_once() -> String {
     };
 
     // Try Cloudflare first
-    if let Ok(response) = client.get("https://cloudflare.com/cdn-cgi/trace").send().await {
+    if let Ok(response) = client
+        .get("https://cloudflare.com/cdn-cgi/trace")
+        .send()
+        .await
+    {
         if let Ok(text) = response.text().await {
             for line in text.lines() {
                 if let Some(country) = line.strip_prefix("loc=") {
