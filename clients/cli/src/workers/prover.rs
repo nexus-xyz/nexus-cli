@@ -31,7 +31,14 @@ impl TaskProver {
     /// Generate proof for a task with proper logging
     pub async fn prove_task(&self, task: &Task) -> Result<ProverResult, ProveError> {
         // Use existing prover module for proof generation
-        match authenticated_proving(task, &self.config.environment, &self.config.client_id).await {
+        match authenticated_proving(
+            task,
+            &self.config.environment,
+            &self.config.client_id,
+            &self.config.num_workers,
+        )
+        .await
+        {
             Ok((proofs, combined_hash, individual_proof_hashes)) => {
                 // Log successful proof generation
                 self.event_sender
