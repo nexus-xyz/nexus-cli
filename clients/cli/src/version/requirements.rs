@@ -27,7 +27,6 @@ pub enum VersionRequirementsError {
 pub struct VersionRequirements {
     pub version_constraints: Vec<VersionConstraint>,
     /// Map of OFAC-restricted country/region codes to display names.
-    /// If the value is null, the code is still restricted but omitted from the printed list.
     #[serde(default, alias = "ofac_restricted_map")]
     pub ofac_country_names: HashMap<String, Option<String>>,
 }
@@ -227,6 +226,7 @@ mod tests {
                     start_date: None,
                 },
             ],
+            ofac_country_names: Default::default(),
         };
 
         // Test constraint checking
@@ -271,6 +271,7 @@ mod tests {
                     start_date: None,
                 },
             ],
+            ofac_country_names: Default::default(),
         };
 
         // Test that versions with 'v' prefix are handled correctly
@@ -303,6 +304,7 @@ mod tests {
                     start_date: None,
                 },
             ],
+            ofac_country_names: Default::default(),
         };
 
         // Test that blocking takes precedence over warning and notice
@@ -326,6 +328,7 @@ mod tests {
                     .to_string(),
                 start_date: None,
             }],
+            ofac_country_names: Default::default(),
         };
 
         let result = config
