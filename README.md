@@ -29,7 +29,7 @@ There have been several testnets so far:
 - Testnet 0: [October 8 – 28, 2024](https://blog.nexus.xyz/nexus-launches-worlds-first-open-prover-network/)
 - Testnet I: [December 9 – 13, 2024](https://blog.nexus.xyz/the-new-nexus-testnet-is-live/)
 - Testnet II: [February 18 – 22, 2025](https://blog.nexus.xyz/testnet-ii-is-open/)
-- Devnet: [February 22 - June 20 2025](https://docs.nexus.xyz/layer-1/testnet/devnet)
+- Devnet: [February 22 - June 20, 2025](https://docs.nexus.xyz/layer-1/testnet/devnet)
 - Testnet III: [Ongoing](https://blog.nexus.xyz/live-everywhere/)
 
 ---
@@ -87,18 +87,18 @@ The `register-user` and `register-node` commands will save your credentials to `
 nexus-cli logout
 ```
 
-For troubleshooting or to see available command line options, run:
+For troubleshooting or to see available command-line options, run:
 
 ```bash
 nexus-cli --help
 ```
 
 ### Use Docker
-Make sure docker and docker compose have been installed on you machine. check documentation here:
+Make sure Docker and Docker Compose have been installed on your machine. Check documentation here:
 - [Install Docker](https://docs.docker.com/engine/install/)
 - [Install Docker Compose](https://docs.docker.com/compose/install/)
 
-Then, modify the node id in the `docker-compose.yaml` file, run:
+Then, modify the node ID in the `docker-compose.yaml` file, run:
 
 ```bash
 docker compose build --no-cache
@@ -166,7 +166,7 @@ itself.
 
 ### 🛠  Developer Guide
 
-The following steps may be required in order to setup a development environment for contributing to the project:
+The following steps may be required in order to set up a development environment for contributing to the project:
 
 #### Linux
 
