@@ -94,7 +94,7 @@ nexus-cli --help
 ```
 
 ### Use Docker
-Make sure docker and docker compose have been installed on you machine. check documentation here:
+Make sure docker and docker compose have been installed on your machine. check documentation here:
 - [Install Docker](https://docs.docker.com/engine/install/)
 - [Install Docker Compose](https://docs.docker.com/compose/install/)
 
