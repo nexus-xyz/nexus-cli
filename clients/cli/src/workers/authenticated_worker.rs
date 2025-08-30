@@ -11,6 +11,7 @@ use ed25519_dalek::SigningKey;
 use std::time::Duration;
 use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;
+use super::input::InputParser;
 
 /// Single authenticated worker that handles the complete task lifecycle
 pub struct AuthenticatedWorker {
@@ -123,7 +124,7 @@ impl AuthenticatedWorker {
              self.event_sender
             .send_event(Event::state_change(
                 ProverState::Proving,
-                format!("Step 2 of 4: Proving {} {?:}", input_index,inputs),
+                format!("Step 2 of 4: Proving {} {:?}", input_index,inputs),
             ))
             .await;
          }
