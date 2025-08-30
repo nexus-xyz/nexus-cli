@@ -134,8 +134,7 @@ impl AuthenticatedWorker {
         Err(e) => {
             // 处理解析失败的错误
             
-        }
-    }
+        }}}
           
 
         let proof_result = match self.prover.prove_task(&task).await {
