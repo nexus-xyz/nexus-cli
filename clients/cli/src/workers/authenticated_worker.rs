@@ -108,13 +108,13 @@ impl AuthenticatedWorker {
                 return false; // Don't exit on fetch error, just retry
             }
         };
-
+       let public_inputs_list_len=task.public_inputs_list.len();
         // Step 2: Prove task
         // Send state change to Proving
         self.event_sender
             .send_event(Event::state_change(
                 ProverState::Proving,
-                format!("Step 2 of 4: Proving task {} len{}", task.task_id,task.public_inputs_list.len()),
+                format!("Step 2 of 4: Proving task {} len {}", task.task_id,public_inputs_list_len),
             ))
             .await;
 
