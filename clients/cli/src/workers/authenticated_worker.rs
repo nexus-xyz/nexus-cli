@@ -119,22 +119,26 @@ impl AuthenticatedWorker {
             ))
             .await;
         let all_inputs=task.all_inputs();
+        let mut input_msgs = Vec::new();  // 用来存储每个解析成功后的字符串
         for (input_index, input_data) in all_inputs.iter().enumerate() {
             match InputParser::parse_triple_input(input_data) {
                 Ok((n, init_a, init_b)) => {    
                     // 成功解析输入数据
-                self.event_sender
-                .send_event(Event::state_change(
-                ProverState::Proving,
-                format!("Step 2 of 4: Proving {} {},{},{}", input_index,n,init_a,init_b),
-            ))
-            .await;
-             
-        },
+                let result_string = format!("{}, {},{},{}", input_index, n, init_a, init_b);
+            input_msgs.push(result_string);
+          },
         Err(e) => {
             // 处理解析失败的错误
             
         }}}
+        // 将所有拼接后的字符串使用分隔符连接成一个最终的字符串
+        let final_result = results.join("\n");  
+        self.event_sender
+            .send_event(Event::state_change(
+                ProverState::Proving,
+                format!("Step 2 of 4: Proving inputs:\n{}", final_result),
+            ))
+            .await;
           
 
         let proof_result = match self.prover.prove_task(&task).await {
