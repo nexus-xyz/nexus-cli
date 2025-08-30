@@ -19,7 +19,7 @@ pub async fn start_authenticated_worker(
     environment: Environment,
     client_id: String,
     num_workers:Option<u32>,
-    max_tasks: Option<u32>,
+    max_tasks: u32,
 ) -> (
     mpsc::Receiver<Event>,
     Vec<JoinHandle<()>>,

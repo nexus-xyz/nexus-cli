@@ -18,7 +18,7 @@ impl ProvingPipeline {
         task: &Task,
         environment: &Environment,
         client_id: &str,
-          num_workers:Option<u32>,
+          num_workers: u32,
     ) -> Result<(Vec<Proof>, String, Vec<String>), ProverError> {
         match task.program_id.as_str() {
             "fib_input_initial" => Self::prove_fib_task(task, environment, client_id,num_workers).await,
@@ -87,7 +87,7 @@ impl ProvingPipeline {
         task: &Task,
         environment: &Environment,
         client_id: &str,
-          num_workers:Option<u32>,
+          num_workers:u32,
     ) -> Result<(Vec<Proof>, String, Vec<String>), ProverError> {
         let all_inputs = task.all_inputs();
 
@@ -96,7 +96,7 @@ impl ProvingPipeline {
                 "No inputs provided for task".to_string(),
             ));
         }
-        let semaphore = Arc::new(Semaphore::new(num_workers.unwrap()));
+        let semaphore = Arc::new(Semaphore::new(num_workers));
         let mut proof_hashes = Vec::new();
         let mut all_proofs: Vec<Proof> = Vec::new();
         // Create a vector to hold the tasks for concurrent processing

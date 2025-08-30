@@ -19,7 +19,7 @@ pub struct AuthenticatedWorker {
     prover: TaskProver,
     submitter: ProofSubmitter,
     event_sender: EventSender,
-    num_workers: Option<u32>,
+    num_workers: u32,
     max_tasks: Option<u32>,
     tasks_completed: u32,
     shutdown_sender: broadcast::Sender<()>,
@@ -32,7 +32,7 @@ impl AuthenticatedWorker {
         orchestrator: OrchestratorClient,
         config: WorkerConfig,
         event_sender: mpsc::Sender<Event>,
-        num_workers: Option<u32>,
+        num_workers:  u32,
         max_tasks: Option<u32>,
         shutdown_sender: broadcast::Sender<()>,
     ) -> Self {
