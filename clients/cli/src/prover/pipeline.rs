@@ -44,79 +44,131 @@ impl ProvingPipeline {
 
         let mut proof_hashes = Vec::new();
         let mut all_proofs: Vec<Proof> = Vec::new();
-        // Create a vector to hold the tasks for concurrent processing
-        let mut tasks = vec![];
 
-        
         for (input_index, input_data) in all_inputs.iter().enumerate() {
-            let input_data_clone = input_data.clone(); // Clone for closure
-            let task_clone = task.clone();
-            let environment_clone = environment.clone();
-            let client_id_clone = client_id.to_string();
+            // Step 1: Parse and validate input
+            let inputs = InputParser::parse_triple_input(input_data)?;
 
-            // Spawn each task to run concurrently
-            let task = task::spawn(async move {
-                // Step 1: Parse and validate input
-                let inputs = match InputParser::parse_triple_input(&input_data_clone) {
-                    Ok(parsed_inputs) => parsed_inputs,
-                    Err(e) => {
-                        return Err(e); // Handle parse error
-                    }
-                };
-
-                // Step 2: Generate and verify proof
-                let proof = match ProvingEngine::prove_and_validate(&inputs, &task_clone, &environment_clone, &client_id_clone).await {
-                    Ok(valid_proof) => valid_proof,
-                    Err(e) => {
-                        // Track verification failure
-                        match e {
-                            ProverError::Stwo(_) | ProverError::GuestProgram(_) => {
-                                let error_msg = format!("Input {}: {}", input_index, e);
-                                tokio::spawn(track_verification_failed(
-                                    task_clone.clone(),
-                                    error_msg.clone(),
-                                    environment_clone.clone(),
-                                    client_id_clone.clone(),
-                                ));
-                            }
-                            _ => {}
+            // Step 2: Generate and verify proof
+            let proof = ProvingEngine::prove_and_validate(&inputs, task, environment, client_id)
+                .await
+                .map_err(|e| {
+                    match e {
+                        ProverError::Stwo(_) | ProverError::GuestProgram(_) => {
+                            // Track verification failure
+                            let error_msg = format!("Input {}: {}", input_index, e);
+                            tokio::spawn(track_verification_failed(
+                                task.clone(),
+                                error_msg.clone(),
+                                environment.clone(),
+                                client_id.to_string(),
+                            ));
+                            e
                         }
-                        return Err(e); // Return the error if proof generation fails
+                        _ => e,
                     }
-                };
+                })?;
 
-                // Step 3: Generate proof hash
-                let proof_hash = Self::generate_proof_hash(&proof);
-                
-                Ok((proof_hash, proof)) // Return the generated proof and hash
-            });
-
-            // Push the task to the tasks vector
-            tasks.push(task);
-        }
-
-        // Await all the tasks and collect results
-        let results = futures::future::join_all(tasks).await;
-
-        for result in results {
-            match result {
-                Ok(Ok((proof_hash, proof))) => {
-                    proof_hashes.push(proof_hash);
-                    all_proofs.push(proof);
-                }
-                Ok(Err(e)) => {
-                    eprintln!("Error processing proof: {}", e);
-                }
-                Err(e) => {
-                    eprintln!("Join error: {}", e);
-                }
-        }
+            // Step 3: Generate proof hash
+            let proof_hash = Self::generate_proof_hash(&proof);
+            proof_hashes.push(proof_hash);
+            all_proofs.push(proof);
         }
 
         let final_proof_hash = Self::combine_proof_hashes(task, &proof_hashes);
 
         Ok((all_proofs, final_proof_hash, proof_hashes))
     }
+    /// Process fibonacci proving task with multiple inputs
+    // async fn prove_fib_task(
+    //     task: &Task,
+    //     environment: &Environment,
+    //     client_id: &str,
+    // ) -> Result<(Vec<Proof>, String, Vec<String>), ProverError> {
+    //     let all_inputs = task.all_inputs();
+
+    //     if all_inputs.is_empty() {
+    //         return Err(ProverError::MalformedTask(
+    //             "No inputs provided for task".to_string(),
+    //         ));
+    //     }
+
+    //     let mut proof_hashes = Vec::new();
+    //     let mut all_proofs: Vec<Proof> = Vec::new();
+    //     // Create a vector to hold the tasks for concurrent processing
+    //     let mut tasks = vec![];
+
+        
+    //     for (input_index, input_data) in all_inputs.iter().enumerate() {
+    //         let input_data_clone = input_data.clone(); // Clone for closure
+    //         let task_clone = task.clone();
+    //         let environment_clone = environment.clone();
+    //         let client_id_clone = client_id.to_string();
+
+    //         // Spawn each task to run concurrently
+    //         let task = task::spawn(async move {
+    //             // Step 1: Parse and validate input
+    //             let inputs = match InputParser::parse_triple_input(&input_data_clone) {
+    //                 Ok(parsed_inputs) => parsed_inputs,
+    //                 Err(e) => {
+    //                     return Err(e); // Handle parse error
+    //                 }
+    //             };
+
+    //             // Step 2: Generate and verify proof
+    //             let proof = match ProvingEngine::prove_and_validate(&inputs, &task_clone, &environment_clone, &client_id_clone).await {
+    //                 Ok(valid_proof) => valid_proof,
+    //                 Err(e) => {
+    //                     // Track verification failure
+    //                     match e {
+    //                         ProverError::Stwo(_) | ProverError::GuestProgram(_) => {
+    //                             let error_msg = format!("Input {}: {}", input_index, e);
+    //                             tokio::spawn(track_verification_failed(
+    //                                 task_clone.clone(),
+    //                                 error_msg.clone(),
+    //                                 environment_clone.clone(),
+    //                                 client_id_clone.clone(),
+    //                             ));
+    //                         }
+    //                         _ => {}
+    //                     }
+    //                     return Err(e); // Return the error if proof generation fails
+    //                 }
+    //             };
+
+    //             // Step 3: Generate proof hash
+    //             let proof_hash = Self::generate_proof_hash(&proof);
+                
+    //             Ok((proof_hash, proof)) // Return the generated proof and hash
+    //         });
+
+    //         // Push the task to the tasks vector
+    //         tasks.push(task);
+    //     }
+
+    //     // Await all the tasks and collect results
+    //     let results = futures::future::join_all(tasks).await;
+
+    //     for result in results {
+    //         match result {
+    //             Ok(Ok((proof_hash, proof))) => {
+    //                 proof_hashes.push(proof_hash);
+    //                 all_proofs.push(proof);
+    //             }
+    //             Ok(Err(e)) => {
+    //                 eprintln!("Error processing proof: {}", e);
+    //             }
+    //             Err(e) => {
+    //                 eprintln!("Join error: {}", e);
+    //             }
+    //     }
+    //     }
+
+    //     let final_proof_hash = Self::combine_proof_hashes(task, &proof_hashes);
+
+    //     Ok((all_proofs, final_proof_hash, proof_hashes))
+    // }
+
 
     /// Generate hash for a proof
     fn generate_proof_hash(proof: &Proof) -> String {
