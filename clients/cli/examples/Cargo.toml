@@ -4,7 +4,7 @@ version = { workspace = true }
 edition = { workspace = true }
 
 [dependencies]
-nexus-rt = { git = "https://github.com/nexus-xyz/nexus-zkvm", tag = "0.3.3" }
+nexus-rt = { git = "https://github.com/nexus-xyz/nexus-zkvm", tag = "0.3.4" }
 
 [lints.clippy]
 print_with_newline = { level = "allow", priority = 0 }
