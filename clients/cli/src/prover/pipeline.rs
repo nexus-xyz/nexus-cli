@@ -111,7 +111,7 @@ impl ProvingPipeline {
                     eprintln!("Join error: {}", e);
                 }
         }
-}
+        }
 
         let final_proof_hash = Self::combine_proof_hashes(task, &proof_hashes);
 

@@ -114,7 +114,7 @@ impl AuthenticatedWorker {
         self.event_sender
             .send_event(Event::state_change(
                 ProverState::Proving,
-                format!("Step 2 of 4: Proving task {}", task.task_id),
+                format!("Step 2 of 4: Proving task {} len{}", task.task_id,task.public_inputs_list.len()),
             ))
             .await;
 
