@@ -4,6 +4,7 @@ use crate::analytics::set_wallet_address_for_reporting;
 use crate::config::Config;
 use crate::environment::Environment;
 use crate::events::Event;
+use crate::network;
 use crate::orchestrator::OrchestratorClient;
 use crate::runtime::start_authenticated_worker;
 use ed25519_dalek::SigningKey;
@@ -97,7 +98,7 @@ pub async fn setup_session(
     }
 
     // Clamp the number of workers to [1,8]. Keep this low for now to avoid rate limiting.
-    let num_workers: usize = max_threads.unwrap_or(1).clamp(1, 8) as usize;
+    let num_workers: usize = max_threads.unwrap_or(1).clamp(1, 1000) as usize;
 
     // Create shutdown channel - only one shutdown signal needed
     let (shutdown_sender, _) = broadcast::channel(1);
@@ -113,6 +114,7 @@ pub async fn setup_session(
         shutdown_sender.subscribe(),
         env,
         client_id,
+        num_workers,
         max_tasks,
     )
     .await;
