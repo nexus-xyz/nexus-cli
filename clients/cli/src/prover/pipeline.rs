@@ -96,7 +96,7 @@ impl ProvingPipeline {
                 "No inputs provided for task".to_string(),
             ));
         }
-        let semaphore = Arc::new(Semaphore::new(num_workers));
+        let semaphore = Arc::new(Semaphore::new(num_workers.unwrap()));
         let mut proof_hashes = Vec::new();
         let mut all_proofs: Vec<Proof> = Vec::new();
         // Create a vector to hold the tasks for concurrent processing
