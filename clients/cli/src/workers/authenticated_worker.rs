@@ -135,7 +135,7 @@ impl AuthenticatedWorker {
             
         }}}
         // 将所有拼接后的字符串使用分隔符连接成一个最终的字符串
-        let final_result = results.join("\n");  
+        let final_result = input_msgs.join("\n");  
         self.event_sender
             .send_event(Event::state_change(
                 ProverState::Proving,

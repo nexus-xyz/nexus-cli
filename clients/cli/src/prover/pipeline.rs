@@ -9,6 +9,8 @@ use crate::task::Task;
 use nexus_sdk::stwo::seq::Proof;
 use sha3::{Digest, Keccak256};
 use tokio::task;
+use std::sync::Arc;
+use tokio::sync::Semaphore;
 /// Orchestrates the complete proving pipeline
 pub struct ProvingPipeline;
 
