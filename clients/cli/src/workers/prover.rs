@@ -29,7 +29,7 @@ impl TaskProver {
     }
 
     /// Generate proof for a task with proper logging
-    pub async fn prove_task(&self, task: &Task,num_workers:u32,) -> Result<ProverResult, ProveError> {
+    pub async fn prove_task(&self, task: &Task,num_workers:usize,) -> Result<ProverResult, ProveError> {
         // Use existing prover module for proof generation
         match authenticated_proving(task, &self.config.environment, &self.config.client_id,num_workers).await {
             Ok((proofs, combined_hash, individual_proof_hashes)) => {

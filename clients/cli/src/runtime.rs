@@ -18,7 +18,7 @@ pub async fn start_authenticated_worker(
     shutdown: broadcast::Receiver<()>,
     environment: Environment,
     client_id: String,
-    num_workers:u32,
+    num_workers:usize,
     max_tasks:Option< u32>,
 ) -> (
     mpsc::Receiver<Event>,
