@@ -68,7 +68,7 @@ impl ProofSubmitter {
         // Log start of submission
         self.event_sender
             .send_proof_event(
-                format!("Step 3 of 4: Submitting proof for task {}...", task.task_id),
+                format!("Step 3 of 4: Submitting proof for task({}) {}...",task.task_type.as_str_name(), task.task_id,),
                 EventType::StateChange,
                 LogLevel::Info,
             )
@@ -80,7 +80,8 @@ impl ProofSubmitter {
             .iter()
             .map(postcard::to_allocvec)
             .collect::<Result<_, _>>()?;
-        let legacy_proof_bytes = proofs_bytes.first().cloned().unwrap_or_default();
+
+        let legacy_proof_bytes: Vec<u8> = proofs_bytes.first().cloned().unwrap_or_default();
 
         // Submit through network client with retry logic
         let mut submission = ProofSubmission::new(
