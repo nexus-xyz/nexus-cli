@@ -1,7 +1,7 @@
 //! Proving pipeline that orchestrates the full proving process
 
 use super::engine::ProvingEngine;
-use super::input::InputParser;
+use super::prover::InputParser;
 use super::types::ProverError;
 use crate::analytics::track_verification_failed;
 use crate::environment::Environment;
@@ -70,7 +70,7 @@ impl ProvingPipeline {
                 })?;
 
             // Step 3: Generate proof hash
-            let proof_hash: String = Self::generate_proof_hash(&proof);
+            let proof_hash = Self::generate_proof_hash(&proof);
             proof_hashes.push(proof_hash);
             all_proofs.push(proof);
         }

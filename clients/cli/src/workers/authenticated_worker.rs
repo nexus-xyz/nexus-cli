@@ -3,6 +3,7 @@
 use super::core::{EventSender, WorkerConfig};
 use super::fetcher::TaskFetcher;
 use super::prover::TaskProver;
+use crate::prover::input::InputParser;
 use super::submitter::ProofSubmitter;
 use crate::events::{Event, ProverState};
 use crate::orchestrator::OrchestratorClient;
@@ -11,7 +12,6 @@ use ed25519_dalek::SigningKey;
 use std::time::Duration;
 use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;
-use super::input::InputParser;
 
 /// Single authenticated worker that handles the complete task lifecycle
 pub struct AuthenticatedWorker {
