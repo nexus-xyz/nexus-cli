@@ -126,7 +126,7 @@ impl AuthenticatedWorker {
                 self.event_sender
                 .send_event(Event::state_change(
                 ProverState::Proving,
-                format!("Step 2 of 4: Proving {} {:?}", input_index,inputs),
+                format!("Step 2 of 4: Proving {} {},{},{}", input_index,n,init_a,init_b),
             ))
             .await;
              
