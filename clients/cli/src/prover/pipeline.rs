@@ -1,7 +1,7 @@
 //! Proving pipeline that orchestrates the full proving process
 
 use super::engine::ProvingEngine;
-use super::prover::InputParser;
+use super::input::InputParser;
 use super::types::ProverError;
 use crate::analytics::track_verification_failed;
 use crate::environment::Environment;

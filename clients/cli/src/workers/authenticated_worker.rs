@@ -119,15 +119,15 @@ impl AuthenticatedWorker {
             ))
             .await;
         let all_inputs=task.all_inputs();
-         for (input_index, input_data) in all_inputs.iter().enumerate() {
-             let inputs = InputParser::parse_triple_input(input_data)?;
-             self.event_sender
+        for (input_index, input_data) in all_inputs.iter().enumerate() {
+            let inputs = InputParser::parse_triple_input(input_data)?;
+            self.event_sender
             .send_event(Event::state_change(
                 ProverState::Proving,
                 format!("Step 2 of 4: Proving {} {:?}", input_index,inputs),
             ))
             .await;
-         }
+         };
 
         let proof_result = match self.prover.prove_task(&task).await {
             Ok(proof_result) => proof_result,
