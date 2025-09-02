@@ -81,7 +81,7 @@ nexus-cli register-node
 nexus-cli start
 ```
 
-To run the CLI in the background, you can also opt to start it in headless mode.
+To run the CLI noninteractively, you can also opt to start it in headless mode.
 
 ```bash
 nexus-cli start --headless
