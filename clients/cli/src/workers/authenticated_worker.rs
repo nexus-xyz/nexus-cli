@@ -21,10 +21,12 @@ pub struct AuthenticatedWorker {
     max_tasks: Option<u32>,
     tasks_completed: u32,
     shutdown_sender: broadcast::Sender<()>,
+    worker_id: usize,
 }
 
 impl AuthenticatedWorker {
     pub fn new(
+        worker_id: usize,
         node_id: u64,
         signing_key: SigningKey,
         orchestrator: OrchestratorClient,
@@ -44,7 +46,7 @@ impl AuthenticatedWorker {
             &config,
         );
 
-        let prover = TaskProver::new(event_sender_helper.clone(), config.clone());
+        let prover = TaskProver::new(event_sender_helper.clone(), config.clone(), worker_id);
 
         let submitter = ProofSubmitter::new(
             signing_key,
@@ -61,6 +63,7 @@ impl AuthenticatedWorker {
             max_tasks,
             tasks_completed: 0,
             shutdown_sender,
+            worker_id,
         }
     }
 
@@ -72,7 +75,7 @@ impl AuthenticatedWorker {
         self.event_sender
             .send_event(Event::state_change(
                 ProverState::Waiting,
-                "Ready to fetch tasks".to_string(),
+                format!("Worker {} ready to fetch tasks", self.worker_id),
             ))
             .await;
 

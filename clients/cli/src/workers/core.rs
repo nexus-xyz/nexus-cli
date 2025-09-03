@@ -69,13 +69,19 @@ impl EventSender {
 pub struct WorkerConfig {
     pub environment: crate::environment::Environment,
     pub client_id: String,
+    pub num_workers: usize,
 }
 
 impl WorkerConfig {
-    pub fn new(environment: crate::environment::Environment, client_id: String) -> Self {
+    pub fn new(
+        environment: crate::environment::Environment,
+        client_id: String,
+        num_workers: usize,
+    ) -> Self {
         Self {
             environment,
             client_id,
+            num_workers,
         }
     }
 }

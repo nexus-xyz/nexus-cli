@@ -5,7 +5,8 @@ use crate::config::Config;
 use crate::environment::Environment;
 use crate::events::Event;
 use crate::orchestrator::OrchestratorClient;
-use crate::runtime::start_authenticated_worker;
+use crate::runtime::start_authenticated_workers;
+use crate::system;
 use ed25519_dalek::SigningKey;
 use std::error::Error;
 use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
@@ -29,6 +30,8 @@ pub struct SessionData {
     pub orchestrator: OrchestratorClient,
     /// Number of workers (for display purposes)
     pub num_workers: usize,
+    /// Estimated GFLOP/s
+    pub gflops: f64,
 }
 
 /// Warn the user if their available memory seems insufficient for the task(s) at hand
@@ -99,14 +102,17 @@ pub async fn setup_session(
     // Clamp the number of workers to [1,8]. Keep this low for now to avoid rate limiting.
     let num_workers: usize = max_threads.unwrap_or(1).clamp(1, 8) as usize;
 
+    // Estimate GFLOP/s
+    let gflops = system::estimate_peak_gflops(num_workers);
+
     // Create shutdown channel - only one shutdown signal needed
     let (shutdown_sender, _) = broadcast::channel(1);
 
     // Set wallet for reporting
     set_wallet_address_for_reporting(config.wallet_address.clone());
 
-    // Start authenticated worker (only mode we support now)
-    let (event_receiver, join_handles, max_tasks_shutdown_sender) = start_authenticated_worker(
+    // Start authenticated workers
+    let (event_receiver, join_handles, max_tasks_shutdown_sender) = start_authenticated_workers(
         node_id,
         signing_key,
         orchestrator_client.clone(),
@@ -114,6 +120,7 @@ pub async fn setup_session(
         env,
         client_id,
         max_tasks,
+        num_workers,
     )
     .await;
 
@@ -125,5 +132,6 @@ pub async fn setup_session(
         node_id,
         orchestrator: orchestrator_client,
         num_workers,
+        gflops,
     })
 }

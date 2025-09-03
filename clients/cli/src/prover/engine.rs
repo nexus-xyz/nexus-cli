@@ -49,10 +49,10 @@ impl ProvingEngine {
 
     /// Generate proof for given inputs using the fibonacci program in a subprocess
     pub async fn prove_and_validate(
-        inputs: &(u32, u32, u32),
         task: &Task,
         environment: &Environment,
         client_id: &str,
+        inputs: &(u32, u32, u32),
     ) -> Result<Proof, ProverError> {
         // Spawn a subprocess for proof generation to isolate memory usage
         let exe_path = env::current_exe()?;
