@@ -5,7 +5,7 @@ use crate::config::Config;
 use crate::environment::Environment;
 use crate::events::Event;
 use crate::orchestrator::OrchestratorClient;
-use crate::runtime::start_authenticated_worker;
+use crate::runtime::start_authenticated_workers;
 use ed25519_dalek::SigningKey;
 use std::error::Error;
 use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
@@ -105,8 +105,8 @@ pub async fn setup_session(
     // Set wallet for reporting
     set_wallet_address_for_reporting(config.wallet_address.clone());
 
-    // Start authenticated worker (only mode we support now)
-    let (event_receiver, join_handles, max_tasks_shutdown_sender) = start_authenticated_worker(
+    // Start authenticated workers
+    let (event_receiver, join_handles, max_tasks_shutdown_sender) = start_authenticated_workers(
         node_id,
         signing_key,
         orchestrator_client.clone(),
@@ -114,6 +114,7 @@ pub async fn setup_session(
         env,
         client_id,
         max_tasks,
+        num_workers,
     )
     .await;
 
