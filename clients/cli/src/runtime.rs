@@ -3,7 +3,7 @@
 use crate::environment::Environment;
 use crate::events::Event;
 use crate::orchestrator::OrchestratorClient;
-use crate::workers::authenticated_worker::AuthenticatedWorker;
+use crate::workers::authenticated_worker::{AuthenticatedWorker, AuthenticatedWorkerArgs};
 use crate::workers::core::WorkerConfig;
 use ed25519_dalek::SigningKey;
 use tokio::sync::{broadcast, mpsc};
@@ -41,24 +41,20 @@ pub async fn start_authenticated_workers(
         let worker_config = config.clone();
         let worker_shutdown_sender = shutdown_sender.clone();
 
-        let max_tasks_per_worker = if let Some(max) = max_tasks {
-            // Distribute tasks among workers, rounding up
-            Some((max as f32 / num_workers as f32).ceil() as u32)
-        } else {
-            None
-        };
+        let max_tasks_per_worker = max_tasks.map(|max| (max as f32 / num_workers as f32).ceil() as u32);
 
         let worker_handle = tokio::spawn(async move {
-            let worker = AuthenticatedWorker::new(
-                i,
+            let worker_args = AuthenticatedWorkerArgs {
+                worker_id: i,
                 node_id,
-                worker_signing_key,
-                worker_orchestrator,
-                worker_config,
-                worker_event_sender,
-                max_tasks_per_worker,
-                worker_shutdown_sender,
-            );
+                signing_key: worker_signing_key,
+                orchestrator: worker_orchestrator,
+                config: worker_config,
+                event_sender: worker_event_sender,
+                max_tasks: max_tasks_per_worker,
+                shutdown_sender: worker_shutdown_sender,
+            };
+            let worker = AuthenticatedWorker::new(worker_args);
             let handles = worker.run(worker_shutdown).await;
             for handle in handles {
                 let _ = handle.await;

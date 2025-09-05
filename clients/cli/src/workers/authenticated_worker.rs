@@ -12,6 +12,19 @@ use std::time::Duration;
 use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;
 
+/// Arguments for creating a new AuthenticatedWorker
+pub struct AuthenticatedWorkerArgs {
+    pub worker_id: usize,
+    pub node_id: u64,
+    pub signing_key: SigningKey,
+    pub orchestrator: OrchestratorClient,
+    pub config: WorkerConfig,
+    pub event_sender: mpsc::Sender<Event>,
+    pub max_tasks: Option<u32>,
+    pub shutdown_sender: broadcast::Sender<()>,
+}
+
+
 /// Single authenticated worker that handles the complete task lifecycle
 pub struct AuthenticatedWorker {
     fetcher: TaskFetcher,
@@ -26,33 +39,26 @@ pub struct AuthenticatedWorker {
 
 impl AuthenticatedWorker {
     pub fn new(
-        worker_id: usize,
-        node_id: u64,
-        signing_key: SigningKey,
-        orchestrator: OrchestratorClient,
-        config: WorkerConfig,
-        event_sender: mpsc::Sender<Event>,
-        max_tasks: Option<u32>,
-        shutdown_sender: broadcast::Sender<()>,
+        args: AuthenticatedWorkerArgs,
     ) -> Self {
-        let event_sender_helper = EventSender::new(event_sender);
+        let event_sender_helper = EventSender::new(args.event_sender);
 
         // Create the 3 specialized components
         let fetcher = TaskFetcher::new(
-            node_id,
-            signing_key.verifying_key(),
-            Box::new(orchestrator.clone()),
+            args.node_id,
+            args.signing_key.verifying_key(),
+            Box::new(args.orchestrator.clone()),
             event_sender_helper.clone(),
-            &config,
+            &args.config,
         );
 
-        let prover = TaskProver::new(event_sender_helper.clone(), config.clone(), worker_id);
+        let prover = TaskProver::new(event_sender_helper.clone(), args.config.clone(), args.worker_id);
 
         let submitter = ProofSubmitter::new(
-            signing_key,
-            Box::new(orchestrator),
+            args.signing_key,
+            Box::new(args.orchestrator),
             event_sender_helper.clone(),
-            &config,
+            &args.config,
         );
 
         Self {
@@ -60,12 +66,13 @@ impl AuthenticatedWorker {
             prover,
             submitter,
             event_sender: event_sender_helper,
-            max_tasks,
+            max_tasks: args.max_tasks,
             tasks_completed: 0,
-            shutdown_sender,
-            worker_id,
+            shutdown_sender: args.shutdown_sender,
+            worker_id: args.worker_id,
         }
     }
+
 
     /// Start the worker
     pub async fn run(mut self, mut shutdown: broadcast::Receiver<()>) -> Vec<JoinHandle<()>> {

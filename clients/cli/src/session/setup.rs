@@ -6,7 +6,6 @@ use crate::environment::Environment;
 use crate::events::Event;
 use crate::orchestrator::OrchestratorClient;
 use crate::runtime::start_authenticated_workers;
-use crate::system;
 use ed25519_dalek::SigningKey;
 use std::error::Error;
 use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
@@ -30,8 +29,6 @@ pub struct SessionData {
     pub orchestrator: OrchestratorClient,
     /// Number of workers (for display purposes)
     pub num_workers: usize,
-    /// Estimated GFLOP/s
-    pub gflops: f64,
 }
 
 /// Warn the user if their available memory seems insufficient for the task(s) at hand
@@ -102,9 +99,6 @@ pub async fn setup_session(
     // Clamp the number of workers to [1,8]. Keep this low for now to avoid rate limiting.
     let num_workers: usize = max_threads.unwrap_or(1).clamp(1, 8) as usize;
 
-    // Estimate GFLOP/s
-    let gflops = system::estimate_peak_gflops(num_workers);
-
     // Create shutdown channel - only one shutdown signal needed
     let (shutdown_sender, _) = broadcast::channel(1);
 
@@ -132,6 +126,5 @@ pub async fn setup_session(
         node_id,
         orchestrator: orchestrator_client,
         num_workers,
-        gflops,
     })
 }

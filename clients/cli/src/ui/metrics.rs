@@ -43,74 +43,69 @@ impl SystemMetrics {
         previous_metrics: Option<&SystemMetrics>,
     ) -> Self {
         let now = Instant::now();
-
         let current_pid = Pid::from(std::process::id() as usize);
-        let mut cpu_total = 0.0;
         let mut ram_total = 0;
 
-        // Check if enough time has passed for accurate CPU measurement
-        let should_update_cpu = if let Some(prev) = previous_metrics {
-            if let Some(last_update) = prev.last_cpu_update {
-                now.duration_since(last_update) >= sysinfo::MINIMUM_CPU_UPDATE_INTERVAL
-            } else {
-                true // First time, always update
-            }
-        } else {
-            true // No previous metrics, always update
+        let should_update_cpu = match previous_metrics.and_then(|p| p.last_cpu_update) {
+            Some(last) => now.duration_since(last) >= sysinfo::MINIMUM_CPU_UPDATE_INTERVAL,
+            None => true,
         };
 
-        let last_cpu_update = if should_update_cpu {
-            // Refresh CPU usage and processes according to sysinfo best practices
-            sysinfo.refresh_cpu_usage(); // Essential for CPU usage calculation
-            // Refresh ALL processes to include subprocesses during proving
+        let (cpu_percent, last_cpu_update) = if should_update_cpu {
+            sysinfo.refresh_cpu_usage();
             sysinfo.refresh_processes_specifics(
                 ProcessesToUpdate::All,
-                true, // Refresh exact processes
+                true,
                 ProcessRefreshKind::nothing().with_cpu().with_memory(),
             );
-            Some(now)
+
+            let mut cpu_total = 0.0;
+            if let Some(process) = sysinfo.process(current_pid) {
+                cpu_total += process.cpu_usage();
+            }
+
+            for process in sysinfo.processes().values() {
+                if process.parent() == Some(current_pid) && process.name().to_string_lossy().contains("nexus") {
+                    cpu_total += process.cpu_usage();
+                }
+            }
+            
+            // Normalize total CPU usage by the number of cores for a system-wide percentage.
+            let num_cores = sysinfo.cpus().len() as f32;
+            let final_cpu_percent = if num_cores > 0.0 {
+                cpu_total / num_cores
+            } else {
+                cpu_total
+            };
+            (final_cpu_percent, Some(now))
         } else {
-            // Still refresh ALL processes for memory tracking (including subprocesses)
+            // If not enough time has passed for an accurate CPU reading, refresh memory only
+            // and reuse the previous CPU percentage.
             sysinfo.refresh_processes_specifics(
                 ProcessesToUpdate::All,
                 true,
                 ProcessRefreshKind::nothing().with_memory(),
             );
-            // Keep previous update time
-            previous_metrics.and_then(|m| m.last_cpu_update)
+            (
+                previous_metrics.map_or(0.0, |p| p.cpu_percent),
+                previous_metrics.and_then(|p| p.last_cpu_update),
+            )
         };
 
-        // Get metrics for current process (both CPU and RAM)
+        // Always update RAM, as it's not a differential value
         if let Some(process) = sysinfo.process(current_pid) {
-            cpu_total = if should_update_cpu {
-                process.cpu_usage()
-            } else {
-                // Use previous CPU value if not updating
-                previous_metrics.map(|m| m.cpu_percent).unwrap_or(0.0)
-            };
-            // Use current process memory as base
             ram_total = process.memory();
         }
-
-        // Include CPU and memory from nexus proving subprocesses
         for process in sysinfo.processes().values() {
-            if process.parent() == Some(current_pid) {
-                let process_name = process.name().to_string_lossy().to_lowercase();
-                // Include child processes that are nexus-related (proving subprocesses)
-                if process_name.contains("nexus") {
-                    ram_total += process.memory();
-                    if should_update_cpu {
-                        cpu_total += process.cpu_usage(); // Add subprocess CPU usage!
-                    }
-                }
+            if process.parent() == Some(current_pid) && process.name().to_string_lossy().contains("nexus") {
+                ram_total += process.memory();
             }
         }
 
-        // Track peak process RAM usage over application lifetime
         let peak_ram = previous_peak.max(ram_total);
 
         Self {
-            cpu_percent: cpu_total,
+            cpu_percent,
             ram_bytes: ram_total,
             peak_ram_bytes: peak_ram,
             total_ram_bytes: sysinfo.total_memory(),

@@ -4,7 +4,6 @@ use cfg_if::cfg_if;
 use std::hint::black_box;
 use std::process;
 use std::sync::OnceLock;
-use std::thread::available_parallelism;
 use std::time::Instant;
 use sysinfo::{CpuRefreshKind, RefreshKind, System};
 
@@ -17,20 +16,20 @@ static FLOPS_CACHE: OnceLock<f32> = OnceLock::new();
 
 /// Get the number of logical cores available on the machine.
 pub fn num_cores() -> usize {
-    available_parallelism().map(|n| n.get()).unwrap_or(1) // Fallback to 1 if detection fails
+    // Use a specific refresh kind to only get CPU info, which is fast.
+    let sys = System::new_with_specifics(RefreshKind::nothing().with_cpu(CpuRefreshKind::everything()));
+    sys.cpus().len()
 }
 
 /// Return (logical_cores, base_frequency_MHz).
 /// `sysinfo` provides MHz on every supported OS.
 fn cpu_stats() -> (u64, u64) {
-    let mut sys =
+    // Only refresh what's needed for this function. This avoids costly sleeps
+    // and full system scans.
+    let sys =
         System::new_with_specifics(RefreshKind::nothing().with_cpu(CpuRefreshKind::everything()));
-    // Wait a bit because CPU usage is based on diff.
-    std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL);
-    // Refresh CPUs again to get actual value.
-    sys.refresh_cpu_all();
 
-    let logical_cores = available_parallelism().map(|n| n.get() as u64).unwrap_or(1);
+    let logical_cores = sys.cpus().len() as u64;
 
     // `sysinfo` reports the *base* frequency of the first CPU package.
     // This avoids transient turbo clocks that overestimate peak GFLOP/s.
@@ -77,21 +76,13 @@ pub fn estimate_peak_gflops(num_provers: usize) -> f64 {
 /// The result is cached after the first measurement, so subsequent calls return the cached value.
 pub fn measure_gflops() -> f32 {
     *FLOPS_CACHE.get_or_init(|| {
-        let num_cores: u64 = match available_parallelism() {
-            Ok(cores) => cores.get() as u64,
-            Err(_) => {
-                eprintln!(
-                    "Warning: Unable to determine the number of logical cores. Defaulting to 1."
-                );
-                1
-            }
-        };
+        let num_cores_val: u64 = num_cores() as u64;
 
         let avg_flops: f64 = (0..NUM_REPEATS)
             .map(|_| {
                 let start = Instant::now();
 
-                let total_flops: u64 = (0..num_cores)
+                let total_flops: u64 = (0..num_cores_val)
                     .map(|_| {
                         let mut x: f64 = 1.0;
                         for _ in 0..NUM_TESTS {
