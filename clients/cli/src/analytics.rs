@@ -150,8 +150,7 @@ pub async fn track(
 }
 
 /// Cloud Function endpoint for reporting proving activity
-const REPORT_PROVING_URL: &str =
-    "https://us-central1-nexus-prove-staging.cloudfunctions.net/reportProving";
+const REPORT_PROVING_URL: &str = "https://us-central1-nexus-prove.cloudfunctions.net/reportProving";
 /// User-Agent for nexus-cli requests (used by Cloud Function for special handling)
 const CLI_USER_AGENT: &str = concat!("nexus-cli/", env!("CARGO_PKG_VERSION"));
 

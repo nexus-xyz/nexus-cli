@@ -81,6 +81,12 @@ nexus-cli register-node
 nexus-cli start
 ```
 
+To run the CLI noninteractively, you can also opt to start it in headless mode.
+
+```bash
+nexus-cli start --headless
+```
+
 The `register-user` and `register-node` commands will save your credentials to `~/.nexus/config.json`. To clear credentials, run:
 
 ```bash
