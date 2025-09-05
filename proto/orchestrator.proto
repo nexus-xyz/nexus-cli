@@ -171,6 +171,10 @@ enum TaskDifficulty {
 
   // Large difficulty bucket
   LARGE = 10;
+  reserved 11 to 14;
+
+  // Extra large difficulty bucket
+  EXTRA_LARGE = 15;
 }
 
 enum TaskType {
