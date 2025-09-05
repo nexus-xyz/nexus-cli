@@ -24,7 +24,6 @@ pub struct AuthenticatedWorkerArgs {
     pub shutdown_sender: broadcast::Sender<()>,
 }
 
-
 /// Single authenticated worker that handles the complete task lifecycle
 pub struct AuthenticatedWorker {
     fetcher: TaskFetcher,
@@ -38,9 +37,7 @@ pub struct AuthenticatedWorker {
 }
 
 impl AuthenticatedWorker {
-    pub fn new(
-        args: AuthenticatedWorkerArgs,
-    ) -> Self {
+    pub fn new(args: AuthenticatedWorkerArgs) -> Self {
         let event_sender_helper = EventSender::new(args.event_sender);
 
         // Create the 3 specialized components
@@ -52,7 +49,11 @@ impl AuthenticatedWorker {
             &args.config,
         );
 
-        let prover = TaskProver::new(event_sender_helper.clone(), args.config.clone(), args.worker_id);
+        let prover = TaskProver::new(
+            event_sender_helper.clone(),
+            args.config.clone(),
+            args.worker_id,
+        );
 
         let submitter = ProofSubmitter::new(
             args.signing_key,
@@ -72,7 +73,6 @@ impl AuthenticatedWorker {
             worker_id: args.worker_id,
         }
     }
-
 
     /// Start the worker
     pub async fn run(mut self, mut shutdown: broadcast::Receiver<()>) -> Vec<JoinHandle<()>> {

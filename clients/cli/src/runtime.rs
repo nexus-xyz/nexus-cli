@@ -41,7 +41,8 @@ pub async fn start_authenticated_workers(
         let worker_config = config.clone();
         let worker_shutdown_sender = shutdown_sender.clone();
 
-        let max_tasks_per_worker = max_tasks.map(|max| (max as f32 / num_workers as f32).ceil() as u32);
+        let max_tasks_per_worker =
+            max_tasks.map(|max| (max as f32 / num_workers as f32).ceil() as u32);
 
         let worker_handle = tokio::spawn(async move {
             let worker_args = AuthenticatedWorkerArgs {

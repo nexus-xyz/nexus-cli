@@ -17,7 +17,8 @@ static FLOPS_CACHE: OnceLock<f32> = OnceLock::new();
 /// Get the number of logical cores available on the machine.
 pub fn num_cores() -> usize {
     // Use a specific refresh kind to only get CPU info, which is fast.
-    let sys = System::new_with_specifics(RefreshKind::nothing().with_cpu(CpuRefreshKind::everything()));
+    let sys =
+        System::new_with_specifics(RefreshKind::nothing().with_cpu(CpuRefreshKind::everything()));
     sys.cpus().len()
 }
 

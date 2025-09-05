@@ -65,11 +65,13 @@ impl SystemMetrics {
             }
 
             for process in sysinfo.processes().values() {
-                if process.parent() == Some(current_pid) && process.name().to_string_lossy().contains("nexus") {
+                if process.parent() == Some(current_pid)
+                    && process.name().to_string_lossy().contains("nexus")
+                {
                     cpu_total += process.cpu_usage();
                 }
             }
-            
+
             // Normalize total CPU usage by the number of cores for a system-wide percentage.
             let num_cores = sysinfo.cpus().len() as f32;
             let final_cpu_percent = if num_cores > 0.0 {
@@ -97,7 +99,9 @@ impl SystemMetrics {
             ram_total = process.memory();
         }
         for process in sysinfo.processes().values() {
-            if process.parent() == Some(current_pid) && process.name().to_string_lossy().contains("nexus") {
+            if process.parent() == Some(current_pid)
+                && process.name().to_string_lossy().contains("nexus")
+            {
                 ram_total += process.memory();
             }
         }
