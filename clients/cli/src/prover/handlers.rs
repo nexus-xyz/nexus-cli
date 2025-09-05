@@ -11,6 +11,7 @@ pub async fn authenticated_proving(
     task: &Task,
     environment: &Environment,
     client_id: &str,
+    num_workers: &usize,
 ) -> Result<(Vec<Proof>, String, Vec<String>), ProverError> {
-    ProvingPipeline::prove_authenticated(task, environment, client_id).await
+    ProvingPipeline::prove_authenticated(task, environment, client_id, num_workers).await
 }

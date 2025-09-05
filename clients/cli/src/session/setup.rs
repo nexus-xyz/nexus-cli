@@ -114,6 +114,7 @@ pub async fn setup_session(
         env,
         client_id,
         max_tasks,
+        num_workers,
     )
     .await;
 
