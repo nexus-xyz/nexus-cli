@@ -6,8 +6,9 @@
 
 use sha3::{Digest, Keccak256};
 use std::fmt::Display;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq,Serialize, Deserialize)]
 pub struct Task {
     /// Orchestrator task ID
     pub task_id: String,

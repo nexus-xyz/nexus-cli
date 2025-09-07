@@ -3,10 +3,10 @@
 use super::core::{EventSender, WorkerConfig};
 use super::fetcher::TaskFetcher;
 use super::prover::TaskProver;
-use crate::prover::input::InputParser;
 use super::submitter::ProofSubmitter;
 use crate::events::{Event, ProverState};
 use crate::orchestrator::OrchestratorClient;
+use crate::prover::input::InputParser;
 
 use ed25519_dalek::SigningKey;
 use std::time::Duration;
@@ -32,7 +32,7 @@ impl AuthenticatedWorker {
         orchestrator: OrchestratorClient,
         config: WorkerConfig,
         event_sender: mpsc::Sender<Event>,
-        num_workers:  usize,
+        num_workers: usize,
         max_tasks: Option<u32>,
         shutdown_sender: broadcast::Sender<()>,
     ) -> Self {
@@ -112,39 +112,42 @@ impl AuthenticatedWorker {
                 return false; // Don't exit on fetch error, just retry
             }
         };
-       let public_inputs_list_len=task.public_inputs_list.len();
+        let public_inputs_list_len = task.public_inputs_list.len();
         // Step 2: Prove task
         // Send state change to ProvingM
         self.event_sender
             .send_event(Event::state_change(
                 ProverState::Proving,
-                format!("Step 2 of 4: Proving task {} len {}", task.task_id,public_inputs_list_len),
+                format!(
+                    "Step 2 of 4: Proving task {} len {}",
+                    task.task_id, public_inputs_list_len
+                ),
             ))
             .await;
-        let all_inputs=task.all_inputs();
-        let mut input_msgs = Vec::new();  // 用来存储每个解析成功后的字符串
+        let all_inputs = task.all_inputs();
+        let mut input_msgs = Vec::new(); // 用来存储每个解析成功后的字符串
         for (input_index, input_data) in all_inputs.iter().enumerate() {
             match InputParser::parse_triple_input(input_data) {
-                Ok((n, init_a, init_b)) => {    
+                Ok((n, init_a, init_b)) => {
                     // 成功解析输入数据
-                let result_string = format!("{}, {},{},{}", input_index, n, init_a, init_b);
-            input_msgs.push(result_string);
-          },
-        Err(e) => {
-            // 处理解析失败的错误
-            
-        }}}
+                    let result_string = format!("{}, {},{},{}", input_index, n, init_a, init_b);
+                    input_msgs.push(result_string);
+                }
+                Err(e) => {
+                    // 处理解析失败的错误
+                }
+            }
+        }
         // 将所有拼接后的字符串使用分隔符连接成一个最终的字符串
-        let final_result = input_msgs.join("\n");  
+        let final_result = input_msgs.join("\n");
         self.event_sender
             .send_event(Event::state_change(
                 ProverState::Proving,
                 format!("Step 2 of 4: Proving inputs:\n{}", final_result),
             ))
             .await;
-          
 
-        let proof_result = match self.prover.prove_task(&task,self.num_workers).await {
+        let proof_result = match self.prover.prove_task(&task, self.num_workers).await {
             Ok(proof_result) => proof_result,
             Err(_) => {
                 // Send state change back to Waiting on proof failure

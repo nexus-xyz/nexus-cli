@@ -31,58 +31,57 @@ impl ProvingPipeline {
         }
     }
 
-    /// Process fibonacci proving task with multiple inputs
-    // async fn prove_fib_task(
-    //     task: &Task,
-    //     environment: &Environment,
-    //     client_id: &str,
-    //     num_workers:Option<u32>,
-    // ) -> Result<(Vec<Proof>, String, Vec<String>), ProverError> {
-    //     let all_inputs = task.all_inputs();
+    // Process fibonacci proving task with multiple inputs
+   async  fn prove_fib_task_single(
+        task: &Task,
+        environment: &Environment,
+        client_id: &str,
+    ) -> Result<(Vec<Proof>, String, Vec<String>), ProverError> {
+        let all_inputs = task.all_inputs();
 
-    //     if all_inputs.is_empty() {
-    //         return Err(ProverError::MalformedTask(
-    //             "No inputs provided for task".to_string(),
-    //         ));
-    //     }
+        if all_inputs.is_empty() {
+            return Err(ProverError::MalformedTask(
+                "No inputs provided for task".to_string(),
+            ));
+        }
 
-    //     let mut proof_hashes = Vec::new();
-    //     let mut all_proofs: Vec<Proof> = Vec::new();
+        let mut proof_hashes = Vec::new();
+        let mut all_proofs: Vec<Proof> = Vec::new();
 
-    //     for (input_index, input_data) in all_inputs.iter().enumerate() {
-    //         // Step 1: Parse and validate input
-    //         let inputs = InputParser::parse_triple_input(input_data)?;
+        for (input_index, input_data) in all_inputs.iter().enumerate() {
+            // Step 1: Parse and validate input
+            let inputs = InputParser::parse_triple_input(input_data)?;
 
-    //         // Step 2: Generate and verify proof
-    //         let proof = ProvingEngine::prove_and_validate(&inputs, task, environment, client_id)
-    //             .await
-    //             .map_err(|e| {
-    //                 match e {
-    //                     ProverError::Stwo(_) | ProverError::GuestProgram(_) => {
-    //                         // Track verification failure
-    //                         let error_msg = format!("Input {}: {}", input_index, e);
-    //                         tokio::spawn(track_verification_failed(
-    //                             task.clone(),
-    //                             error_msg.clone(),
-    //                             environment.clone(),
-    //                             client_id.to_string(),
-    //                         ));
-    //                         e
-    //                     }
-    //                     _ => e,
-    //                 }
-    //             })?;
+            // Step 2: Generate and verify proof
+            let proof = ProvingEngine::prove_and_validate(&inputs, task, environment, client_id)
+                .await
+                .map_err(|e| {
+                    match e {
+                        ProverError::Stwo(_) | ProverError::GuestProgram(_) => {
+                            // Track verification failure
+                            let error_msg = format!("Input {}: {}", input_index, e);
+                            tokio::spawn(track_verification_failed(
+                                task.clone(),
+                                error_msg.clone(),
+                                environment.clone(),
+                                client_id.to_string(),
+                            ));
+                            e
+                        }
+                        _ => e,
+                    }
+                })?;
 
-    //         // Step 3: Generate proof hash
-    //         let proof_hash = Self::generate_proof_hash(&proof);
-    //         proof_hashes.push(proof_hash);
-    //         all_proofs.push(proof);
-    //     }
+            // Step 3: Generate proof hash
+            let proof_hash = Self::generate_proof_hash(&proof);
+            proof_hashes.push(proof_hash);
+            all_proofs.push(proof);
+        }
 
-    //     let final_proof_hash = Self::combine_proof_hashes(task, &proof_hashes);
+        let final_proof_hash = Self::combine_proof_hashes(task, &proof_hashes);
 
-    //     Ok((all_proofs, final_proof_hash, proof_hashes))
-    // }
+        Ok((all_proofs, final_proof_hash, proof_hashes))
+    }
   
     /// Process fibonacci proving task with multiple inputs
     async fn prove_fib_task(
@@ -91,6 +90,9 @@ impl ProvingPipeline {
         client_id: &str,
           num_workers:usize,
     ) -> Result<(Vec<Proof>, String, Vec<String>), ProverError> {
+        if num_workers==1 {
+            return Self::prove_fib_task_single(task,environment,client_id).await;
+        }
         let all_inputs = task.all_inputs();
 
         if all_inputs.is_empty() {

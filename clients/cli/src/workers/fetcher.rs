@@ -9,6 +9,7 @@ use crate::network::{NetworkClient, RequestTimer, RequestTimerConfig};
 use crate::orchestrator::Orchestrator;
 use crate::task::Task;
 use ed25519_dalek::VerifyingKey;
+use serde_json::json;
 use std::time::Duration;
 use thiserror::Error;
 use tokio::time::sleep;
@@ -103,11 +104,12 @@ impl TaskFetcher {
             )
             .await
         {
+       
             Ok(task) => {
                 // Log successful fetch
                 self.event_sender
                     .send_task_event(
-                        format!("Step 1 of 4: Got task {}", task.task_id),
+                        format!("Step 1 of 4: Got task {} size:{} \n {} {} ", task.task_id,  task.all_inputs().len(),task.program_id,task.task_type.as_str_name()),
                         EventType::Success,
                         LogLevel::Info,
                     )
