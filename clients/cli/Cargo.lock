@@ -1692,6 +1692,7 @@ dependencies = [
  "log",
  "mockall",
  "nexus-sdk",
+ "once_cell",
  "postcard",
  "predicates",
  "prost 0.13.5",

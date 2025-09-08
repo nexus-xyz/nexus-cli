@@ -58,7 +58,8 @@ impl ProvingPipeline {
                 &inputs,
                 task,
                 environment,
-                client_id,false
+                client_id,
+                false
             ).await.map_err(|e| {
                 match e {
                     ProverError::Stwo(_) | ProverError::GuestProgram(_) => {
@@ -97,11 +98,10 @@ impl ProvingPipeline {
         num_workers: usize,
         with_local: bool
     ) -> Result<(Vec<Proof>, String, Vec<String>), ProverError> {
-        if num_workers == 1 {
+        let all_inputs = task.all_inputs();
+        if num_workers == 1 || all_inputs.len() == 1 {
             return Self::prove_fib_task_single(task, environment, client_id).await;
         }
-        let all_inputs = task.all_inputs();
-
         if all_inputs.is_empty() {
             return Err(ProverError::MalformedTask("No inputs provided for task".to_string()));
         }

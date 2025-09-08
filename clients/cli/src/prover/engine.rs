@@ -9,8 +9,11 @@ use crate::task::Task;
 use nexus_sdk::{ Local, Prover, stwo::seq::{ Proof, Stwo } };
 use postcard::from_bytes;
 use serde_json;
-use std::env;
 use std::process::Stdio;
+
+use std::env;
+
+const ELF_PROVER: &[u8; 104004] = include_bytes!("../../assets/fib_input_initial");
 
 /// Core proving engine for ZK proof generation
 pub struct ProvingEngine;
@@ -18,9 +21,8 @@ pub struct ProvingEngine;
 impl ProvingEngine {
     /// Create a Stwo prover instance for the fibonacci program
     pub fn create_fib_prover() -> Result<Stwo<Local>, ProverError> {
-        let elf_bytes = include_bytes!("../../assets/fib_input_initial");
         Stwo::<Local>
-            ::new_from_bytes(elf_bytes)
+            ::new_from_bytes(ELF_PROVER)
             .map_err(|e| {
                 ProverError::Stwo(format!("Failed to load fib_input_initial guest program: {}", e))
             })
@@ -28,6 +30,11 @@ impl ProvingEngine {
 
     /// Subprocess entrypoint: generate proof without verification
     pub fn prove_fib_subprocess(inputs: &(u32, u32, u32)) -> Result<Proof, ProverError> {
+        let now = std::time::SystemTime
+            ::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("Time went backwards")
+            .as_millis();
         let prover = Self::create_fib_prover()?;
         let (view, proof) = prover
             .prove_with_input::<(), (u32, u32, u32)>(&(), inputs)
@@ -38,7 +45,13 @@ impl ProvingEngine {
             })?;
         // Check exit code in subprocess
         verifier::ProofVerifier::check_exit_code(&view)?;
-
+        let now2 = std::time::SystemTime
+            ::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("Time went backwards")
+            .as_millis();
+        // 打印 proof 耗时
+        println!("Subprocess proof generation took {} milliseconds", now2 - now);
         Ok(proof)
     }
 
@@ -51,8 +64,14 @@ impl ProvingEngine {
         with_local: bool
     ) -> Result<Proof, ProverError> {
         if with_local {
+            // Use local prover
             return Self::prove_fib_subprocess(&inputs);
         }
+        let now = std::time::SystemTime
+            ::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("Time went backwards")
+            .as_millis();
         // Spawn a subprocess for proof generation to isolate memory usage
         let exe_path = env::current_exe()?;
         let mut cmd = tokio::process::Command::new(exe_path);
@@ -96,21 +115,9 @@ impl ProvingEngine {
                 )
             );
         }
-        //获取当前时间戳
-        let now = std::time::SystemTime
-            ::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("Time went backwards")
-            .as_millis();
+
         // Deserialize proof from subprocess stdout
         let proof: Proof = from_bytes(&output.stdout)?;
-        let now2 = std::time::SystemTime
-            ::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("Time went backwards")
-            .as_millis();
-        // 打印 proof 耗时
-        println!("Proof generation took {} milliseconds", now2 - now);
 
         // Verify proof in main process
         // let verify_prover = Self::create_fib_prover()?;
@@ -121,7 +128,7 @@ impl ProvingEngine {
             .expect("Time went backwards")
             .as_millis();
         // 打印 proof 耗时
-        println!("verify proof {} milliseconds", now3 - now2);
+        println!("verify proof {} milliseconds", now3 - now);
         Ok(proof)
     }
 }
