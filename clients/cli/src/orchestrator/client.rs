@@ -382,8 +382,9 @@ impl Orchestrator for OrchestratorClient {
             node_id: node_id.to_string(),
             node_type: NodeType::CliProver as i32,
             ed25519_public_key: verifying_key.to_bytes().to_vec(),
-            max_difficulty: TaskDifficulty::Large as i32,
+            max_difficulty: TaskDifficulty::LargeLarge as i32,
         };
+        println!("Request: node_id:{} max_difficulty:{}", request.node_id,request.max_difficulty);
         let request_bytes = Self::encode_request(&request);
         let response: GetProofTaskResponse = self.post_request("v3/tasks", request_bytes).await?;
         Ok(Task::from(&response))

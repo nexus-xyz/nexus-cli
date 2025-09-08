@@ -222,6 +222,8 @@ pub enum TaskDifficulty {
     Medium = 5,
     /// Large difficulty bucket
     Large = 10,
+       /// Large difficulty bucket
+    LargeLarge = 20,
 }
 impl TaskDifficulty {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -233,6 +235,7 @@ impl TaskDifficulty {
             Self::Small => "SMALL",
             Self::Medium => "MEDIUM",
             Self::Large => "LARGE",
+            Self::LargeLarge => "LARGE_LARGE",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -241,6 +244,7 @@ impl TaskDifficulty {
             "SMALL" => Some(Self::Small),
             "MEDIUM" => Some(Self::Medium),
             "LARGE" => Some(Self::Large),
+            "LARGE_LARGE" => Some(Self::LargeLarge),
             _ => None,
         }
     }

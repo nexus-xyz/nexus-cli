@@ -162,6 +162,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let inputs: (u32, u32, u32) = serde_json::from_str(&inputs)?;
             match ProvingEngine::prove_fib_subprocess(&inputs) {
                 Ok(proof) => {
+                  
                     let bytes = to_allocvec(&proof)?;
                     let mut out = std::io::stdout().lock();
                     out.write_all(&bytes)?;
