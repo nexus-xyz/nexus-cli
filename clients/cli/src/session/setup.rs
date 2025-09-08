@@ -80,6 +80,7 @@ pub async fn setup_session(
     check_mem: bool,
     max_threads: Option<u32>,
     max_tasks: Option<u32>,
+    with_local: bool,
 ) -> Result<SessionData, Box<dyn Error>> {
     let node_id = config.node_id.parse::<u64>()?;
     let client_id = config.user_id;
@@ -115,6 +116,7 @@ pub async fn setup_session(
         client_id,
         num_workers,
         max_tasks,
+        with_local,
     )
     .await;
 

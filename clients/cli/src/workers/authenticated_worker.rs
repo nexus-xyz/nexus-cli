@@ -19,7 +19,6 @@ pub struct AuthenticatedWorker {
     prover: TaskProver,
     submitter: ProofSubmitter,
     event_sender: EventSender,
-    num_workers: usize,
     max_tasks: Option<u32>,
     tasks_completed: u32,
     shutdown_sender: broadcast::Sender<()>,
@@ -32,7 +31,6 @@ impl AuthenticatedWorker {
         orchestrator: OrchestratorClient,
         config: WorkerConfig,
         event_sender: mpsc::Sender<Event>,
-        num_workers: usize,
         max_tasks: Option<u32>,
         shutdown_sender: broadcast::Sender<()>,
     ) -> Self {
@@ -61,7 +59,6 @@ impl AuthenticatedWorker {
             prover,
             submitter,
             event_sender: event_sender_helper,
-            num_workers,
             max_tasks,
             tasks_completed: 0,
             shutdown_sender,
@@ -147,7 +144,7 @@ impl AuthenticatedWorker {
             ))
             .await;
 
-        let proof_result = match self.prover.prove_task(&task, self.num_workers).await {
+        let proof_result = match self.prover.prove_task(&task,).await {
             Ok(proof_result) => proof_result,
             Err(_) => {
                 // Send state change back to Waiting on proof failure

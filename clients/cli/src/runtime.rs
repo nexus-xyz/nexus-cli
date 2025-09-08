@@ -20,12 +20,13 @@ pub async fn start_authenticated_worker(
     client_id: String,
     num_workers:usize,
     max_tasks:Option< u32>,
+    with_local:bool,
 ) -> (
     mpsc::Receiver<Event>,
     Vec<JoinHandle<()>>,
     broadcast::Sender<()>,
 ) {
-    let config = WorkerConfig::new(environment, client_id);
+    let config = WorkerConfig::new(environment, client_id,num_workers,with_local);
     let (event_sender, event_receiver) =
         mpsc::channel::<Event>(crate::consts::cli_consts::EVENT_QUEUE_SIZE);
 
@@ -38,7 +39,6 @@ pub async fn start_authenticated_worker(
         orchestrator,
         config,
         event_sender,
-        num_workers,
         max_tasks,
         shutdown_sender.clone(),
     );

@@ -1,6 +1,6 @@
 //! Core worker utilities and traits
 
-use crate::events::{Event, EventType};
+use crate::events::{ Event, EventType };
 use crate::logging::LogLevel;
 use tokio::sync::mpsc;
 
@@ -24,28 +24,22 @@ impl EventSender {
         &self,
         message: String,
         event_type: EventType,
-        log_level: LogLevel,
+        log_level: LogLevel
     ) {
-        let _ = self
-            .sender
-            .send(Event::task_fetcher_with_level(
-                message, event_type, log_level,
-            ))
-            .await;
+        let _ = self.sender.send(
+            Event::task_fetcher_with_level(message, event_type, log_level)
+        ).await;
     }
 
     pub async fn send_proof_event(
         &self,
         message: String,
         event_type: EventType,
-        log_level: LogLevel,
+        log_level: LogLevel
     ) {
-        let _ = self
-            .sender
-            .send(Event::proof_submitter_with_level(
-                message, event_type, log_level,
-            ))
-            .await;
+        let _ = self.sender.send(
+            Event::proof_submitter_with_level(message, event_type, log_level)
+        ).await;
     }
 
     pub async fn send_prover_event(
@@ -53,14 +47,11 @@ impl EventSender {
         thread_id: usize,
         message: String,
         event_type: EventType,
-        log_level: LogLevel,
+        log_level: LogLevel
     ) {
-        let _ = self
-            .sender
-            .send(Event::prover_with_level(
-                thread_id, message, event_type, log_level,
-            ))
-            .await;
+        let _ = self.sender.send(
+            Event::prover_with_level(thread_id, message, event_type, log_level)
+        ).await;
     }
 }
 
@@ -69,13 +60,22 @@ impl EventSender {
 pub struct WorkerConfig {
     pub environment: crate::environment::Environment,
     pub client_id: String,
+    pub num_workers: usize,
+    pub with_local: bool,
 }
 
 impl WorkerConfig {
-    pub fn new(environment: crate::environment::Environment, client_id: String) -> Self {
+    pub fn new(
+        environment: crate::environment::Environment,
+        client_id: String,
+        num_workers: usize,
+        with_local: bool
+    ) -> Self {
         Self {
             environment,
             client_id,
+            num_workers,
+            with_local,
         }
     }
 }

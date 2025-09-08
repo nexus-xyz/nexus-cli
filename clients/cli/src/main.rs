@@ -22,21 +22,26 @@ mod ui;
 mod version;
 mod workers;
 
-use crate::config::{Config, get_config_path};
+use crate::config::{ Config, get_config_path };
 use crate::environment::Environment;
 use crate::orchestrator::OrchestratorClient;
 use crate::prover::engine::ProvingEngine;
-use crate::register::{register_node, register_user};
-use crate::session::{run_headless_mode, run_tui_mode, setup_session};
+use crate::register::{ register_node, register_user };
+use crate::session::{ run_headless_mode, run_tui_mode, setup_session };
 use crate::version::manager::validate_version_requirements;
-use clap::{ArgAction, Parser, Subcommand};
+use clap::{ ArgAction, Parser, Subcommand };
 use postcard::to_allocvec;
 use std::error::Error;
 use std::io::Write;
 use std::process::exit;
 
 #[derive(Parser)]
-#[command(author, version = concat!(env!("CARGO_PKG_VERSION"), " (build ", env!("BUILD_TIMESTAMP"), ")"), about, long_about = None)]
+#[command(
+    author,
+    version = concat!(env!("CARGO_PKG_VERSION"), " (build ", env!("BUILD_TIMESTAMP"), ")"),
+    about,
+    long_about = None
+)]
 /// Command-line arguments
 struct Args {
     /// Command to execute
@@ -75,6 +80,9 @@ enum Command {
         /// Maximum number of tasks to process before exiting (default: unlimited)
         #[arg(long = "max-tasks", value_name = "MAX_TASKS")]
         max_tasks: Option<u32>,
+        /// Enable LOCAL run elf
+        #[arg(long = "with-local", action = ArgAction::SetTrue)]
+        with_local: bool,
     },
     /// Register a new user
     RegisterUser {
@@ -102,10 +110,12 @@ enum Command {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     // Set up panic hook to prevent core dumps
-    std::panic::set_hook(Box::new(|panic_info| {
-        eprintln!("Panic occurred: {}", panic_info);
-        std::process::exit(1);
-    }));
+    std::panic::set_hook(
+        Box::new(|panic_info| {
+            eprintln!("Panic occurred: {}", panic_info);
+            std::process::exit(1);
+        })
+    );
 
     let nexus_environment_str = std::env::var("NEXUS_ENVIRONMENT").unwrap_or_default();
     let environment = nexus_environment_str
@@ -124,6 +134,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             check_mem,
             with_background,
             max_tasks,
+            with_local,
         } => {
             // If a custom orchestrator URL is provided, create a custom environment
             let final_environment = if let Some(url) = orchestrator_url {
@@ -142,8 +153,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 check_mem,
                 with_background,
                 max_tasks,
-            )
-            .await
+                with_local
+            ).await
         }
         Command::Logout => {
             print_cmd_info!("Logging out", "Clearing node configuration file...");
@@ -162,7 +173,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let inputs: (u32, u32, u32) = serde_json::from_str(&inputs)?;
             match ProvingEngine::prove_fib_subprocess(&inputs) {
                 Ok(proof) => {
-                  
                     let bytes = to_allocvec(&proof)?;
                     let mut out = std::io::stdout().lock();
                     out.write_all(&bytes)?;
@@ -198,6 +208,7 @@ async fn start(
     check_mem: bool,
     with_background: bool,
     max_tasks: Option<u32>,
+    with_local: bool,
 ) -> Result<(), Box<dyn Error>> {
     // 1. Version checking (will internally perform country detection without race)
     validate_version_requirements().await?;
@@ -207,7 +218,7 @@ async fn start(
     let config = Config::resolve(node_id, &config_path, &orchestrator_client).await?;
 
     // 3. Session setup (authenticated worker only)
-    let session = setup_session(config, env, check_mem, max_threads, max_tasks).await?;
+    let session = setup_session(config, env, check_mem, max_threads, max_tasks,with_local).await?;
 
     // 4. Run appropriate mode
     if headless {
