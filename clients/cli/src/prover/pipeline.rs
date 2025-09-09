@@ -64,7 +64,7 @@ impl ProvingPipeline {
                 match e {
                     ProverError::Stwo(_) | ProverError::GuestProgram(_) => {
                         // Track verification failure
-                        let error_msg = format!("Input {}: {}", input_index, e);
+                        let error_msg = format!("Input {}: {}", input_index as u32 , e);
                         tokio::spawn(
                             track_verification_failed(
                                 task.clone(),
@@ -99,7 +99,8 @@ impl ProvingPipeline {
         with_local: bool
     ) -> Result<(Vec<Proof>, String, Vec<String>), ProverError> {
         let all_inputs = task.all_inputs();
-        if num_workers == 1 || all_inputs.len() == 1 {
+        if num_workers == 1 || all_inputs.len() <= 1 {
+            println!("num_workers: {}, all_inputs.len: {}", num_workers, all_inputs.len());
             return Self::prove_fib_task_single(task, environment, client_id).await;
         }
         if all_inputs.is_empty() {

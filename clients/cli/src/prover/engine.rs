@@ -9,8 +9,9 @@ use crate::task::Task;
 use nexus_sdk::{ Local, Prover, stwo::seq::{ Proof, Stwo } };
 use postcard::from_bytes;
 use serde_json;
+use tokio::io::Interest;
 use std::process::Stdio;
-
+use std::time::{ Duration, Instant };
 use std::env;
 
 const ELF_PROVER: &[u8; 104004] = include_bytes!("../../assets/fib_input_initial");
@@ -30,11 +31,6 @@ impl ProvingEngine {
 
     /// Subprocess entrypoint: generate proof without verification
     pub fn prove_fib_subprocess(inputs: &(u32, u32, u32)) -> Result<Proof, ProverError> {
-        let now = std::time::SystemTime
-            ::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("Time went backwards")
-            .as_millis();
         let prover = Self::create_fib_prover()?;
         let (view, proof) = prover
             .prove_with_input::<(), (u32, u32, u32)>(&(), inputs)
@@ -45,13 +41,6 @@ impl ProvingEngine {
             })?;
         // Check exit code in subprocess
         verifier::ProofVerifier::check_exit_code(&view)?;
-        let now2 = std::time::SystemTime
-            ::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("Time went backwards")
-            .as_millis();
-        // 打印 proof 耗时
-        println!("Subprocess proof generation took {} milliseconds", now2 - now);
         Ok(proof)
     }
 
@@ -65,6 +54,7 @@ impl ProvingEngine {
     ) -> Result<Proof, ProverError> {
         if with_local {
             // Use local prover
+            println!("Using local prover for inputs: {:?}", inputs);
             return Self::prove_fib_subprocess(&inputs);
         }
         let now = std::time::SystemTime
