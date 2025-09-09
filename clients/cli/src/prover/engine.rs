@@ -55,7 +55,23 @@ impl ProvingEngine {
         if with_local {
             // Use local prover
             println!("Using local prover for inputs: {:?}", inputs);
-            return Self::prove_fib_subprocess(&inputs);
+            let now: Instant = Instant::now();
+            let prover = Self::create_fib_prover()?;
+            println!("create_fib_prover {} milliseconds", now.elapsed().as_millis());
+            let now: Instant = Instant::now();
+            let (view, proof) = prover
+                .prove_with_input::<(), (u32, u32, u32)>(&(), inputs)
+                .map_err(|e| {
+                    ProverError::Stwo(
+                        format!("Failed to generate proof for inputs {:?}: {}", inputs, e)
+                    )
+                })?;
+            println!("prove_with_input {} milliseconds", now.elapsed().as_millis());
+            let now: Instant = Instant::now();
+            // Check exit code in subprocess
+            verifier::ProofVerifier::check_exit_code(&view)?;
+            println!("check_exit_code {} milliseconds", now.elapsed().as_millis());
+            return Ok(proof);
         }
         let now = std::time::SystemTime
             ::now()
