@@ -72,12 +72,17 @@ impl NetworkClient {
         orchestrator: &dyn Orchestrator,
         node_id: &str,
         verifying_key: VerifyingKey,
+        max_difficulty: crate::nexus_orchestrator::TaskDifficulty,
     ) -> Result<Task, OrchestratorError> {
         let mut attempts = 0;
 
         loop {
             // Make the request
-            match orchestrator.get_proof_task(node_id, verifying_key).await {
+            // Default to Large; callers can adapt or override upstream
+            match orchestrator
+                .get_proof_task(node_id, verifying_key, max_difficulty)
+                .await
+            {
                 Ok(task) => {
                     self.request_timer.record_success();
                     return Ok(task);

@@ -75,6 +75,10 @@ enum Command {
         /// Maximum number of tasks to process before exiting (default: unlimited)
         #[arg(long = "max-tasks", value_name = "MAX_TASKS")]
         max_tasks: Option<u32>,
+
+        /// Override max difficulty to request (SMALL, SMALL_MEDIUM, MEDIUM, LARGE, EXTRA_LARGE)
+        #[arg(long = "max-difficulty", value_name = "DIFFICULTY")] 
+        max_difficulty: Option<String>,
     },
     /// Register a new user
     RegisterUser {
@@ -124,6 +128,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             check_mem,
             with_background,
             max_tasks,
+            max_difficulty,
         } => {
             // If a custom orchestrator URL is provided, create a custom environment
             let final_environment = if let Some(url) = orchestrator_url {
@@ -142,6 +147,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 check_mem,
                 with_background,
                 max_tasks,
+                max_difficulty,
             )
             .await
         }
@@ -197,6 +203,7 @@ async fn start(
     check_mem: bool,
     with_background: bool,
     max_tasks: Option<u32>,
+    max_difficulty: Option<String>,
 ) -> Result<(), Box<dyn Error>> {
     // 1. Version checking (will internally perform country detection without race)
     validate_version_requirements().await?;
@@ -206,7 +213,19 @@ async fn start(
     let config = Config::resolve(node_id, &config_path, &orchestrator_client).await?;
 
     // 3. Session setup (authenticated worker only)
-    let session = setup_session(config, env, check_mem, max_threads, max_tasks).await?;
+    // Parse difficulty override (case-insensitive)
+    let max_difficulty_override = max_difficulty
+        .as_ref()
+        .and_then(|s| match s.trim().to_ascii_uppercase().as_str() {
+            "SMALL" => Some(crate::nexus_orchestrator::TaskDifficulty::Small),
+            "MEDIUM" => Some(crate::nexus_orchestrator::TaskDifficulty::Medium),
+            "LARGE" => Some(crate::nexus_orchestrator::TaskDifficulty::Large),
+            "EXTRA_LARGE" => Some(crate::nexus_orchestrator::TaskDifficulty::ExtraLarge),
+            _ => None,
+        });
+
+    let session =
+        setup_session(config, env, check_mem, max_threads, max_tasks, max_difficulty_override).await?;
 
     // 4. Run appropriate mode
     if headless {

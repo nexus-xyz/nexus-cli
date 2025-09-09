@@ -36,6 +36,7 @@ pub trait Orchestrator: Send + Sync {
         &self,
         node_id: &str,
         verifying_key: VerifyingKey,
+        max_difficulty: crate::nexus_orchestrator::TaskDifficulty,
     ) -> Result<Task, OrchestratorError>;
 
     /// Submits a proof to the orchestrator.

@@ -27,6 +27,8 @@ pub struct TaskFetcher {
     network_client: NetworkClient,
     event_sender: EventSender,
     config: WorkerConfig,
+    last_success_duration_secs: Option<u64>,
+    last_success_difficulty: Option<crate::nexus_orchestrator::TaskDifficulty>,
 }
 
 impl TaskFetcher {
@@ -56,6 +58,8 @@ impl TaskFetcher {
             network_client,
             event_sender,
             config: config.clone(),
+            last_success_duration_secs: None,
+            last_success_difficulty: None,
         }
     }
 
@@ -94,12 +98,42 @@ impl TaskFetcher {
         }
 
         // Attempt to fetch task through network client
+        // Determine desired max difficulty
+        let desired = if let Some(override_diff) = self.config.max_difficulty_override {
+            override_diff
+        } else {
+            // adaptive: start at Large by default
+            let current = self
+                .last_success_difficulty
+                .unwrap_or(crate::nexus_orchestrator::TaskDifficulty::Large);
+            // If last success took >= 7 minutes, don't increase
+            let promote = !matches!(self.last_success_duration_secs, Some(secs) if secs >= 7 * 60);
+            if promote {
+                match current {
+                    crate::nexus_orchestrator::TaskDifficulty::Small => {
+                        crate::nexus_orchestrator::TaskDifficulty::Medium
+                    }
+                    crate::nexus_orchestrator::TaskDifficulty::Medium => {
+                        crate::nexus_orchestrator::TaskDifficulty::Large
+                    }
+                    crate::nexus_orchestrator::TaskDifficulty::Large => {
+                        // By default, do not request EXTRA_LARGE unless override is set
+                        crate::nexus_orchestrator::TaskDifficulty::Large
+                    }
+                    other => other,
+                }
+            } else {
+                current
+            }
+        };
+
         match self
             .network_client
             .fetch_task(
                 self.orchestrator.as_ref(),
                 &self.node_id.to_string(),
                 self.verifying_key,
+                desired,
             )
             .await
         {
