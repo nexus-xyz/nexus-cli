@@ -479,7 +479,7 @@ mod live_orchestrator_tests {
         let node_id = "5880437"; // Example node ID
         let signing_key = ed25519_dalek::SigningKey::generate(&mut rand::thread_rng());
         let verifying_key = signing_key.verifying_key();
-        let result = client.get_proof_task(node_id, verifying_key).await;
+        let result = client.get_proof_task(node_id, verifying_key, crate::nexus_orchestrator::TaskDifficulty::SmallMedium).await;
         match result {
             Ok(task) => {
                 println!("Got proof task: {}", task);
