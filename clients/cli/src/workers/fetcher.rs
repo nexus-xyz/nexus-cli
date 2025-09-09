@@ -29,6 +29,7 @@ pub struct TaskFetcher {
     config: WorkerConfig,
     last_success_duration_secs: Option<u64>,
     last_success_difficulty: Option<crate::nexus_orchestrator::TaskDifficulty>,
+    last_requested_difficulty: Option<crate::nexus_orchestrator::TaskDifficulty>,
 }
 
 impl TaskFetcher {
@@ -60,6 +61,7 @@ impl TaskFetcher {
             config: config.clone(),
             last_success_duration_secs: None,
             last_success_difficulty: None,
+            last_requested_difficulty: None,
         }
     }
 
@@ -99,33 +101,42 @@ impl TaskFetcher {
 
         // Attempt to fetch task through network client
         // Determine desired max difficulty
-        let desired = if let Some(override_diff) = self.config.max_difficulty_override {
+        let desired = if let Some(override_diff) = self.config.max_difficulty {
             override_diff
         } else {
-            // adaptive: start at Large by default
+            // adaptive: start at SmallMedium by default and promote based on performance
             let current = self
                 .last_success_difficulty
-                .unwrap_or(crate::nexus_orchestrator::TaskDifficulty::Large);
+                .unwrap_or(crate::nexus_orchestrator::TaskDifficulty::SmallMedium);
             // If last success took >= 7 minutes, don't increase
             let promote = !matches!(self.last_success_duration_secs, Some(secs) if secs >= 7 * 60);
             if promote {
                 match current {
                     crate::nexus_orchestrator::TaskDifficulty::Small => {
+                        crate::nexus_orchestrator::TaskDifficulty::SmallMedium
+                    }
+                    crate::nexus_orchestrator::TaskDifficulty::SmallMedium => {
                         crate::nexus_orchestrator::TaskDifficulty::Medium
                     }
                     crate::nexus_orchestrator::TaskDifficulty::Medium => {
                         crate::nexus_orchestrator::TaskDifficulty::Large
                     }
                     crate::nexus_orchestrator::TaskDifficulty::Large => {
-                        // By default, do not request EXTRA_LARGE unless override is set
+                        // Stop at Large - ExtraLarge only available via manual override
                         crate::nexus_orchestrator::TaskDifficulty::Large
                     }
-                    other => other,
+                    crate::nexus_orchestrator::TaskDifficulty::ExtraLarge => {
+                        // Already at maximum difficulty (only reachable via override)
+                        crate::nexus_orchestrator::TaskDifficulty::ExtraLarge
+                    }
                 }
             } else {
                 current
             }
         };
+
+        // Store the requested difficulty for later tracking
+        self.last_requested_difficulty = Some(desired);
 
         match self
             .network_client
@@ -169,6 +180,14 @@ impl TaskFetcher {
 
                 Err(FetchError::Network(e))
             }
+        }
+    }
+
+    /// Update success tracking after completing a task
+    pub fn update_success_tracking(&mut self, duration_secs: u64) {
+        if let Some(difficulty) = self.last_requested_difficulty {
+            self.last_success_difficulty = Some(difficulty);
+            self.last_success_duration_secs = Some(duration_secs);
         }
     }
 }

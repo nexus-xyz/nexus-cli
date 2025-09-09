@@ -19,12 +19,14 @@ pub async fn start_authenticated_worker(
     environment: Environment,
     client_id: String,
     max_tasks: Option<u32>,
+    max_difficulty: Option<crate::nexus_orchestrator::TaskDifficulty>,
 ) -> (
     mpsc::Receiver<Event>,
     Vec<JoinHandle<()>>,
     broadcast::Sender<()>,
 ) {
-    let config = WorkerConfig::new(environment, client_id);
+    let mut config = WorkerConfig::new(environment, client_id);
+    config.max_difficulty = max_difficulty;
     let (event_sender, event_receiver) =
         mpsc::channel::<Event>(crate::consts::cli_consts::EVENT_QUEUE_SIZE);
 

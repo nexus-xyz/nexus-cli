@@ -214,11 +214,12 @@ async fn start(
 
     // 3. Session setup (authenticated worker only)
     // Parse difficulty override (case-insensitive)
-    let max_difficulty_override =
+    let max_difficulty_parsed =
         max_difficulty
             .as_ref()
             .and_then(|s| match s.trim().to_ascii_uppercase().as_str() {
                 "SMALL" => Some(crate::nexus_orchestrator::TaskDifficulty::Small),
+                "SMALL_MEDIUM" => Some(crate::nexus_orchestrator::TaskDifficulty::SmallMedium),
                 "MEDIUM" => Some(crate::nexus_orchestrator::TaskDifficulty::Medium),
                 "LARGE" => Some(crate::nexus_orchestrator::TaskDifficulty::Large),
                 "EXTRA_LARGE" => Some(crate::nexus_orchestrator::TaskDifficulty::ExtraLarge),
@@ -231,6 +232,7 @@ async fn start(
         check_mem,
         max_threads,
         max_tasks,
+        max_difficulty_parsed,
     )
     .await?;
 

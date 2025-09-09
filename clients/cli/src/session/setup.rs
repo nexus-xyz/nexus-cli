@@ -70,6 +70,7 @@ pub fn warn_memory_configuration(max_threads: Option<u32>) {
 /// * `config` - Resolved configuration with node_id and client_id
 /// * `env` - Environment to connect to
 /// * `max_threads` - Optional maximum number of threads for proving
+/// * `max_difficulty` - Optional override for task difficulty
 ///
 /// # Returns
 /// * `Ok(SessionData)` - Successfully set up session
@@ -80,6 +81,7 @@ pub async fn setup_session(
     check_mem: bool,
     max_threads: Option<u32>,
     max_tasks: Option<u32>,
+    max_difficulty: Option<crate::nexus_orchestrator::TaskDifficulty>,
 ) -> Result<SessionData, Box<dyn Error>> {
     let node_id = config.node_id.parse::<u64>()?;
     let client_id = config.user_id;
@@ -114,6 +116,7 @@ pub async fn setup_session(
         env,
         client_id,
         max_tasks,
+        max_difficulty,
     )
     .await;
 

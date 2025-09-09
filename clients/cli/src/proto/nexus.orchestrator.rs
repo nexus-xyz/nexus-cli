@@ -214,13 +214,14 @@ impl NodeType {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum TaskDifficulty {
-    /// Small difficulty bucket
+    /// Small difficulty bucket; not used by default for CLI
+    /// but can be overridden via --max-difficulty argument
     Small = 0,
-    /// Medium difficulty bucket
+    SmallMedium = 3,
     Medium = 5,
-    /// Large difficulty bucket
     Large = 10,
     /// Extra large difficulty bucket
+    /// Can only be requested via --max-difficulty argument
     ExtraLarge = 15,
 }
 impl TaskDifficulty {
@@ -231,6 +232,7 @@ impl TaskDifficulty {
     pub fn as_str_name(&self) -> &'static str {
         match self {
             Self::Small => "SMALL",
+            Self::SmallMedium => "SMALL_MEDIUM",
             Self::Medium => "MEDIUM",
             Self::Large => "LARGE",
             Self::ExtraLarge => "EXTRA_LARGE",
@@ -240,6 +242,7 @@ impl TaskDifficulty {
     pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
         match value {
             "SMALL" => Some(Self::Small),
+            "SMALL_MEDIUM" => Some(Self::SmallMedium),
             "MEDIUM" => Some(Self::Medium),
             "LARGE" => Some(Self::Large),
             "EXTRA_LARGE" => Some(Self::ExtraLarge),

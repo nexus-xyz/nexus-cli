@@ -69,7 +69,7 @@ impl EventSender {
 pub struct WorkerConfig {
     pub environment: crate::environment::Environment,
     pub client_id: String,
-    pub max_difficulty_override: Option<crate::nexus_orchestrator::TaskDifficulty>,
+    pub max_difficulty: Option<crate::nexus_orchestrator::TaskDifficulty>,
 }
 
 impl WorkerConfig {
@@ -77,7 +77,7 @@ impl WorkerConfig {
         Self {
             environment,
             client_id,
-            max_difficulty_override: None,
+            max_difficulty: None,
         }
     }
 }

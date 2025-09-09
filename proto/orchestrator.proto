@@ -159,21 +159,22 @@ message Node {
 }
 
 enum TaskDifficulty {
-  // Small difficulty bucket
+  // Small difficulty bucket; not used by default for CLI
+  // but can be overridden via --max-difficulty argument
   SMALL = 0;
+  reserved 1 to 2;
 
-  reserved 1 to 4;
+  SMALL_MEDIUM = 3;
+  reserved 4;
 
-  // Medium difficulty bucket
   MEDIUM = 5;
-  
   reserved 6 to 9;
 
-  // Large difficulty bucket
   LARGE = 10;
   reserved 11 to 14;
 
   // Extra large difficulty bucket
+  // Can only be requested via --max-difficulty argument
   EXTRA_LARGE = 15;
 }
 

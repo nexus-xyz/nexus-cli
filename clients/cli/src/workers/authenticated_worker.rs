@@ -99,6 +99,8 @@ impl AuthenticatedWorker {
     /// Complete work cycle: fetch→prove→submit
     /// Returns true if the worker should exit (max tasks reached)
     async fn work_cycle(&mut self) -> bool {
+        let start_time = std::time::Instant::now();
+
         // Step 1: Fetch task
         let task = match self.fetcher.fetch_task().await {
             Ok(task) => task,
@@ -138,6 +140,10 @@ impl AuthenticatedWorker {
         // Only increment task counter on successful submission
         if submission_result.is_ok() {
             self.tasks_completed += 1;
+
+            // Update success tracking for difficulty promotion
+            let duration_secs = start_time.elapsed().as_secs();
+            self.fetcher.update_success_tracking(duration_secs);
 
             // Check if we've reached the maximum number of tasks
             if let Some(max) = self.max_tasks {
