@@ -173,69 +173,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     out.write_all(&bytes)?;
                     Ok(())
                 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_difficulty_validation() {
-        // Test valid difficulty levels (case-insensitive)
-        assert_eq!(
-            validate_difficulty("small"),
-            Some(crate::nexus_orchestrator::TaskDifficulty::Small)
-        );
-        assert_eq!(
-            validate_difficulty("SMALL"),
-            Some(crate::nexus_orchestrator::TaskDifficulty::Small)
-        );
-        assert_eq!(
-            validate_difficulty("Small"),
-            Some(crate::nexus_orchestrator::TaskDifficulty::Small)
-        );
-
-        assert_eq!(
-            validate_difficulty("small_medium"),
-            Some(crate::nexus_orchestrator::TaskDifficulty::SmallMedium)
-        );
-        assert_eq!(
-            validate_difficulty("SMALL_MEDIUM"),
-            Some(crate::nexus_orchestrator::TaskDifficulty::SmallMedium)
-        );
-
-        assert_eq!(
-            validate_difficulty("medium"),
-            Some(crate::nexus_orchestrator::TaskDifficulty::Medium)
-        );
-        assert_eq!(
-            validate_difficulty("large"),
-            Some(crate::nexus_orchestrator::TaskDifficulty::Large)
-        );
-        assert_eq!(
-            validate_difficulty("extra_large"),
-            Some(crate::nexus_orchestrator::TaskDifficulty::ExtraLarge)
-        );
-
-        // Test invalid difficulty levels
-        assert_eq!(validate_difficulty("invalid"), None);
-        assert_eq!(validate_difficulty("small medium"), None); // space instead of underscore
-        assert_eq!(validate_difficulty(""), None);
-        assert_eq!(validate_difficulty("   "), None);
-        assert_eq!(validate_difficulty("SMALL_MEDIUM_EXTRA"), None);
-        assert_eq!(validate_difficulty("123"), None);
-    }
-
-    fn validate_difficulty(difficulty_str: &str) -> Option<crate::nexus_orchestrator::TaskDifficulty> {
-        match difficulty_str.trim().to_ascii_uppercase().as_str() {
-            "SMALL" => Some(crate::nexus_orchestrator::TaskDifficulty::Small),
-            "SMALL_MEDIUM" => Some(crate::nexus_orchestrator::TaskDifficulty::SmallMedium),
-            "MEDIUM" => Some(crate::nexus_orchestrator::TaskDifficulty::Medium),
-            "LARGE" => Some(crate::nexus_orchestrator::TaskDifficulty::Large),
-            "EXTRA_LARGE" => Some(crate::nexus_orchestrator::TaskDifficulty::ExtraLarge),
-            _ => None,
-        }
-    }
-}
                 Err(e) => {
                     eprintln!("{}", e);
                     exit(consts::cli_consts::SUBPROCESS_INTERNAL_ERROR_CODE);
@@ -316,5 +253,68 @@ async fn start(
         run_headless_mode(session).await
     } else {
         run_tui_mode(session, with_background).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::nexus_orchestrator::TaskDifficulty;
+
+    #[test]
+    fn test_difficulty_validation() {
+        // Test valid difficulty levels (case-insensitive)
+        assert_eq!(
+            validate_difficulty("small"),
+            Some(TaskDifficulty::Small)
+        );
+        assert_eq!(
+            validate_difficulty("SMALL"),
+            Some(TaskDifficulty::Small)
+        );
+        assert_eq!(
+            validate_difficulty("Small"),
+            Some(TaskDifficulty::Small)
+        );
+
+        assert_eq!(
+            validate_difficulty("small_medium"),
+            Some(TaskDifficulty::SmallMedium)
+        );
+        assert_eq!(
+            validate_difficulty("SMALL_MEDIUM"),
+            Some(TaskDifficulty::SmallMedium)
+        );
+
+        assert_eq!(
+            validate_difficulty("medium"),
+            Some(TaskDifficulty::Medium)
+        );
+        assert_eq!(
+            validate_difficulty("large"),
+            Some(TaskDifficulty::Large)
+        );
+        assert_eq!(
+            validate_difficulty("extra_large"),
+            Some(TaskDifficulty::ExtraLarge)
+        );
+
+        // Test invalid difficulty levels
+        assert_eq!(validate_difficulty("invalid"), None);
+        assert_eq!(validate_difficulty("small medium"), None); // space instead of underscore
+        assert_eq!(validate_difficulty(""), None);
+        assert_eq!(validate_difficulty("   "), None);
+        assert_eq!(validate_difficulty("SMALL_MEDIUM_EXTRA"), None);
+        assert_eq!(validate_difficulty("123"), None);
+    }
+
+    fn validate_difficulty(difficulty_str: &str) -> Option<TaskDifficulty> {
+        match difficulty_str.trim().to_ascii_uppercase().as_str() {
+            "SMALL" => Some(TaskDifficulty::Small),
+            "SMALL_MEDIUM" => Some(TaskDifficulty::SmallMedium),
+            "MEDIUM" => Some(TaskDifficulty::Medium),
+            "LARGE" => Some(TaskDifficulty::Large),
+            "EXTRA_LARGE" => Some(TaskDifficulty::ExtraLarge),
+            _ => None,
+        }
     }
 }
