@@ -3,15 +3,15 @@
 use crate::environment::Environment;
 use crate::events::Event;
 use crate::orchestrator::OrchestratorClient;
-use crate::workers::authenticated_worker::AuthenticatedWorker;
+use crate::workers::authenticated_worker::{AuthenticatedWorker, AuthenticatedWorkerArgs};
 use crate::workers::core::WorkerConfig;
 use ed25519_dalek::SigningKey;
 use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;
 
-/// Start single authenticated worker
+/// Start multiple authenticated workers
 #[allow(clippy::too_many_arguments)]
-pub async fn start_authenticated_worker(
+pub async fn start_authenticated_workers(
     node_id: u64,
     signing_key: SigningKey,
     orchestrator: OrchestratorClient,
@@ -19,28 +19,50 @@ pub async fn start_authenticated_worker(
     environment: Environment,
     client_id: String,
     max_tasks: Option<u32>,
+    num_workers: usize,
 ) -> (
     mpsc::Receiver<Event>,
     Vec<JoinHandle<()>>,
     broadcast::Sender<()>,
 ) {
-    let config = WorkerConfig::new(environment, client_id);
+    let config = WorkerConfig::new(environment, client_id, num_workers);
     let (event_sender, event_receiver) =
         mpsc::channel::<Event>(crate::consts::cli_consts::EVENT_QUEUE_SIZE);
 
     // Create a separate shutdown sender for max tasks completion
     let (shutdown_sender, _) = broadcast::channel(1);
+    let mut all_join_handles = Vec::new();
 
-    let worker = AuthenticatedWorker::new(
-        node_id,
-        signing_key,
-        orchestrator,
-        config,
-        event_sender,
-        max_tasks,
-        shutdown_sender.clone(),
-    );
+    for i in 0..num_workers {
+        let worker_shutdown = shutdown.resubscribe();
+        let worker_event_sender = event_sender.clone();
+        let worker_orchestrator = orchestrator.clone();
+        let worker_signing_key = signing_key.clone();
+        let worker_config = config.clone();
+        let worker_shutdown_sender = shutdown_sender.clone();
 
-    let join_handles = worker.run(shutdown).await;
-    (event_receiver, join_handles, shutdown_sender)
+        let max_tasks_per_worker =
+            max_tasks.map(|max| (max as f32 / num_workers as f32).ceil() as u32);
+
+        let worker_handle = tokio::spawn(async move {
+            let worker_args = AuthenticatedWorkerArgs {
+                worker_id: i,
+                node_id,
+                signing_key: worker_signing_key,
+                orchestrator: worker_orchestrator,
+                config: worker_config,
+                event_sender: worker_event_sender,
+                max_tasks: max_tasks_per_worker,
+                shutdown_sender: worker_shutdown_sender,
+            };
+            let worker = AuthenticatedWorker::new(worker_args);
+            let handles = worker.run(worker_shutdown).await;
+            for handle in handles {
+                let _ = handle.await;
+            }
+        });
+        all_join_handles.push(worker_handle);
+    }
+
+    (event_receiver, all_join_handles, shutdown_sender)
 }
