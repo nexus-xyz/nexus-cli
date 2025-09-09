@@ -87,6 +87,124 @@ To run the CLI noninteractively, you can also opt to start it in headless mode.
 nexus-cli start --headless
 ```
 
+### Adaptive Task Difficulty
+
+The Nexus CLI features an intelligent **adaptive difficulty system** that automatically adjusts task difficulty based on your node's performance. This ensures optimal resource utilization while preventing system overload.
+
+#### How It Works
+
+**Default Behavior:**
+- **Starts at**: `SmallMedium` difficulty (appropriate for most CLI users)
+- **Promotes to**: `Medium` → `Large` based on performance
+- **Promotion Criteria**: Only promotes if previous task completed in < 7 minutes
+- **Safety Limit**: Stops at `Large` difficulty (no automatic promotion to `ExtraLarge`)
+
+**Promotion Path:**
+```
+SmallMedium → Medium → Large
+     ↑           ↑        ↑
+   Default    < 7 min   < 7 min
+              success   success
+```
+
+#### When to Override Difficulty
+
+You might want to manually set difficulty in these scenarios:
+
+**Lower Difficulty (`Small` or `SmallMedium`):**
+- **Resource-Constrained Systems**: Limited CPU, memory, or storage
+- **Background Processing**: Running alongside other intensive applications
+- **Testing/Development**: Want faster task completion for testing
+- **Battery-Powered Devices**: Laptops or mobile devices where power efficiency matters
+
+**Higher Difficulty (`Large` or `ExtraLarge`):**
+- **High-Performance Hardware**: Powerful CPUs with many cores and abundant RAM
+- **Dedicated Proving Machines**: Systems dedicated solely to proving tasks
+- **Experienced Users**: Advanced users who understand resource requirements
+- **Maximum Rewards**: Want to earn maximum rewards from challenging tasks
+
+#### Using Difficulty Override
+
+Override the adaptive system with the `--max-difficulty` argument:
+
+```bash
+# Use lower difficulty for resource-constrained systems
+nexus-cli start --max-difficulty small
+nexus-cli start --max-difficulty small_medium
+
+# Use higher difficulty for powerful hardware
+nexus-cli start --max-difficulty large
+nexus-cli start --max-difficulty extra_large
+
+# Case-insensitive (all equivalent)
+nexus-cli start --max-difficulty MEDIUM
+nexus-cli start --max-difficulty medium
+nexus-cli start --max-difficulty Medium
+```
+
+**Available Difficulty Levels:**
+- `SMALL` - Basic tasks, minimal resource usage
+- `SMALL_MEDIUM` - Default starting difficulty, balanced performance
+- `MEDIUM` - Moderate complexity, good for most systems
+- `LARGE` - High complexity, requires powerful hardware
+- `EXTRA_LARGE` - Maximum complexity, only for dedicated high-end systems
+
+#### Difficulty Guidelines
+
+| Difficulty | CPU Cores | RAM | Task Duration | Use Case |
+|------------|-----------|-----|---------------|----------|
+| `SMALL` | 2-4 cores | 4-8 GB | 1-3 minutes | Resource-constrained, background |
+| `SMALL_MEDIUM` | 4-6 cores | 8-12 GB | 2-5 minutes | Default, balanced performance |
+| `MEDIUM` | 6-8 cores | 12-16 GB | 3-7 minutes | Standard desktop/laptop |
+| `LARGE` | 8+ cores | 16+ GB | 5-15 minutes | High-performance systems |
+| `EXTRA_LARGE` | 12+ cores | 24+ GB | 10-30 minutes | Dedicated proving machines |
+
+#### Monitoring Performance
+
+The CLI automatically tracks your node's performance and adjusts difficulty accordingly. You can monitor this in the dashboard:
+
+- **Task Completion Time**: Shown in the metrics panel
+- **Difficulty Level**: Current difficulty displayed in the info panel
+- **Promotion Status**: Whether the system is promoting or maintaining current level
+
+#### Troubleshooting Difficulty Issues
+
+**If tasks are taking too long:**
+```bash
+# Lower the difficulty
+nexus-cli start --max-difficulty small_medium
+```
+
+**If you want more challenging tasks:**
+```bash
+# Increase the difficulty
+nexus-cli start --max-difficulty large
+```
+
+**If you're unsure about your system's capabilities:**
+- Start with the default adaptive system (no `--max-difficulty` argument)
+- Monitor task completion times in the dashboard
+- Adjust manually based on performance
+
+For detailed information about the adaptive difficulty system, see [ADAPTIVE_DIFFICULTY.md](./ADAPTIVE_DIFFICULTY.md).
+
+#### Quick Reference
+
+**Common Difficulty Commands:**
+```bash
+# Default adaptive difficulty
+nexus-cli start
+
+# Resource-constrained systems
+nexus-cli start --max-difficulty small
+
+# High-performance systems  
+nexus-cli start --max-difficulty large
+
+# Maximum performance
+nexus-cli start --max-difficulty extra_large
+```
+
 The `register-user` and `register-node` commands will save your credentials to `~/.nexus/config.json`. To clear credentials, run:
 
 ```bash

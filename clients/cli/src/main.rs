@@ -263,18 +263,9 @@ mod tests {
     #[test]
     fn test_difficulty_validation() {
         // Test valid difficulty levels (case-insensitive)
-        assert_eq!(
-            validate_difficulty("small"),
-            Some(TaskDifficulty::Small)
-        );
-        assert_eq!(
-            validate_difficulty("SMALL"),
-            Some(TaskDifficulty::Small)
-        );
-        assert_eq!(
-            validate_difficulty("Small"),
-            Some(TaskDifficulty::Small)
-        );
+        assert_eq!(validate_difficulty("small"), Some(TaskDifficulty::Small));
+        assert_eq!(validate_difficulty("SMALL"), Some(TaskDifficulty::Small));
+        assert_eq!(validate_difficulty("Small"), Some(TaskDifficulty::Small));
 
         assert_eq!(
             validate_difficulty("small_medium"),
@@ -285,14 +276,8 @@ mod tests {
             Some(TaskDifficulty::SmallMedium)
         );
 
-        assert_eq!(
-            validate_difficulty("medium"),
-            Some(TaskDifficulty::Medium)
-        );
-        assert_eq!(
-            validate_difficulty("large"),
-            Some(TaskDifficulty::Large)
-        );
+        assert_eq!(validate_difficulty("medium"), Some(TaskDifficulty::Medium));
+        assert_eq!(validate_difficulty("large"), Some(TaskDifficulty::Large));
         assert_eq!(
             validate_difficulty("extra_large"),
             Some(TaskDifficulty::ExtraLarge)
