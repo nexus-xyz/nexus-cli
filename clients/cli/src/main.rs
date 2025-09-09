@@ -77,7 +77,7 @@ enum Command {
         max_tasks: Option<u32>,
 
         /// Override max difficulty to request (SMALL, SMALL_MEDIUM, MEDIUM, LARGE, EXTRA_LARGE)
-        #[arg(long = "max-difficulty", value_name = "DIFFICULTY")] 
+        #[arg(long = "max-difficulty", value_name = "DIFFICULTY")]
         max_difficulty: Option<String>,
     },
     /// Register a new user
@@ -214,18 +214,25 @@ async fn start(
 
     // 3. Session setup (authenticated worker only)
     // Parse difficulty override (case-insensitive)
-    let max_difficulty_override = max_difficulty
-        .as_ref()
-        .and_then(|s| match s.trim().to_ascii_uppercase().as_str() {
-            "SMALL" => Some(crate::nexus_orchestrator::TaskDifficulty::Small),
-            "MEDIUM" => Some(crate::nexus_orchestrator::TaskDifficulty::Medium),
-            "LARGE" => Some(crate::nexus_orchestrator::TaskDifficulty::Large),
-            "EXTRA_LARGE" => Some(crate::nexus_orchestrator::TaskDifficulty::ExtraLarge),
-            _ => None,
-        });
+    let max_difficulty_override =
+        max_difficulty
+            .as_ref()
+            .and_then(|s| match s.trim().to_ascii_uppercase().as_str() {
+                "SMALL" => Some(crate::nexus_orchestrator::TaskDifficulty::Small),
+                "MEDIUM" => Some(crate::nexus_orchestrator::TaskDifficulty::Medium),
+                "LARGE" => Some(crate::nexus_orchestrator::TaskDifficulty::Large),
+                "EXTRA_LARGE" => Some(crate::nexus_orchestrator::TaskDifficulty::ExtraLarge),
+                _ => None,
+            });
 
-    let session =
-        setup_session(config, env, check_mem, max_threads, max_tasks, max_difficulty_override).await?;
+    let session = setup_session(
+        config,
+        env,
+        check_mem,
+        max_threads,
+        max_tasks,
+    )
+    .await?;
 
     // 4. Run appropriate mode
     if headless {
