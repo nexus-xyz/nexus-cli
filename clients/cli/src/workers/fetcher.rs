@@ -122,12 +122,14 @@ impl TaskFetcher {
                             crate::nexus_orchestrator::TaskDifficulty::Large
                         }
                         crate::nexus_orchestrator::TaskDifficulty::Large => {
-                            // Stop at Large - ExtraLarge only available via manual override
-                            crate::nexus_orchestrator::TaskDifficulty::Large
+                            crate::nexus_orchestrator::TaskDifficulty::ExtraLarge
                         }
                         crate::nexus_orchestrator::TaskDifficulty::ExtraLarge => {
-                            // Already at maximum difficulty (only reachable via override)
-                            crate::nexus_orchestrator::TaskDifficulty::ExtraLarge
+                            crate::nexus_orchestrator::TaskDifficulty::ExtraLarge2
+                        }
+                        crate::nexus_orchestrator::TaskDifficulty::ExtraLarge2 => {
+                            // Already at maximum difficulty
+                            crate::nexus_orchestrator::TaskDifficulty::ExtraLarge2
                         }
                     }
                 } else {
