@@ -76,7 +76,8 @@ enum Command {
         #[arg(long = "max-tasks", value_name = "MAX_TASKS")]
         max_tasks: Option<u32>,
 
-        /// Override max difficulty to request (SMALL, SMALL_MEDIUM, MEDIUM, LARGE, EXTRA_LARGE)
+        /// Override max difficulty to request. Auto-promotion: SmallMedium → Medium → Large → ExtraLarge → ExtraLarge2 (if tasks complete in < 7 min)
+        /// Available levels: SMALL, SMALL_MEDIUM, MEDIUM, LARGE, EXTRA_LARGE, EXTRA_LARGE2
         #[arg(long = "max-difficulty", value_name = "DIFFICULTY")]
         max_difficulty: Option<String>,
     },

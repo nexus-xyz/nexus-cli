@@ -2,7 +2,7 @@
 
 use super::core::{EventSender, WorkerConfig};
 use crate::analytics::track_got_task;
-use crate::consts::cli_consts::{rate_limiting, task_fetching};
+use crate::consts::cli_consts::{difficulty, rate_limiting, task_fetching};
 use crate::events::EventType;
 use crate::logging::LogLevel;
 use crate::network::{NetworkClient, RequestTimer, RequestTimerConfig};
@@ -104,11 +104,17 @@ impl TaskFetcher {
         let desired = if let Some(override_diff) = self.config.max_difficulty {
             override_diff
         } else {
-            // adaptive: start at SmallMedium by default and promote based on performance
+            // Adaptive difficulty system:
+            // - Starts at SmallMedium by default
+            // - Promotes if previous task completed in < PROMOTION_THRESHOLD_SECS
+            // - Promotion path: SmallMedium → Medium → Large → ExtraLarge → ExtraLarge2
+            // - Small difficulty does not auto-promote (manual override only)
             if let Some(current) = self.last_success_difficulty {
-                // If last success took >= 7 minutes, don't increase
-                let promote =
-                    !matches!(self.last_success_duration_secs, Some(secs) if secs >= 7 * 60);
+                // If last success took >= promotion threshold, don't increase difficulty
+                let promote = !matches!(
+                    self.last_success_duration_secs,
+                    Some(secs) if secs >= difficulty::PROMOTION_THRESHOLD_SECS
+                );
                 if promote {
                     match current {
                         crate::nexus_orchestrator::TaskDifficulty::Small => {
@@ -359,20 +365,20 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_large_does_not_promote_to_extra_large() {
+    async fn test_large_promotes_to_extra_large() {
         let mut fetcher = create_test_fetcher();
 
         // Set up initial state: last success was Large
         fetcher.last_success_difficulty = Some(crate::nexus_orchestrator::TaskDifficulty::Large);
-        fetcher.last_success_duration_secs = Some(300); // 5 minutes - would normally promote
+        fetcher.last_success_duration_secs = Some(300); // 5 minutes - should promote
 
         let task = fetcher.fetch_task().await.unwrap();
         assert_eq!(task.task_id, "test_task");
 
-        // Should NOT promote from Large to ExtraLarge (stays at Large)
+        // Should promote from Large to ExtraLarge
         assert_eq!(
             fetcher.last_requested_difficulty,
-            Some(crate::nexus_orchestrator::TaskDifficulty::Large)
+            Some(crate::nexus_orchestrator::TaskDifficulty::ExtraLarge)
         );
     }
 
@@ -466,21 +472,40 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_extra_large_only_via_override() {
+    async fn test_extra_large_promotes_to_extra_large2() {
         let mut fetcher = create_test_fetcher();
 
-        // Set up initial state: last success was ExtraLarge (only possible via override)
+        // Set up initial state: last success was ExtraLarge
         fetcher.last_success_difficulty =
             Some(crate::nexus_orchestrator::TaskDifficulty::ExtraLarge);
-        fetcher.last_success_duration_secs = Some(300); // 5 minutes
+        fetcher.last_success_duration_secs = Some(300); // 5 minutes - should promote
 
         let task = fetcher.fetch_task().await.unwrap();
         assert_eq!(task.task_id, "test_task");
 
-        // Should stay at ExtraLarge (no further promotion possible)
+        // Should promote from ExtraLarge to ExtraLarge2
         assert_eq!(
             fetcher.last_requested_difficulty,
-            Some(crate::nexus_orchestrator::TaskDifficulty::ExtraLarge)
+            Some(crate::nexus_orchestrator::TaskDifficulty::ExtraLarge2)
+        );
+    }
+
+    #[tokio::test]
+    async fn test_extra_large2_stays_at_maximum() {
+        let mut fetcher = create_test_fetcher();
+
+        // Set up initial state: last success was ExtraLarge2 (maximum difficulty)
+        fetcher.last_success_difficulty =
+            Some(crate::nexus_orchestrator::TaskDifficulty::ExtraLarge2);
+        fetcher.last_success_duration_secs = Some(300); // 5 minutes - would normally promote
+
+        let task = fetcher.fetch_task().await.unwrap();
+        assert_eq!(task.task_id, "test_task");
+
+        // Should stay at ExtraLarge2 (maximum difficulty reached)
+        assert_eq!(
+            fetcher.last_requested_difficulty,
+            Some(crate::nexus_orchestrator::TaskDifficulty::ExtraLarge2)
         );
     }
 

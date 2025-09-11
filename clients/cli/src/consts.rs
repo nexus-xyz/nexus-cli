@@ -30,6 +30,22 @@ pub mod cli_consts {
     pub const PROJECTED_MEMORY_REQUIREMENT: u64 = 4294967296; // 4gb
 
     // =============================================================================
+    // DIFFICULTY CONFIGURATION
+    // =============================================================================
+
+    /// Task difficulty system configuration
+    pub mod difficulty {
+        /// Time threshold for auto-promotion (seconds)
+        /// Tasks completing faster than this will promote to next difficulty level
+        pub const PROMOTION_THRESHOLD_SECS: u64 = 7 * 60; // 7 minutes
+
+        /// Helper function to get promotion threshold duration
+        pub const fn promotion_threshold() -> std::time::Duration {
+            std::time::Duration::from_secs(PROMOTION_THRESHOLD_SECS)
+        }
+    }
+
+    // =============================================================================
     // NETWORK CONFIGURATION
     // =============================================================================
 
