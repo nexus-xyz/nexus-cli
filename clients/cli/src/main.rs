@@ -221,6 +221,7 @@ async fn start(
             "MEDIUM" => Some(crate::nexus_orchestrator::TaskDifficulty::Medium),
             "LARGE" => Some(crate::nexus_orchestrator::TaskDifficulty::Large),
             "EXTRA_LARGE" => Some(crate::nexus_orchestrator::TaskDifficulty::ExtraLarge),
+            "EXTRA_LARGE2" => Some(crate::nexus_orchestrator::TaskDifficulty::ExtraLarge2),
             invalid => {
                 eprintln!("Error: Invalid difficulty level '{}'", invalid);
                 eprintln!("Valid difficulty levels are:");
@@ -229,6 +230,7 @@ async fn start(
                 eprintln!("  MEDIUM");
                 eprintln!("  LARGE");
                 eprintln!("  EXTRA_LARGE");
+                eprintln!("  EXTRA_LARGE2");
                 eprintln!();
                 eprintln!("Note: Difficulty levels are case-insensitive.");
                 std::process::exit(1);
@@ -282,6 +284,10 @@ mod tests {
             validate_difficulty("extra_large"),
             Some(TaskDifficulty::ExtraLarge)
         );
+        assert_eq!(
+            validate_difficulty("extra_large2"),
+            Some(TaskDifficulty::ExtraLarge2)
+        );
 
         // Test invalid difficulty levels
         assert_eq!(validate_difficulty("invalid"), None);
@@ -299,6 +305,7 @@ mod tests {
             "MEDIUM" => Some(TaskDifficulty::Medium),
             "LARGE" => Some(TaskDifficulty::Large),
             "EXTRA_LARGE" => Some(TaskDifficulty::ExtraLarge),
+            "EXTRA_LARGE2" => Some(TaskDifficulty::ExtraLarge2),
             _ => None,
         }
     }
