@@ -27,8 +27,8 @@ pub struct TaskFetcher {
     network_client: NetworkClient,
     event_sender: EventSender,
     config: WorkerConfig,
-    last_success_duration_secs: Option<u64>,
-    last_success_difficulty: Option<crate::nexus_orchestrator::TaskDifficulty>,
+    pub last_success_duration_secs: Option<u64>,
+    pub last_success_difficulty: Option<crate::nexus_orchestrator::TaskDifficulty>,
     last_requested_difficulty: Option<crate::nexus_orchestrator::TaskDifficulty>,
 }
 
