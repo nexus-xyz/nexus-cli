@@ -94,6 +94,11 @@ message GetProofTaskResponse {
   string task_id = 3 [deprecated = true];
 
   Task task = 4;
+
+  // The actual difficulty level assigned to this task by the server.
+  // This accounts for reputation-based gating and allows clients to track
+  // the actual difficulty they're receiving vs what they requested.
+  TaskDifficulty task_difficulty = 5;
 }
 
 // Submit the result of a prover task.

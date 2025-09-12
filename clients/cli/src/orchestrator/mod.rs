@@ -1,6 +1,5 @@
 use crate::environment::Environment;
 use crate::orchestrator::error::OrchestratorError;
-use crate::task::Task;
 use ed25519_dalek::{SigningKey, VerifyingKey};
 
 pub(crate) mod client;
@@ -37,7 +36,7 @@ pub trait Orchestrator: Send + Sync {
         node_id: &str,
         verifying_key: VerifyingKey,
         max_difficulty: crate::nexus_orchestrator::TaskDifficulty,
-    ) -> Result<Task, OrchestratorError>;
+    ) -> Result<crate::orchestrator::client::ProofTaskResult, OrchestratorError>;
 
     /// Submits a proof to the orchestrator.
     #[allow(clippy::too_many_arguments)]

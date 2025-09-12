@@ -6,7 +6,6 @@ use crate::consts::cli_consts;
 use crate::logging::LogLevel;
 use crate::orchestrator::Orchestrator;
 use crate::orchestrator::error::OrchestratorError;
-use crate::task::Task;
 use ed25519_dalek::{SigningKey, VerifyingKey};
 
 use std::{cmp::min, time::Duration};
@@ -73,7 +72,7 @@ impl NetworkClient {
         node_id: &str,
         verifying_key: VerifyingKey,
         max_difficulty: crate::nexus_orchestrator::TaskDifficulty,
-    ) -> Result<Task, OrchestratorError> {
+    ) -> Result<crate::orchestrator::client::ProofTaskResult, OrchestratorError> {
         let mut attempts = 0;
 
         loop {
@@ -83,9 +82,9 @@ impl NetworkClient {
                 .get_proof_task(node_id, verifying_key, max_difficulty)
                 .await
             {
-                Ok(task) => {
+                Ok(proof_task_result) => {
                     self.request_timer.record_success();
-                    return Ok(task);
+                    return Ok(proof_task_result);
                 }
                 Err(e) => {
                     attempts += 1;

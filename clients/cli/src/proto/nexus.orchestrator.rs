@@ -96,6 +96,11 @@ pub struct GetProofTaskResponse {
     pub task_id: ::prost::alloc::string::String,
     #[prost(message, optional, tag = "4")]
     pub task: ::core::option::Option<Task>,
+    /// The actual difficulty level assigned to this task by the server.
+    /// This accounts for reputation-based gating and allows clients to track
+    /// the actual difficulty they're receiving vs what they requested.
+    #[prost(enumeration = "TaskDifficulty", tag = "5")]
+    pub task_difficulty: i32,
 }
 /// Submit the result of a prover task.
 #[derive(Clone, PartialEq, ::prost::Message)]
