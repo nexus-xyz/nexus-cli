@@ -1,0 +1,86 @@
+src/config.rs:211:        let dir = tempdir().unwrap();
+src/config.rs:215:        config.save(&path).unwrap();
+src/config.rs:217:        let loaded_config = Config::load_from_file(&path).unwrap();
+src/config.rs:224:        let dir = tempdir().unwrap();
+src/config.rs:232:            path.parent().unwrap().exists(),
+src/config.rs:240:        let dir = tempdir().unwrap();
+src/config.rs:246:        config1.save(&path).unwrap();
+src/config.rs:251:        config2.save(&path).unwrap();
+src/config.rs:254:        let loaded_config = Config::load_from_file(&path).unwrap();
+src/config.rs:261:        let dir = tempdir().unwrap();
+src/config.rs:264:        let mut file = File::create(&path).unwrap();
+src/config.rs:265:        writeln!(file, "invalid json").unwrap();
+src/config.rs:274:        let dir = tempdir().unwrap();
+src/config.rs:277:        config.save(&path).unwrap();
+src/config.rs:279:        Config::clear_node_config(&path).unwrap();
+src/config.rs:286:        let dir = tempdir().unwrap();
+src/config.rs:290:        let mut file = File::create(&path).unwrap();
+src/config.rs:291:        writeln!(file, r#"{{ "user_id": "test_user", "wallet_address": "", "environment": "", "node_id": "" }}"#).unwrap();
+src/config.rs:311:        let dir = tempdir().unwrap();
+src/config.rs:315:        let mut file = File::create(&path).unwrap();
+src/config.rs:316:        writeln!(file, r#"{{ "node_id": "12345" }}"#).unwrap();
+src/config.rs:336:        let dir = tempdir().unwrap();
+src/config.rs:345:        config.save(&path).unwrap();
+src/config.rs:365:        let dir = tempdir().unwrap();
+src/config.rs:369:        let mut file = File::create(&path).unwrap();
+src/config.rs:370:        writeln!(file, r#"{{ "node_id": "12345", "extra_field": "value" }}"#).unwrap();
+src/version/requirements.rs:235:            .unwrap();
+src/version/requirements.rs:240:            .unwrap();
+src/version/requirements.rs:243:            result.unwrap().constraint_type,
+src/version/requirements.rs:249:            .unwrap();
+src/version/requirements.rs:252:            result.unwrap().constraint_type,
+src/version/requirements.rs:280:            .unwrap();
+src/version/requirements.rs:313:            .unwrap();
+src/version/requirements.rs:316:            result.unwrap().constraint_type,
+src/version/requirements.rs:336:            .unwrap();
+src/version/requirements.rs:338:        let message = &result.unwrap().message;
+src/workers/fetcher.rs:282:            VerifyingKey::from_bytes(&[0u8; 32]).unwrap(),
+src/workers/fetcher.rs:294:        let task = fetcher.fetch_task().await.unwrap();
+src/workers/fetcher.rs:312:        let task = fetcher.fetch_task().await.unwrap();
+src/workers/fetcher.rs:331:        let task = fetcher.fetch_task().await.unwrap();
+src/workers/fetcher.rs:349:        let task = fetcher.fetch_task().await.unwrap();
+src/workers/fetcher.rs:367:        let task = fetcher.fetch_task().await.unwrap();
+src/workers/fetcher.rs:385:        let task = fetcher.fetch_task().await.unwrap();
+src/workers/fetcher.rs:402:        let task = fetcher.fetch_task().await.unwrap();
+src/workers/fetcher.rs:419:        let task = fetcher.fetch_task().await.unwrap();
+src/workers/fetcher.rs:475:        let task = fetcher.fetch_task().await.unwrap();
+src/workers/fetcher.rs:493:        let task = fetcher.fetch_task().await.unwrap();
+src/workers/fetcher.rs:511:        let task = fetcher.fetch_task().await.unwrap();
+src/task.rs:91:            task_type: crate::nexus_orchestrator::TaskType::try_from(task.task_type).unwrap(),
+src/task.rs:100:        Task::from(response.task.as_ref().unwrap())
+src/task.rs:166:        let first_input = all_inputs.first().unwrap();
+src/task.rs:200:        let first_input = all_inputs.first().unwrap();
+src/network/request_timer.rs:125:        if self.server_retry_until.is_none() || self.server_retry_until.unwrap() <= now {
+src/register.rs:219:        let dir = tempdir().unwrap();
+src/register.rs:250:        let cfg = Config::load_from_file(&path).unwrap();
+src/register.rs:263:        let dir = tempdir().unwrap();
+src/register.rs:279:        let mut file = File::create(&config_path).unwrap();
+src/register.rs:280:        file.write_all(config_json.as_bytes()).unwrap();
+src/register.rs:294:        let config = Config::load_from_file(&config_path).unwrap();
+src/orchestrator/client.rs:58:                .expect("Failed to create HTTP client"),
+src/version/checker.rs:161:            .expect("Failed to create HTTP client for version checker");
+src/version/requirements.rs:66:            .expect("Failed to create HTTP client");
+src/system.rs:121:        .expect("Failed to get current process");
+src/system.rs:146:        .expect("Failed to get current process");
+src/register.rs:247:            .expect("registration should succeed");
+src/prover/pipeline.rs:85:        let proof_bytes = postcard::to_allocvec(proof).expect("Failed to serialize proof");
+src/orchestrator/client.rs:458:            Err(e) => panic!("Failed to register user: {}", e),
+src/orchestrator/client.rs:470:            Err(e) => panic!("Failed to register node: {}", e),
+src/orchestrator/client.rs:493:            Err(e) => panic!("Failed to get proof task: {}", e),
+src/orchestrator/client.rs:505:            Err(e) => panic!("Failed to get user: {}", e),
+src/orchestrator/client.rs:517:            Err(e) => panic!("Failed to get node: {}", e),
+src/config.rs:303:                panic!("Failed to load config with user_id and empty fields: {}", e);
+src/config.rs:328:                panic!("Failed to load config with only node_id: {}", e);
+src/config.rs:357:                panic!("Failed to load config with only node_id: {}", e);
+src/config.rs:382:                panic!("Failed to load config with additional fields: {}", e);
+src/keys.rs:18:    // TODO: validate EIP-55 checksum
+src/keys.rs:58:    /// TODO: Validate EIP-55 checksum
+src/analytics.rs:225:    // TODO: Catch errors and log them
+src/analytics.rs:251:    // TODO: Catch errors and log them
+src/analytics.rs:282:    // TODO: Catch errors and log them
+src/analytics.rs:306:    // TODO: Catch errors and log them
+src/analytics.rs:335:    // TODO: Catch errors and log them
+src/analytics.rs:407:    // TODO: Catch errors and log them
+src/analytics.rs:427:    // TODO: Catch errors and log them
+src/ui/dashboard/components/metrics.rs:104:    // TODO: Add points display back in when we have a way to get pointsq
+src/ui/dashboard/components/metrics.rs:115:    // TODO: Add zkVM KHz display here, once we have a way to measure it locally.

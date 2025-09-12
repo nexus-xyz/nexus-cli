@@ -1,0 +1,14 @@
+file,count
+src/config.rs,30
+src/workers/fetcher.rs,12
+src/version/requirements.rs,11
+src/register.rs,7
+src/analytics.rs,7
+src/orchestrator/client.rs,6
+src/task.rs,4
+src/ui/dashboard/components/metrics.rs,2
+src/system.rs,2
+src/keys.rs,2
+src/version/checker.rs,1
+src/prover/pipeline.rs,1
+src/network/request_timer.rs,1
