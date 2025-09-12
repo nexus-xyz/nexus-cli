@@ -72,7 +72,7 @@ Alternatively, you can register your wallet address and create a node ID with th
 
 ```bash
 nexus-cli register-user --wallet-address <your-wallet-address>
-nexus-cli register-node
+nexus-cli register-node --node-id <your-cli-node-id>
 nexus-cli start
 ```
 
