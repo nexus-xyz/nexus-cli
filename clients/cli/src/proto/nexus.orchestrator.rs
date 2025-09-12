@@ -220,9 +220,8 @@ pub enum TaskDifficulty {
     SmallMedium = 3,
     Medium = 5,
     Large = 10,
-    /// Extra large difficulty bucket
-    /// Can only be requested via --max-difficulty argument
     ExtraLarge = 15,
+    ExtraLarge2 = 16,
 }
 impl TaskDifficulty {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -236,6 +235,7 @@ impl TaskDifficulty {
             Self::Medium => "MEDIUM",
             Self::Large => "LARGE",
             Self::ExtraLarge => "EXTRA_LARGE",
+            Self::ExtraLarge2 => "EXTRA_LARGE_2",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -246,6 +246,7 @@ impl TaskDifficulty {
             "MEDIUM" => Some(Self::Medium),
             "LARGE" => Some(Self::Large),
             "EXTRA_LARGE" => Some(Self::ExtraLarge),
+            "EXTRA_LARGE_2" => Some(Self::ExtraLarge2),
             _ => None,
         }
     }

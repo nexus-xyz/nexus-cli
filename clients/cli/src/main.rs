@@ -76,7 +76,8 @@ enum Command {
         #[arg(long = "max-tasks", value_name = "MAX_TASKS")]
         max_tasks: Option<u32>,
 
-        /// Override max difficulty to request (SMALL, SMALL_MEDIUM, MEDIUM, LARGE, EXTRA_LARGE)
+        /// Override max difficulty to request. Auto-promotion: SmallMedium → Medium → Large → ExtraLarge → ExtraLarge2 (if tasks complete in < 7 min)
+        /// Available levels: SMALL, SMALL_MEDIUM, MEDIUM, LARGE, EXTRA_LARGE, EXTRA_LARGE2
         #[arg(long = "max-difficulty", value_name = "DIFFICULTY")]
         max_difficulty: Option<String>,
     },
@@ -221,6 +222,7 @@ async fn start(
             "MEDIUM" => Some(crate::nexus_orchestrator::TaskDifficulty::Medium),
             "LARGE" => Some(crate::nexus_orchestrator::TaskDifficulty::Large),
             "EXTRA_LARGE" => Some(crate::nexus_orchestrator::TaskDifficulty::ExtraLarge),
+            "EXTRA_LARGE2" => Some(crate::nexus_orchestrator::TaskDifficulty::ExtraLarge2),
             invalid => {
                 eprintln!("Error: Invalid difficulty level '{}'", invalid);
                 eprintln!("Valid difficulty levels are:");
@@ -229,6 +231,7 @@ async fn start(
                 eprintln!("  MEDIUM");
                 eprintln!("  LARGE");
                 eprintln!("  EXTRA_LARGE");
+                eprintln!("  EXTRA_LARGE2");
                 eprintln!();
                 eprintln!("Note: Difficulty levels are case-insensitive.");
                 std::process::exit(1);
@@ -282,6 +285,10 @@ mod tests {
             validate_difficulty("extra_large"),
             Some(TaskDifficulty::ExtraLarge)
         );
+        assert_eq!(
+            validate_difficulty("extra_large2"),
+            Some(TaskDifficulty::ExtraLarge2)
+        );
 
         // Test invalid difficulty levels
         assert_eq!(validate_difficulty("invalid"), None);
@@ -299,6 +306,7 @@ mod tests {
             "MEDIUM" => Some(TaskDifficulty::Medium),
             "LARGE" => Some(TaskDifficulty::Large),
             "EXTRA_LARGE" => Some(TaskDifficulty::ExtraLarge),
+            "EXTRA_LARGE2" => Some(TaskDifficulty::ExtraLarge2),
             _ => None,
         }
     }

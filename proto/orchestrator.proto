@@ -173,9 +173,8 @@ enum TaskDifficulty {
   LARGE = 10;
   reserved 11 to 14;
 
-  // Extra large difficulty bucket
-  // Can only be requested via --max-difficulty argument
   EXTRA_LARGE = 15;
+  EXTRA_LARGE_2 = 16;
 }
 
 enum TaskType {
