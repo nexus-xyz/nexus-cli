@@ -7,6 +7,7 @@ use super::{
 use crate::print_cmd_info;
 use crate::version::checker::check_for_new_version;
 use std::error::Error;
+use std::io::{self, Write};
 
 /// Runs the application in headless mode
 ///
@@ -49,12 +50,49 @@ pub async fn run_headless_mode(mut session: SessionData) -> Result<(), Box<dyn E
     loop {
         tokio::select! {
             Some(event) = session.event_receiver.recv() => {
-                println!("{}", event);
+                let line = format!("{}", event);
+                println!("{}", line);
+                // On Windows CI, mirror all output to stderr to avoid buffering issues with piped stdout
+                if cfg!(windows) && std::env::var("CI").is_ok() {
+                    eprintln!("{}", line);
+                    let _ = io::stderr().flush();
+                }
             }
             _ = shutdown_receiver.recv() => {
+                // Only attempt a brief drain in CI on Windows to help flush final lines
+                if cfg!(windows) && std::env::var("CI").is_ok() {
+                    for _ in 0..100 {
+                        match session.event_receiver.try_recv() {
+                            Ok(event) => {
+                                let line = format!("{}", event);
+                                println!("{}", line);
+                                eprintln!("{}", line);
+                                let _ = io::stderr().flush();
+                            }
+                            Err(_) => {
+                                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+                            }
+                        }
+                    }
+                }
                 break;
             }
             _ = max_tasks_shutdown_receiver.recv() => {
+                if cfg!(windows) && std::env::var("CI").is_ok() {
+                    for _ in 0..100 {
+                        match session.event_receiver.try_recv() {
+                            Ok(event) => {
+                                let line = format!("{}", event);
+                                println!("{}", line);
+                                eprintln!("{}", line);
+                                let _ = io::stderr().flush();
+                            }
+                            Err(_) => {
+                                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+                            }
+                        }
+                    }
+                }
                 break;
             }
         }
