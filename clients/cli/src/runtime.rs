@@ -20,6 +20,7 @@ pub async fn start_authenticated_worker(
     client_id: String,
     max_tasks: Option<u32>,
     max_difficulty: Option<crate::nexus_orchestrator::TaskDifficulty>,
+    num_workers: usize
 ) -> (
     mpsc::Receiver<Event>,
     Vec<JoinHandle<()>>,
@@ -41,6 +42,7 @@ pub async fn start_authenticated_worker(
         event_sender,
         max_tasks,
         shutdown_sender.clone(),
+        num_workers,
     );
 
     let join_handles = worker.run(shutdown).await;

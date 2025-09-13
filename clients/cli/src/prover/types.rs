@@ -2,6 +2,7 @@
 
 use nexus_sdk::stwo::seq::Proof;
 use thiserror::Error;
+use tokio::task::JoinError;
 
 #[derive(Error, Debug)]
 pub enum ProverError {
@@ -25,6 +26,9 @@ pub enum ProverError {
 
     #[error("Serde JSON error: {0}")]
     SerdeJson(#[from] serde_json::Error),
+
+    #[error("Task Join Error: {0}")]
+    JoinError(JoinError),
 }
 
 /// Result of a proof generation, including combined hash for multiple inputs
