@@ -8,7 +8,6 @@ use crate::logging::LogLevel;
 use crate::network::{NetworkClient, RequestTimer, RequestTimerConfig};
 use crate::orchestrator::Orchestrator;
 use crate::task::Task;
-use anyhow::Result;
 use ed25519_dalek::VerifyingKey;
 use std::time::Duration;
 use thiserror::Error;
