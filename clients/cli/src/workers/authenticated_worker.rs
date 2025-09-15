@@ -99,8 +99,6 @@ impl AuthenticatedWorker {
     /// Complete work cycle: fetch→prove→submit
     /// Returns true if the worker should exit (max tasks reached)
     async fn work_cycle(&mut self) -> bool {
-        let start_time = std::time::Instant::now();
-
         // Step 1: Fetch task
         let task = match self.fetcher.fetch_task().await {
             Ok(task) => task,
@@ -110,6 +108,9 @@ impl AuthenticatedWorker {
                 return false; // Don't exit on fetch error, just retry
             }
         };
+
+        // Time starts from successfully obtaining the task
+        let start_time = std::time::Instant::now();
 
         // Step 2: Prove task
         // Send state change to Proving
@@ -150,14 +151,14 @@ impl AuthenticatedWorker {
                 .send_event(Event::state_change(
                     ProverState::Waiting,
                     format!(
-                        "{} completed, Task size: {}, Duration: {}s, Request Difficulty: {}",
+                        "{} completed, Task size: {}, Duration: {}s, Difficulty: {}",
                         task.task_id,
                         task.public_inputs_list.len(),
                         self.fetcher.last_success_duration_secs.unwrap_or(0),
                         self.fetcher
                             .last_success_difficulty
-                            .map(|difficulty| format!("{:?}", difficulty))
-                            .unwrap_or("Unknown".to_string())
+                            .map(|difficulty| difficulty.as_str_name())
+                            .unwrap_or("Unknown")
                     ),
                 ))
                 .await;
