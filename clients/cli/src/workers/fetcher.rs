@@ -240,7 +240,7 @@ mod tests {
                 public_inputs_list: vec![vec![1, 2, 3]],
                 task_type: crate::nexus_orchestrator::TaskType::ProofHash,
             };
-            
+
             Ok(crate::orchestrator::client::ProofTaskResult {
                 task,
                 actual_difficulty: max_difficulty,

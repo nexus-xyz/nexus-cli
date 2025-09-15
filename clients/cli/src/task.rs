@@ -96,7 +96,8 @@ impl From<&crate::nexus_orchestrator::Task> for Task {
             public_inputs: task.public_inputs_list.first().cloned().unwrap_or_default(),
             public_inputs_list: task.public_inputs_list.clone(),
             task_type: crate::nexus_orchestrator::TaskType::try_from(task.task_type).unwrap(),
-            difficulty: crate::nexus_orchestrator::TaskDifficulty::try_from(task.difficulty).unwrap_or_default(),
+            difficulty: crate::nexus_orchestrator::TaskDifficulty::try_from(task.difficulty)
+                .unwrap_or_default(),
         }
     }
 }

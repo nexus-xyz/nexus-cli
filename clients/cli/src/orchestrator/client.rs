@@ -36,7 +36,11 @@ pub struct ProofTaskResult {
 
 impl std::fmt::Display for ProofTaskResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Task {} (difficulty: {:?})", self.task.task_id, self.actual_difficulty)
+        write!(
+            f,
+            "Task {} (difficulty: {:?})",
+            self.task.task_id, self.actual_difficulty
+        )
     }
 }
 
@@ -400,10 +404,10 @@ impl Orchestrator for OrchestratorClient {
         };
         let request_bytes = Self::encode_request(&request);
         let response: GetProofTaskResponse = self.post_request("v3/tasks", request_bytes).await?;
-        
+
         let task = Task::from(&response);
         let actual_difficulty = task.difficulty;
-        
+
         Ok(ProofTaskResult {
             task,
             actual_difficulty,
