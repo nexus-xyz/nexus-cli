@@ -402,8 +402,7 @@ impl Orchestrator for OrchestratorClient {
         let response: GetProofTaskResponse = self.post_request("v3/tasks", request_bytes).await?;
         
         let task = Task::from(&response);
-        let actual_difficulty = crate::nexus_orchestrator::TaskDifficulty::try_from(response.task_difficulty)
-            .unwrap_or(max_difficulty); // Fallback to requested difficulty if parsing fails
+        let actual_difficulty = task.difficulty;
         
         Ok(ProofTaskResult {
             task,
