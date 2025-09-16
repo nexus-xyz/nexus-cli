@@ -239,6 +239,7 @@ mod tests {
                 public_inputs: vec![1, 2, 3],
                 public_inputs_list: vec![vec![1, 2, 3]],
                 task_type: crate::nexus_orchestrator::TaskType::ProofHash,
+                difficulty: crate::nexus_orchestrator::TaskDifficulty::Medium,
             };
 
             Ok(crate::orchestrator::client::ProofTaskResult {

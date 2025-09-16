@@ -164,6 +164,7 @@ mod tests {
             "test_program".to_string(),
             vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
             crate::nexus_orchestrator::TaskType::ProofRequired,
+            crate::nexus_orchestrator::TaskDifficulty::Medium,
         );
 
         // Test all_inputs
@@ -184,6 +185,7 @@ mod tests {
             "test_program".to_string(),
             vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
             crate::nexus_orchestrator::TaskType::ProofRequired,
+            crate::nexus_orchestrator::TaskDifficulty::Medium,
         );
 
         // Add additional inputs
@@ -217,6 +219,7 @@ mod tests {
             "fib_input_initial".to_string(),
             vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
             crate::nexus_orchestrator::TaskType::ProofRequired,
+            crate::nexus_orchestrator::TaskDifficulty::Medium,
         );
 
         // Test that both legacy and new fields work
