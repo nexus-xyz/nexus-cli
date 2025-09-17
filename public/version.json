@@ -6,7 +6,7 @@
       "message": "Your version {current} does not meet the minimum required version {version}. Please upgrade to continue proving. Visit https://github.com/nexus-xyz/nexus-cli/releases for the latest version."
     },
     {
-      "version": "0.10.12",
+      "version": "0.10.13",
       "type": "warning",
       "message": "Your version {current} is older than the recommended version {version}. Consider upgrading to unlock additional proving tasks."
     }
