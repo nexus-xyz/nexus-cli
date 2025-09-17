@@ -43,6 +43,11 @@ pub struct Task {
     /// The type of task (proof required or only hash)
     #[prost(enumeration = "TaskType", tag = "6")]
     pub task_type: i32,
+    /// The actual difficulty level assigned to this task by the server.
+    /// This accounts for reputation-based gating and allows clients to track
+    /// the actual difficulty they're receiving vs what they requested.
+    #[prost(enumeration = "TaskDifficulty", tag = "7")]
+    pub difficulty: i32,
 }
 /// Get outstanding tasks for a node.
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -220,9 +225,8 @@ pub enum TaskDifficulty {
     SmallMedium = 3,
     Medium = 5,
     Large = 10,
-    /// Extra large difficulty bucket
-    /// Can only be requested via --max-difficulty argument
     ExtraLarge = 15,
+    ExtraLarge2 = 16,
 }
 impl TaskDifficulty {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -236,6 +240,7 @@ impl TaskDifficulty {
             Self::Medium => "MEDIUM",
             Self::Large => "LARGE",
             Self::ExtraLarge => "EXTRA_LARGE",
+            Self::ExtraLarge2 => "EXTRA_LARGE_2",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -246,6 +251,7 @@ impl TaskDifficulty {
             "MEDIUM" => Some(Self::Medium),
             "LARGE" => Some(Self::Large),
             "EXTRA_LARGE" => Some(Self::ExtraLarge),
+            "EXTRA_LARGE_2" => Some(Self::ExtraLarge2),
             _ => None,
         }
     }

@@ -103,14 +103,14 @@ The Nexus CLI features an **adaptive difficulty system** that automatically adju
 #### How It Works
 
 - **Starts at**: `small_medium` difficulty
-- **Promotes to**: `medium` → `large` (if tasks complete in < 7 minutes)
-- **Safety limit**: Stops at `large` (no auto-promotion to `extra_large`)
+- **Auto-promotes**: `small_medium` → `medium` → `large` → `extra_large` → `extra_large_2` (if tasks complete in < 7 minutes)
+- **Safety**: `small` difficulty does not auto-promote (manual override only)
 
 ```
-small_medium → medium → large
-     ↑           ↑        ↑
-   Default    < 7 min   < 7 min
-              success   success
+small_medium → medium → large → extra_large → extra_large_2
+     ↑           ↑        ↑         ↑            ↑
+   Default    < 7 min   < 7 min   < 7 min     < 7 min
+              success   success   success     success
 ```
 
 #### When to Override Difficulty
@@ -121,7 +121,7 @@ small_medium → medium → large
 - Testing/development environments
 - Battery-powered devices
 
-**Higher Difficulty** (`Large` or `ExtraLarge`):
+**Higher Difficulty** (`Large`, `ExtraLarge`, or `ExtraLarge2`):
 - High-performance hardware (8+ cores, 16+ GB RAM)
 - Dedicated proving machines
 - Experienced users who understand requirements
@@ -137,6 +137,7 @@ nexus-cli start --max-difficulty small_medium
 # Higher difficulty for powerful hardware
 nexus-cli start --max-difficulty large
 nexus-cli start --max-difficulty extra_large
+nexus-cli start --max-difficulty extra_large_2
 
 # Case-insensitive (all equivalent)
 nexus-cli start --max-difficulty MEDIUM
@@ -149,17 +150,21 @@ nexus-cli start --max-difficulty Medium
 - `small_medium` - Default starting difficulty, balanced performance
 - `medium` - Moderate complexity, good for most systems
 - `large` - High complexity, requires powerful hardware
-- `extra_large` - Maximum complexity, only for dedicated high-end systems
+- `extra_large` - Very high complexity, for dedicated high-end systems
+- `extra_large_2` - Maximum complexity, for the most powerful systems
 
 #### Difficulty Guidelines
 
-| Difficulty | CPU Cores | RAM | Use Case |
-|------------|-----------|-----|----------|
-| `small` | 2-4 cores | 4-8 GB | Resource-constrained, background |
-| `small_medium` | 4-6 cores | 8-12 GB | Default, balanced performance |
-| `medium` | 6-8 cores | 12-16 GB | Standard desktop/laptop |
-| `large` | 8+ cores | 16+ GB | High-performance systems |
-| `extra_large` | 12+ cores | 24+ GB | Dedicated proving machines |
+| Difficulty | Use Case |
+|------------|----------|
+| `small` | Resource-constrained, background processing |
+| `small_medium` | Default, balanced performance |
+| `medium` | Standard desktop/laptop |
+| `large` | High-performance systems |
+| `extra_large` | Dedicated proving machines |
+| `extra_large_2` | Maximum performance systems |
+
+> **Tip**: Use `nexus-cli start --help` to see the full auto-promotion details in the CLI help text.
 
 #### Monitoring Performance
 
