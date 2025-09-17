@@ -150,7 +150,7 @@ impl TaskFetcher {
 
         // Log the difficulty we're requesting vs what we receive
         let requested_difficulty = desired;
-        
+
         match self
             .network_client
             .fetch_task(
@@ -167,8 +167,8 @@ impl TaskFetcher {
                     self.event_sender
                         .send_task_event(
                             format!(
-                                "Server adjusted difficulty: requested {:?}, assigned {:?} (reputation gating)", 
-                                requested_difficulty, 
+                                "Server adjusted difficulty: requested {:?}, assigned {:?} (reputation gating)",
+                                requested_difficulty,
                                 proof_task_result.actual_difficulty
                             ),
                             EventType::Success,
@@ -176,7 +176,7 @@ impl TaskFetcher {
                         )
                         .await;
                 }
-                
+
                 // Log successful fetch
                 self.event_sender
                     .send_task_event(
