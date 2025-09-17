@@ -118,8 +118,9 @@ impl TaskFetcher {
                 if promote {
                     match current {
                         crate::nexus_orchestrator::TaskDifficulty::Small => {
-                            // Small should not promote automatically - only via manual override
-                            crate::nexus_orchestrator::TaskDifficulty::Small
+                            // If server overrides to Small, promote to SmallMedium
+                            // This handles server-side reputation gating
+                            crate::nexus_orchestrator::TaskDifficulty::SmallMedium
                         }
                         crate::nexus_orchestrator::TaskDifficulty::SmallMedium => {
                             crate::nexus_orchestrator::TaskDifficulty::Medium
@@ -147,6 +148,9 @@ impl TaskFetcher {
             }
         };
 
+        // Log the difficulty we're requesting vs what we receive
+        let requested_difficulty = desired;
+        
         match self
             .network_client
             .fetch_task(
@@ -158,6 +162,21 @@ impl TaskFetcher {
             .await
         {
             Ok(proof_task_result) => {
+                // Log difficulty mismatch if it occurs
+                if proof_task_result.actual_difficulty != requested_difficulty {
+                    self.event_sender
+                        .send_task_event(
+                            format!(
+                                "Difficulty mismatch: requested {:?}, received {:?}", 
+                                requested_difficulty, 
+                                proof_task_result.actual_difficulty
+                            ),
+                            EventType::Error,
+                            LogLevel::Warn,
+                        )
+                        .await;
+                }
+                
                 // Log successful fetch
                 self.event_sender
                     .send_task_event(
