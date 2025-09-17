@@ -162,17 +162,17 @@ impl TaskFetcher {
             .await
         {
             Ok(proof_task_result) => {
-                // Log difficulty mismatch if it occurs
+                // Log difficulty adjustment if server overrides our request
                 if proof_task_result.actual_difficulty != requested_difficulty {
                     self.event_sender
                         .send_task_event(
                             format!(
-                                "Difficulty mismatch: requested {:?}, received {:?}", 
+                                "Server adjusted difficulty: requested {:?}, assigned {:?} (reputation gating)", 
                                 requested_difficulty, 
                                 proof_task_result.actual_difficulty
                             ),
-                            EventType::Error,
-                            LogLevel::Warn,
+                            EventType::Success,
+                            LogLevel::Info,
                         )
                         .await;
                 }
