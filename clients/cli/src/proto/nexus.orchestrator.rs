@@ -227,6 +227,9 @@ pub enum TaskDifficulty {
     Large = 10,
     ExtraLarge = 15,
     ExtraLarge2 = 16,
+    ExtraLarge3 = 17,
+    ExtraLarge4 = 18,
+    ExtraLarge5 = 19,
 }
 impl TaskDifficulty {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -241,6 +244,9 @@ impl TaskDifficulty {
             Self::Large => "LARGE",
             Self::ExtraLarge => "EXTRA_LARGE",
             Self::ExtraLarge2 => "EXTRA_LARGE_2",
+            Self::ExtraLarge3 => "EXTRA_LARGE_3",
+            Self::ExtraLarge4 => "EXTRA_LARGE_4",
+            Self::ExtraLarge5 => "EXTRA_LARGE_5",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -252,6 +258,9 @@ impl TaskDifficulty {
             "LARGE" => Some(Self::Large),
             "EXTRA_LARGE" => Some(Self::ExtraLarge),
             "EXTRA_LARGE_2" => Some(Self::ExtraLarge2),
+            "EXTRA_LARGE_3" => Some(Self::ExtraLarge3),
+            "EXTRA_LARGE_4" => Some(Self::ExtraLarge4),
+            "EXTRA_LARGE_5" => Some(Self::ExtraLarge5),
             _ => None,
         }
     }
