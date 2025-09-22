@@ -38,14 +38,32 @@ use std::process::exit;
 /// All available difficulty levels as (name, enum_value) pairs
 const DIFFICULTY_LEVELS: &[(&str, crate::nexus_orchestrator::TaskDifficulty)] = &[
     ("SMALL", crate::nexus_orchestrator::TaskDifficulty::Small),
-    ("SMALL_MEDIUM", crate::nexus_orchestrator::TaskDifficulty::SmallMedium),
+    (
+        "SMALL_MEDIUM",
+        crate::nexus_orchestrator::TaskDifficulty::SmallMedium,
+    ),
     ("MEDIUM", crate::nexus_orchestrator::TaskDifficulty::Medium),
     ("LARGE", crate::nexus_orchestrator::TaskDifficulty::Large),
-    ("EXTRA_LARGE", crate::nexus_orchestrator::TaskDifficulty::ExtraLarge),
-    ("EXTRA_LARGE_2", crate::nexus_orchestrator::TaskDifficulty::ExtraLarge2),
-    ("EXTRA_LARGE_3", crate::nexus_orchestrator::TaskDifficulty::ExtraLarge3),
-    ("EXTRA_LARGE_4", crate::nexus_orchestrator::TaskDifficulty::ExtraLarge4),
-    ("EXTRA_LARGE_5", crate::nexus_orchestrator::TaskDifficulty::ExtraLarge5),
+    (
+        "EXTRA_LARGE",
+        crate::nexus_orchestrator::TaskDifficulty::ExtraLarge,
+    ),
+    (
+        "EXTRA_LARGE_2",
+        crate::nexus_orchestrator::TaskDifficulty::ExtraLarge2,
+    ),
+    (
+        "EXTRA_LARGE_3",
+        crate::nexus_orchestrator::TaskDifficulty::ExtraLarge3,
+    ),
+    (
+        "EXTRA_LARGE_4",
+        crate::nexus_orchestrator::TaskDifficulty::ExtraLarge4,
+    ),
+    (
+        "EXTRA_LARGE_5",
+        crate::nexus_orchestrator::TaskDifficulty::ExtraLarge5,
+    ),
 ];
 
 /// Helper function to validate difficulty string and return parsed enum
@@ -248,7 +266,10 @@ async fn start(
         match validate_difficulty(difficulty_str) {
             Some(difficulty) => Some(difficulty),
             None => {
-                eprintln!("Error: Invalid difficulty level '{}'", difficulty_str.trim());
+                eprintln!(
+                    "Error: Invalid difficulty level '{}'",
+                    difficulty_str.trim()
+                );
                 print_available_difficulties();
                 eprintln!();
                 eprintln!("Note: Difficulty levels are case-insensitive.");
