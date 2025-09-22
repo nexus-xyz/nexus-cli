@@ -23,6 +23,8 @@ panic = 'abort'        # Abort on panic (smaller binaries, better performance)
 strip = true           # Strip symbols for smaller binaries
 debug = false          # No debug symbols for faster builds
 incremental = false    # Disable incremental compilation for maximum optimization
+# Native CPU optimization - automatically detects best CPU for current platform
+rustflags = ["-C", "target-cpu=native"]  # Works on all architectures (ARM64, x86_64, etc.)
 
 [profile.ci-build]
 inherits = "dev"
