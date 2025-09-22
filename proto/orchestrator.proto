@@ -179,6 +179,9 @@ enum TaskDifficulty {
 
   EXTRA_LARGE = 15;
   EXTRA_LARGE_2 = 16;
+  EXTRA_LARGE_3 = 17;
+  EXTRA_LARGE_4 = 18;
+  EXTRA_LARGE_5 = 19;
 }
 
 enum TaskType {

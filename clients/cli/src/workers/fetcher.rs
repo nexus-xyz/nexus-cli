@@ -107,7 +107,6 @@ impl TaskFetcher {
             // Adaptive difficulty system:
             // - Starts at SmallMedium by default
             // - Promotes if previous task completed in < PROMOTION_THRESHOLD_SECS
-            // - Promotion path: SmallMedium → Medium → Large → ExtraLarge → ExtraLarge2
             // - Small difficulty does not auto-promote (manual override only)
             if let Some(current) = self.last_success_difficulty {
                 // If last success took >= promotion threshold, don't increase difficulty
@@ -135,8 +134,17 @@ impl TaskFetcher {
                             crate::nexus_orchestrator::TaskDifficulty::ExtraLarge2
                         }
                         crate::nexus_orchestrator::TaskDifficulty::ExtraLarge2 => {
+                            crate::nexus_orchestrator::TaskDifficulty::ExtraLarge3
+                        }
+                        crate::nexus_orchestrator::TaskDifficulty::ExtraLarge3 => {
+                            crate::nexus_orchestrator::TaskDifficulty::ExtraLarge4
+                        }
+                        crate::nexus_orchestrator::TaskDifficulty::ExtraLarge4 => {
+                            crate::nexus_orchestrator::TaskDifficulty::ExtraLarge5
+                        }
+                        crate::nexus_orchestrator::TaskDifficulty::ExtraLarge5 => {
                             // Already at maximum difficulty
-                            crate::nexus_orchestrator::TaskDifficulty::ExtraLarge2
+                            crate::nexus_orchestrator::TaskDifficulty::ExtraLarge5
                         }
                     }
                 } else {
