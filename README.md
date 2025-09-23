@@ -135,9 +135,13 @@ nexus-cli start --max-difficulty small
 nexus-cli start --max-difficulty small_medium
 
 # Higher difficulty for powerful hardware
+nexus-cli start --max-difficulty medium
 nexus-cli start --max-difficulty large
 nexus-cli start --max-difficulty extra_large
 nexus-cli start --max-difficulty extra_large_2
+nexus-cli start --max-difficulty extra_large_3
+nexus-cli start --max-difficulty extra_large_4
+nexus-cli start --max-difficulty extra_large_5
 
 # Case-insensitive (all equivalent)
 nexus-cli start --max-difficulty MEDIUM
