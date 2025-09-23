@@ -140,40 +140,31 @@ nexus-cli start --max-difficulty medium
 nexus-cli start --max-difficulty Medium
 ```
 
-**Available Difficulty Levels:**
-- `small` - Basic tasks, minimal resource usage
-- `small_medium` - Default starting difficulty, balanced performance
-- `medium` - Moderate complexity, good for most systems
-- `large` - High complexity, requires powerful hardware
-- `extra_large` - Very high complexity, for dedicated high-end systems
-- `extra_large_2` - Maximum complexity, for the most powerful systems
-
 #### Difficulty Guidelines
 
 | Difficulty | Use Case |
 |------------|----------|
-| `small` | Resource-constrained, background processing |
-| `small_medium` | Default, balanced performance |
-| `medium` | Standard desktop/laptop |
-| `large` | High-performance systems |
-| `extra_large` and above | Dedicated proving machines |
+| `small` | Default, starting task |
+| `small_medium` | Building reputation |
+| `medium` and `large` | Standard desktop/laptop |
+| `extra_large` and above | High-performance systems, more points |
 
 > **Tip**: Use `nexus-cli start --help` to see the full auto-promotion details in the CLI help text.
-
-#### Monitoring Performance
-
-Monitor performance in the dashboard:
-- **Task Completion Time**: Shown in metrics panel
-- **Promotion Status**: Whether system is promoting or maintaining level
 
 #### Troubleshooting Difficulty Issues
 
 **Tasks taking too long:**
+
+Try a lower difficulty.
+
 ```bash
 nexus-cli start --max-difficulty small_medium
 ```
 
 **Want more challenging tasks:**
+
+Request a harder difficulty. It will still take time to build up reputation to get the requested difficulty.
+
 ```bash
 nexus-cli start --max-difficulty extra_large_2
 ```
@@ -181,7 +172,7 @@ nexus-cli start --max-difficulty extra_large_2
 **Unsure about system capabilities:**
 - Use the default adaptive system (no `--max-difficulty` needed)
 - The system will automatically find the optimal difficulty for your hardware
-- Only override if you're specifically unhappy with the automatic performance
+- Only override if you're fine-tuning performance
 
 ### Docker Installation
 
