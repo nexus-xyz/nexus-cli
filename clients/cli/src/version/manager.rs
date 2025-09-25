@@ -57,70 +57,10 @@ pub async fn validate_version_requirements() -> Result<(), Box<dyn Error>> {
 
 /// Provides user-friendly error messages for fetch failures
 fn handle_fetch_error(error: &dyn Error) {
-    eprintln!("❌ Unable to verify CLI version requirements\n");
-
-    let error_str = error.to_string();
-
-    // Check for specific error patterns
-    if error_str.contains("timeout") || error_str.contains("timed out") {
-        eprintln!("The request timed out. This could indicate:");
-        eprintln!("  • Slow or unstable internet connection");
-        eprintln!("  • High latency to the Nexus servers");
-        eprintln!("  • Temporary server issues\n");
-
-        eprintln!("Please try:");
-        eprintln!("  • Waiting a few moments and trying again");
-        eprintln!("  • Checking your internet speed and stability");
-        eprintln!("  • Using a different network if available\n");
-    } else if error_str.contains("error sending request")
-        || error_str.contains("Failed to fetch from all sources")
-        || error_str.contains("connection")
-    {
-        eprintln!("Network connectivity issue detected.\n");
-        eprintln!("Troubleshooting steps:");
-        eprintln!("1. Check your internet connection");
-        eprintln!("2. Verify these domains are accessible:");
-        eprintln!("   • cli.nexus.xyz");
-        eprintln!("   • raw.githubusercontent.com");
-        eprintln!("   • nexus-cli.web.app (alternative source)");
-        eprintln!("3. Try the following commands:");
-        eprintln!("   curl -v https://cli.nexus.xyz/version.json");
-        eprintln!("   curl -v https://nexus-cli.web.app/version.json\n");
-    } else if error_str.contains("certificate")
-        || error_str.contains("SSL")
-        || error_str.contains("TLS")
-    {
-        eprintln!("There's an SSL/TLS certificate issue. Please check:");
-        eprintln!("  • Your system date and time are correct");
-        eprintln!("  • Your CA certificates are up to date");
-        eprintln!("  • You're not on a network performing SSL interception\n");
-
-        eprintln!("On Linux, you can update certificates with:");
-        eprintln!("  sudo apt-get update && sudo apt-get install ca-certificates");
-        eprintln!("  OR");
-        eprintln!("  sudo yum install ca-certificates\n");
-    } else if error_str.contains("DNS") || error_str.contains("resolve") {
-        eprintln!("DNS resolution failed. Please check:");
-        eprintln!("  • Your DNS settings (try using 8.8.8.8 or 1.1.1.1)");
-        eprintln!("  • Your network connection");
-        eprintln!("  • Try flushing your DNS cache\n");
-
-        eprintln!("To flush DNS cache:");
-        eprintln!("  • Linux: sudo systemd-resolve --flush-caches");
-        eprintln!("  • macOS: sudo dscacheutil -flushcache");
-        eprintln!("  • Windows: ipconfig /flushdns\n");
-    } else {
-        eprintln!("Request failed with error: {}\n", error_str);
-        eprintln!("Common solutions:");
-        eprintln!("  • Check your internet connection");
-        eprintln!("  • Try again in a few moments");
-        eprintln!("  • Check if Nexus services are operational\n");
-    }
-
-    eprintln!("If this issue persists after trying the above solutions:");
-    eprintln!("  • Check known issues: https://github.com/nexus-xyz/nexus-cli/issues");
-    eprintln!("  • Report a bug: https://github.com/nexus-xyz/nexus-cli/issues/new");
-    eprintln!("  • Include this error message and your environment details");
+    eprintln!("❌ Unable to verify CLI version requirements");
+    eprintln!("Reason: {}", error);
+    eprintln!("\nPlease check your internet connection and try again.");
+    eprintln!("If the issue persists, report it at: https://github.com/nexus-xyz/nexus-cli/issues");
 }
 
 /// Handles different types of version constraint violations
@@ -130,8 +70,7 @@ fn handle_version_violation(constraint_type: &ConstraintType, message: &str) {
             eprintln!("❌ Version requirement not met\n");
             eprintln!("{}\n", message);
             eprintln!("To resolve this issue:");
-            eprintln!("  • Update your CLI: nexus update");
-            eprintln!("  • Or manually download the latest version from:");
+            eprintln!("  • Download the latest version from:");
             eprintln!("    https://github.com/nexus-xyz/nexus-cli/releases");
             std::process::exit(1);
         }
