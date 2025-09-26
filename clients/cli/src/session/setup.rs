@@ -98,8 +98,8 @@ pub async fn setup_session(
         warn_memory_configuration(max_threads);
     }
 
-    // Clamp the number of workers to [1,8]. Keep this low for now to avoid rate limiting.
-    let num_workers: usize = max_threads.unwrap_or(1).clamp(1, 8) as usize;
+    // Sets the number of worker threads, defaulting to 1 if not specified.
+    let num_workers: usize = max_threads.unwrap_or(1) as usize;
 
     // Create shutdown channel - only one shutdown signal needed
     let (shutdown_sender, _) = broadcast::channel(1);

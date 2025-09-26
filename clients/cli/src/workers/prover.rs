@@ -18,22 +18,27 @@ pub enum ProveError {
 pub struct TaskProver {
     event_sender: EventSender,
     config: WorkerConfig,
-    num_workers: usize
 }
 
 impl TaskProver {
-    pub fn new(event_sender: EventSender, config: WorkerConfig, num_workers: usize) -> Self {
+    pub fn new(event_sender: EventSender, config: WorkerConfig) -> Self {
         Self {
             event_sender,
             config,
-            num_workers
         }
     }
 
     /// Generate proof for a task with proper logging
     pub async fn prove_task(&self, task: &Task) -> Result<ProverResult, ProveError> {
         // Use existing prover module for proof generation
-        match authenticated_proving(task, &self.config.environment, &self.config.client_id, self.num_workers).await {
+        match authenticated_proving(
+            task,
+            &self.config.environment,
+            &self.config.client_id,
+            self.config.num_workers,
+        )
+        .await
+        {
             Ok((proofs, combined_hash, individual_proof_hashes)) => {
                 // Log successful proof generation
                 self.event_sender
@@ -67,7 +72,6 @@ impl TaskProver {
                         LogLevel::Error,
                     )
                     .await;
-
                 Err(ProveError::Generation(e))
             }
         }

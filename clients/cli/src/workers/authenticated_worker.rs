@@ -32,7 +32,6 @@ impl AuthenticatedWorker {
         event_sender: mpsc::Sender<Event>,
         max_tasks: Option<u32>,
         shutdown_sender: broadcast::Sender<()>,
-        num_workers: usize,
     ) -> Self {
         let event_sender_helper = EventSender::new(event_sender);
 
@@ -45,7 +44,7 @@ impl AuthenticatedWorker {
             &config,
         );
 
-        let prover = TaskProver::new(event_sender_helper.clone(), config.clone(), num_workers);
+        let prover = TaskProver::new(event_sender_helper.clone(), config.clone());
 
         let submitter = ProofSubmitter::new(
             signing_key,

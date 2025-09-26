@@ -23,7 +23,9 @@ impl ProvingPipeline {
         num_workers: usize,
     ) -> Result<(Vec<Proof>, String, Vec<String>), ProverError> {
         match task.program_id.as_str() {
-            "fib_input_initial" => Self::prove_fib_task(task, environment, client_id, num_workers).await,
+            "fib_input_initial" => {
+                Self::prove_fib_task(task, environment, client_id, num_workers).await
+            }
             _ => Err(ProverError::MalformedTask(format!(
                 "Unsupported program ID: {}",
                 task.program_id
@@ -36,7 +38,7 @@ impl ProvingPipeline {
         task: &Task,
         environment: &Environment,
         client_id: &str,
-        num_workers: usize
+        num_workers: usize,
     ) -> Result<(Vec<Proof>, String, Vec<String>), ProverError> {
         let all_inputs = task.all_inputs();
 
