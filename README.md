@@ -102,29 +102,20 @@ The Nexus CLI features an **adaptive difficulty system** that automatically adju
 
 #### How It Works
 
-- **Starts at**: `small_medium` difficulty
-- **Promotes to**: `medium` → `large` (if tasks complete in < 7 minutes)
-- **Safety limit**: Stops at `large` (no auto-promotion to `extra_large`)
-
-```
-small_medium → medium → large
-     ↑           ↑        ↑
-   Default    < 7 min   < 7 min
-              success   success
-```
+- **Starts at**: `small` difficulty
+- **Auto-promotes**: If tasks complete in < 7 minutes
 
 #### When to Override Difficulty
 
-**Lower Difficulty** (`Small` or `SmallMedium`):
+**Lower Difficulty** (e.g. `Small` or `SmallMedium`):
 - Resource-constrained systems
 - Background processing alongside other apps
 - Testing/development environments
 - Battery-powered devices
 
-**Higher Difficulty** (`Large` or `ExtraLarge`):
+**Higher Difficulty** (e.g. `Large`, `ExtraLarge`, or `ExtraLarge2`):
 - High-performance hardware (8+ cores, 16+ GB RAM)
 - Dedicated proving machines
-- Experienced users who understand requirements
 - Maximum reward optimization
 
 #### Using Difficulty Override
@@ -135,8 +126,13 @@ nexus-cli start --max-difficulty small
 nexus-cli start --max-difficulty small_medium
 
 # Higher difficulty for powerful hardware
+nexus-cli start --max-difficulty medium
 nexus-cli start --max-difficulty large
 nexus-cli start --max-difficulty extra_large
+nexus-cli start --max-difficulty extra_large_2
+nexus-cli start --max-difficulty extra_large_3
+nexus-cli start --max-difficulty extra_large_4
+nexus-cli start --max-difficulty extra_large_5
 
 # Case-insensitive (all equivalent)
 nexus-cli start --max-difficulty MEDIUM
@@ -144,45 +140,39 @@ nexus-cli start --max-difficulty medium
 nexus-cli start --max-difficulty Medium
 ```
 
-**Available Difficulty Levels:**
-- `small` - Basic tasks, minimal resource usage
-- `small_medium` - Default starting difficulty, balanced performance
-- `medium` - Moderate complexity, good for most systems
-- `large` - High complexity, requires powerful hardware
-- `extra_large` - Maximum complexity, only for dedicated high-end systems
-
 #### Difficulty Guidelines
 
-| Difficulty | CPU Cores | RAM | Use Case |
-|------------|-----------|-----|----------|
-| `small` | 2-4 cores | 4-8 GB | Resource-constrained, background |
-| `small_medium` | 4-6 cores | 8-12 GB | Default, balanced performance |
-| `medium` | 6-8 cores | 12-16 GB | Standard desktop/laptop |
-| `large` | 8+ cores | 16+ GB | High-performance systems |
-| `extra_large` | 12+ cores | 24+ GB | Dedicated proving machines |
+| Difficulty | Use Case |
+|------------|----------|
+| `small` | Default, starting task |
+| `small_medium` | Building reputation |
+| `medium` and `large` | Standard desktop/laptop |
+| `extra_large` and above | High-performance systems, more points |
 
-#### Monitoring Performance
-
-Monitor performance in the dashboard:
-- **Task Completion Time**: Shown in metrics panel
-- **Promotion Status**: Whether system is promoting or maintaining level
+> **Tip**: Use `nexus-cli start --help` to see the full auto-promotion details in the CLI help text.
 
 #### Troubleshooting Difficulty Issues
 
 **Tasks taking too long:**
+
+Try a lower difficulty.
+
 ```bash
 nexus-cli start --max-difficulty small_medium
 ```
 
 **Want more challenging tasks:**
+
+Request a harder difficulty. It will still take time to build up reputation to get the requested difficulty.
+
 ```bash
-nexus-cli start --max-difficulty large
+nexus-cli start --max-difficulty extra_large_2
 ```
 
 **Unsure about system capabilities:**
 - Use the default adaptive system (no `--max-difficulty` needed)
 - The system will automatically find the optimal difficulty for your hardware
-- Only override if you're specifically unhappy with the automatic performance
+- Only override if you're fine-tuning performance
 
 ### Docker Installation
 

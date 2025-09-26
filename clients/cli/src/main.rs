@@ -35,6 +35,54 @@ use std::error::Error;
 use std::io::Write;
 use std::process::exit;
 
+/// All available difficulty levels as (name, enum_value) pairs
+const DIFFICULTY_LEVELS: &[(&str, crate::nexus_orchestrator::TaskDifficulty)] = &[
+    ("SMALL", crate::nexus_orchestrator::TaskDifficulty::Small),
+    (
+        "SMALL_MEDIUM",
+        crate::nexus_orchestrator::TaskDifficulty::SmallMedium,
+    ),
+    ("MEDIUM", crate::nexus_orchestrator::TaskDifficulty::Medium),
+    ("LARGE", crate::nexus_orchestrator::TaskDifficulty::Large),
+    (
+        "EXTRA_LARGE",
+        crate::nexus_orchestrator::TaskDifficulty::ExtraLarge,
+    ),
+    (
+        "EXTRA_LARGE_2",
+        crate::nexus_orchestrator::TaskDifficulty::ExtraLarge2,
+    ),
+    (
+        "EXTRA_LARGE_3",
+        crate::nexus_orchestrator::TaskDifficulty::ExtraLarge3,
+    ),
+    (
+        "EXTRA_LARGE_4",
+        crate::nexus_orchestrator::TaskDifficulty::ExtraLarge4,
+    ),
+    (
+        "EXTRA_LARGE_5",
+        crate::nexus_orchestrator::TaskDifficulty::ExtraLarge5,
+    ),
+];
+
+/// Helper function to validate difficulty string and return parsed enum
+fn validate_difficulty(difficulty_str: &str) -> Option<crate::nexus_orchestrator::TaskDifficulty> {
+    let upper = difficulty_str.trim().to_ascii_uppercase();
+    DIFFICULTY_LEVELS
+        .iter()
+        .find(|(name, _)| *name == upper)
+        .map(|(_, difficulty)| *difficulty)
+}
+
+/// Helper function to print available difficulty levels dynamically from the enum
+fn print_available_difficulties() {
+    eprintln!("Valid difficulty levels are:");
+    for (name, _) in DIFFICULTY_LEVELS {
+        eprintln!("  {}", name);
+    }
+}
+
 #[derive(Parser)]
 #[command(author, version = concat!(env!("CARGO_PKG_VERSION"), " (build ", env!("BUILD_TIMESTAMP"), ")"), about, long_about = None)]
 /// Command-line arguments
@@ -76,7 +124,7 @@ enum Command {
         #[arg(long = "max-tasks", value_name = "MAX_TASKS")]
         max_tasks: Option<u32>,
 
-        /// Override max difficulty to request (SMALL, SMALL_MEDIUM, MEDIUM, LARGE, EXTRA_LARGE)
+        /// Override max difficulty to request. Auto-promotion occurs when tasks complete in < 7 min
         #[arg(long = "max-difficulty", value_name = "DIFFICULTY")]
         max_difficulty: Option<String>,
     },
@@ -215,20 +263,14 @@ async fn start(
     // 3. Session setup (authenticated worker only)
     // Parse and validate difficulty override (case-insensitive)
     let max_difficulty_parsed = if let Some(difficulty_str) = &max_difficulty {
-        match difficulty_str.trim().to_ascii_uppercase().as_str() {
-            "SMALL" => Some(crate::nexus_orchestrator::TaskDifficulty::Small),
-            "SMALL_MEDIUM" => Some(crate::nexus_orchestrator::TaskDifficulty::SmallMedium),
-            "MEDIUM" => Some(crate::nexus_orchestrator::TaskDifficulty::Medium),
-            "LARGE" => Some(crate::nexus_orchestrator::TaskDifficulty::Large),
-            "EXTRA_LARGE" => Some(crate::nexus_orchestrator::TaskDifficulty::ExtraLarge),
-            invalid => {
-                eprintln!("Error: Invalid difficulty level '{}'", invalid);
-                eprintln!("Valid difficulty levels are:");
-                eprintln!("  SMALL");
-                eprintln!("  SMALL_MEDIUM");
-                eprintln!("  MEDIUM");
-                eprintln!("  LARGE");
-                eprintln!("  EXTRA_LARGE");
+        match validate_difficulty(difficulty_str) {
+            Some(difficulty) => Some(difficulty),
+            None => {
+                eprintln!(
+                    "Error: Invalid difficulty level '{}'",
+                    difficulty_str.trim()
+                );
+                print_available_difficulties();
                 eprintln!();
                 eprintln!("Note: Difficulty levels are case-insensitive.");
                 std::process::exit(1);
@@ -282,6 +324,10 @@ mod tests {
             validate_difficulty("extra_large"),
             Some(TaskDifficulty::ExtraLarge)
         );
+        assert_eq!(
+            validate_difficulty("extra_large_2"),
+            Some(TaskDifficulty::ExtraLarge2)
+        );
 
         // Test invalid difficulty levels
         assert_eq!(validate_difficulty("invalid"), None);
@@ -299,6 +345,7 @@ mod tests {
             "MEDIUM" => Some(TaskDifficulty::Medium),
             "LARGE" => Some(TaskDifficulty::Large),
             "EXTRA_LARGE" => Some(TaskDifficulty::ExtraLarge),
+            "EXTRA_LARGE_2" => Some(TaskDifficulty::ExtraLarge2),
             _ => None,
         }
     }

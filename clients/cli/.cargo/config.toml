@@ -1,0 +1,23 @@
+# Cargo configuration file for Nexus CLI
+# This file sets Rust compiler flags for optimal performance
+
+[build]
+# Native CPU optimization - automatically detects best CPU for current platform
+rustflags = ["-C", "target-cpu=native"]
+
+# Additional performance optimizations
+# rustflags = [
+#     "-C", "target-cpu=native",           # Native CPU optimization
+#     "-C", "opt-level=3",                 # Maximum optimization (redundant with Cargo.toml)
+#     "-C", "panic=abort",                # Abort on panic (redundant with Cargo.toml)
+# ]
+
+# Alternative configurations (uncomment to use):
+# For maximum compatibility (slower but works on older CPUs):
+# rustflags = ["-C", "target-cpu=generic"]
+
+# For specific Apple Silicon optimization:
+# rustflags = ["-C", "target-cpu=apple-m4"]
+
+# For Intel optimization:
+# rustflags = ["-C", "target-cpu=native"]
