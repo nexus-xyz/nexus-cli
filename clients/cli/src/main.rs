@@ -104,7 +104,7 @@ enum Command {
         #[arg(long = "headless", action = ArgAction::SetTrue)]
         headless: bool,
 
-        /// DEPRECATED: WILL BE IGNORED. Maximum number of threads to use for proving.
+        /// Maximum number of threads to use for proving. Capped at 8 to prevent system instability.
         #[arg(long = "max-threads", value_name = "MAX_THREADS")]
         max_threads: Option<u32>,
 

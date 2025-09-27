@@ -1,5 +1,7 @@
 //! Proving pipeline that orchestrates the full proving process
 
+use std::sync::Arc;
+
 use super::engine::ProvingEngine;
 use super::input::InputParser;
 use super::types::ProverError;
@@ -18,9 +20,12 @@ impl ProvingPipeline {
         task: &Task,
         environment: &Environment,
         client_id: &str,
+        num_workers: usize,
     ) -> Result<(Vec<Proof>, String, Vec<String>), ProverError> {
         match task.program_id.as_str() {
-            "fib_input_initial" => Self::prove_fib_task(task, environment, client_id).await,
+            "fib_input_initial" => {
+                Self::prove_fib_task(task, environment, client_id, num_workers).await
+            }
             _ => Err(ProverError::MalformedTask(format!(
                 "Unsupported program ID: {}",
                 task.program_id
@@ -33,6 +38,7 @@ impl ProvingPipeline {
         task: &Task,
         environment: &Environment,
         client_id: &str,
+        num_workers: usize,
     ) -> Result<(Vec<Proof>, String, Vec<String>), ProverError> {
         let all_inputs = task.all_inputs();
 
@@ -44,35 +50,70 @@ impl ProvingPipeline {
 
         let mut proof_hashes = Vec::new();
         let mut all_proofs: Vec<Proof> = Vec::new();
+        let mut handles = Vec::new();
+
+        // Create a semaphore with a specific number of permits
+        let semaphore = Arc::new(tokio::sync::Semaphore::new(num_workers));
 
         for (input_index, input_data) in all_inputs.iter().enumerate() {
-            // Step 1: Parse and validate input
-            let inputs = InputParser::parse_triple_input(input_data)?;
+            let task_clone = task.clone();
+            let environment_clone = environment.clone();
+            let client_id_clone = client_id.to_string();
+            let input_data_clone = input_data.clone();
+            let input_index_clone = input_index;
+            let semaphore_clone = Arc::clone(&semaphore);
 
-            // Step 2: Generate and verify proof
-            let proof = ProvingEngine::prove_and_validate(&inputs, task, environment, client_id)
+            let handle = tokio::spawn(async move {
+                // Acquire a permit from the semaphore. This waits if the limit is reached.
+                let _permit = semaphore_clone.acquire_owned().await;
+
+                // Step 1: Parse and validate input
+                let inputs = InputParser::parse_triple_input(&input_data_clone)?;
+
+                // Step 2: Generate and verify proof
+                let proof = ProvingEngine::prove_and_validate(
+                    &inputs,
+                    &task_clone,
+                    &environment_clone,
+                    &client_id_clone,
+                )
                 .await
-                .map_err(|e| {
-                    match e {
-                        ProverError::Stwo(_) | ProverError::GuestProgram(_) => {
-                            // Track verification failure
-                            let error_msg = format!("Input {}: {}", input_index, e);
-                            tokio::spawn(track_verification_failed(
-                                task.clone(),
-                                error_msg.clone(),
-                                environment.clone(),
-                                client_id.to_string(),
-                            ));
-                            e
-                        }
-                        _ => e,
+                .map_err(|e| match e {
+                    ProverError::Stwo(_) | ProverError::GuestProgram(_) => {
+                        let error_msg = format!("Input {}: {}", input_index_clone, e);
+                        tokio::spawn(track_verification_failed(
+                            task_clone.clone(),
+                            error_msg.clone(),
+                            environment_clone.clone(),
+                            client_id_clone.to_string(),
+                        ));
+                        e
                     }
+                    _ => e,
                 })?;
 
-            // Step 3: Generate proof hash
-            let proof_hash = Self::generate_proof_hash(&proof);
-            proof_hashes.push(proof_hash);
-            all_proofs.push(proof);
+                // Step 3: Generate proof hash
+                let proof_hash = Self::generate_proof_hash(&proof);
+
+                Ok((proof, proof_hash))
+            });
+            handles.push(handle);
+        }
+
+        // Collect the results from the spawned tasks
+        for handle in handles {
+            match handle.await {
+                Ok(result) => match result {
+                    Ok((proof, proof_hash)) => {
+                        all_proofs.push(proof);
+                        proof_hashes.push(proof_hash);
+                    }
+                    Err(e) => return Err(e),
+                },
+                Err(e) => {
+                    return Err(ProverError::JoinError(e));
+                }
+            }
         }
 
         let final_proof_hash = Self::combine_proof_hashes(task, &proof_hashes);
