@@ -64,7 +64,7 @@ Before submitting changes, please run the following checks locally:
 cargo fmt --check
 
 # Run clippy lints
-cargo clippy -- -D warnings
+a cargo clippy -- -D warnings
 
 # Check for unused dependencies
 cargo udeps
@@ -83,6 +83,22 @@ By default, the build process skips proto compilation to make it easier for cont
 ```bash
 cargo build --features build_proto
 ```
+
+### Integration Tests (production orchestrator)
+
+We provide a unified script that runs the integration tests for the Rust CLI. No arguments required; the scripts use `cargo run` and sane defaults.
+
+```bash
+# From repository root
+INTEGRATION_TEST_NODE_IDS="id1,id2" ./scripts/run_integration_tests.sh
+```
+
+- Positive test: succeeds if the CLI exits 0 (assumes a proof was submitted with `--max-tasks 1`).
+- Retry: runs at most twice; second attempt only if the first was rate-limited (429 detected).
+- Negative test: runs with an invalid node id and passes only if the CLI exits non-zero.
+- Exit codes: the wrapper returns non-zero on failures; 429 indicates persistent rate limiting.
+
+Set `INTEGRATION_TEST_NODE_IDS` (comma-separated) to run against specific production nodes.
 
 ### Code of Conduct
 

@@ -9,6 +9,8 @@
 
 A high-performance command-line interface for contributing proofs to the Nexus network.
 
+> Want to help improve the CLI? We welcome contributions! See the [Contributor Guide](./CONTRIBUTING.md). To run end-to-end integration tests locally, use `./scripts/run_integration_tests.sh` (details in the guide).
+
 <figure>
     <a href="https://nexus.xyz/">
         <img src="assets/images/nexus-network-image.png" alt="Nexus Network visualization showing a distributed network of interconnected nodes with a 'Launch Network' button in the center">
@@ -231,6 +233,9 @@ Interested in contributing to the Nexus Network CLI? Check out our
 - How to report issues and submit pull requests
 - Our code of conduct and community guidelines
 - Tips for working with the codebase
+- How to run the end-to-end integration tests locally: `./scripts/run_integration_tests.sh`
+
+We welcome PRs—feel free to open a draft early to get feedback.
 
 For most users, we recommend using the precompiled binaries as described above.
 The contributor guide is intended for those who want to modify or improve the CLI
