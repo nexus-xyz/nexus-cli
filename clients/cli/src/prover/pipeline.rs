@@ -8,8 +8,10 @@ use super::types::ProverError;
 use crate::analytics::track_verification_failed;
 use crate::environment::Environment;
 use crate::task::Task;
+use futures::future::join_all;
 use nexus_sdk::stwo::seq::Proof;
 use sha3::{Digest, Keccak256};
+use tokio_util::sync::CancellationToken;
 
 /// Orchestrates the complete proving pipeline
 pub struct ProvingPipeline;
@@ -48,75 +50,116 @@ impl ProvingPipeline {
             ));
         }
 
-        let mut proof_hashes = Vec::new();
-        let mut all_proofs: Vec<Proof> = Vec::new();
-        let mut handles = Vec::new();
+        // Create shared references to avoid unnecessary cloning
+        let task_shared = Arc::new(task.clone());
+        let environment_shared = Arc::new(environment.clone());
+        let client_id_shared = Arc::new(client_id.to_string());
 
         // Create a semaphore with a specific number of permits
         let semaphore = Arc::new(tokio::sync::Semaphore::new(num_workers));
+        
+        // Create cancellation token for graceful shutdown
+        let cancellation_token = CancellationToken::new();
 
-        for (input_index, input_data) in all_inputs.iter().enumerate() {
-            let task_clone = task.clone();
-            let environment_clone = environment.clone();
-            let client_id_clone = client_id.to_string();
-            let input_data_clone = input_data.clone();
-            let input_index_clone = input_index;
-            let semaphore_clone = Arc::clone(&semaphore);
+        // Spawn all tasks in parallel
+        let handles: Vec<_> = all_inputs
+            .iter()
+            .enumerate()
+            .map(|(input_index, input_data)| {
+                let task_ref = Arc::clone(&task_shared);
+                let environment_ref = Arc::clone(&environment_shared);
+                let client_id_ref = Arc::clone(&client_id_shared);
+                let input_data = input_data.clone();
+                let semaphore_ref = Arc::clone(&semaphore);
+                let cancellation_ref = cancellation_token.clone();
 
-            let handle = tokio::spawn(async move {
-                // Acquire a permit from the semaphore. This waits if the limit is reached.
-                let _permit = semaphore_clone.acquire_owned().await;
-
-                // Step 1: Parse and validate input
-                let inputs = InputParser::parse_triple_input(&input_data_clone)?;
-
-                // Step 2: Generate and verify proof
-                let proof = ProvingEngine::prove_and_validate(
-                    &inputs,
-                    &task_clone,
-                    &environment_clone,
-                    &client_id_clone,
-                )
-                .await
-                .map_err(|e| match e {
-                    ProverError::Stwo(_) | ProverError::GuestProgram(_) => {
-                        let error_msg = format!("Input {}: {}", input_index_clone, e);
-                        tokio::spawn(track_verification_failed(
-                            task_clone.clone(),
-                            error_msg.clone(),
-                            environment_clone.clone(),
-                            client_id_clone.to_string(),
-                        ));
-                        e
+                tokio::spawn(async move {
+                    // Check for cancellation before starting
+                    if cancellation_ref.is_cancelled() {
+                        return Err(ProverError::MalformedTask("Task cancelled".to_string()));
                     }
-                    _ => e,
-                })?;
 
-                // Step 3: Generate proof hash
-                let proof_hash = Self::generate_proof_hash(&proof);
+                    // Acquire a permit from the semaphore. This waits if the limit is reached.
+                    let _permit = semaphore_ref.acquire_owned().await;
 
-                Ok((proof, proof_hash))
-            });
-            handles.push(handle);
-        }
-
-        // Collect the results from the spawned tasks
-        for handle in handles {
-            match handle.await {
-                Ok(result) => match result {
-                    Ok((proof, proof_hash)) => {
-                        all_proofs.push(proof);
-                        proof_hashes.push(proof_hash);
+                    // Check for cancellation after acquiring permit
+                    if cancellation_ref.is_cancelled() {
+                        return Err(ProverError::MalformedTask("Task cancelled".to_string()));
                     }
-                    Err(e) => return Err(e),
-                },
-                Err(e) => {
-                    return Err(ProverError::JoinError(e));
+
+                    // Step 1: Parse and validate input
+                    let inputs = InputParser::parse_triple_input(&input_data)?;
+
+                    // Step 2: Generate and verify proof
+                    let proof = ProvingEngine::prove_and_validate(
+                        &inputs,
+                        &task_ref,
+                        &environment_ref,
+                        &client_id_ref,
+                    )
+                    .await?;
+
+                    // Step 3: Generate proof hash
+                    let proof_hash = Self::generate_proof_hash(&proof);
+
+                    Ok((proof, proof_hash, input_index))
+                })
+            })
+            .collect();
+
+        // Use join_all for better parallelization
+        let results = join_all(handles).await;
+
+        // Process results and collect verification failures for batch handling
+        let mut all_proofs = Vec::new();
+        let mut proof_hashes = Vec::new();
+        let mut verification_failures = Vec::new();
+
+        for (result_index, result) in results.into_iter().enumerate() {
+            match result {
+                Ok(Ok((proof, proof_hash, _input_index))) => {
+                    all_proofs.push(proof);
+                    proof_hashes.push(proof_hash);
+                }
+                Ok(Err(e)) => {
+                    // Collect verification failures for batch processing
+                    match e {
+                        ProverError::Stwo(_) | ProverError::GuestProgram(_) => {
+                            verification_failures.push((
+                                task_shared.clone(),
+                                format!("Input {}: {}", result_index, e),
+                                environment_shared.clone(),
+                                client_id_shared.clone(),
+                            ));
+                        }
+                        _ => return Err(e),
+                    }
+                }
+                Err(join_error) => {
+                    return Err(ProverError::JoinError(join_error));
                 }
             }
         }
 
-        let final_proof_hash = Self::combine_proof_hashes(task, &proof_hashes);
+        // Handle all verification failures in batch (avoid nested spawns)
+        let failure_count = verification_failures.len();
+        for (task, error_msg, env, client) in verification_failures {
+            tokio::spawn(track_verification_failed(
+                (*task).clone(),
+                error_msg,
+                (*env).clone(),
+                (*client).clone(),
+            ));
+        }
+
+        // If we have verification failures, we still return an error
+        if failure_count > 0 {
+            return Err(ProverError::MalformedTask(
+                format!("{} inputs failed verification", failure_count),
+            ));
+        }
+
+        let final_proof_hash = Self::combine_proof_hashes(&task_shared, &proof_hashes);
 
         Ok((all_proofs, final_proof_hash, proof_hashes))
     }
