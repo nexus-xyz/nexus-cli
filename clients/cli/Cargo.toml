@@ -39,6 +39,7 @@ panic = "unwind"           # Use unwind for panics to allow tests to catch them.
 async-trait = "0.1.88"
 cfg-if = "1.0"
 chrono = "0.4.38"
+futures = "0.3"
 clap = { version = "4.5", features = ["derive"] }
 crossterm = "0.29.0"
 ed25519-dalek = { version = "2", features = ["rand_core"] }
