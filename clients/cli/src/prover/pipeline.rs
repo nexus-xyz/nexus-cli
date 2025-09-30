@@ -57,7 +57,7 @@ impl ProvingPipeline {
 
         // Create a semaphore with a specific number of permits
         let semaphore = Arc::new(tokio::sync::Semaphore::new(num_workers));
-        
+
         // Create cancellation token for graceful shutdown
         let cancellation_token = CancellationToken::new();
 
@@ -132,7 +132,11 @@ impl ProvingPipeline {
                                 client_id_shared.clone(),
                             ));
                         }
-                        _ => return Err(e),
+                        _ => {
+                            // Cancel remaining tasks on critical errors
+                            cancellation_token.cancel();
+                            return Err(e);
+                        }
                     }
                 }
                 Err(join_error) => {
@@ -154,9 +158,10 @@ impl ProvingPipeline {
 
         // If we have verification failures, we still return an error
         if failure_count > 0 {
-            return Err(ProverError::MalformedTask(
-                format!("{} inputs failed verification", failure_count),
-            ));
+            return Err(ProverError::MalformedTask(format!(
+                "{} inputs failed verification",
+                failure_count
+            )));
         }
 
         let final_proof_hash = Self::combine_proof_hashes(&task_shared, &proof_hashes);
