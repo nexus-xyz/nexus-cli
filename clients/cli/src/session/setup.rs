@@ -112,8 +112,9 @@ pub async fn setup_session(
     // Create orchestrator client
     let orchestrator_client = OrchestratorClient::new(env.clone());
 
-    // Clamp the number of workers to [1, num_cores]. Use CPU cores for better performance.
-    let max_workers = crate::system::num_cores();
+    // Clamp the number of workers to [1, 75% of num_cores]. Leave room for other processes.
+    let total_cores = crate::system::num_cores();
+    let max_workers = ((total_cores as f64 * 0.75).ceil() as usize).max(1);
     let mut num_workers: usize = max_threads.unwrap_or(1).clamp(1, max_workers as u32) as usize;
 
     // Check memory and clamp threads if max-threads was explicitly set OR check-memory flag is set
