@@ -36,15 +36,15 @@ pub struct SessionData {
 fn clamp_threads_by_memory(requested_threads: usize) -> usize {
     let mut sysinfo = System::new();
     sysinfo.refresh_memory();
-    
+
     let total_system_memory = sysinfo.total_memory();
     let memory_per_thread = crate::consts::cli_consts::PROJECTED_MEMORY_REQUIREMENT;
-    
+
     // Calculate max threads based on total system memory
     // Reserve 25% of system memory for OS and other processes
     let available_memory = (total_system_memory as f64 * 0.75) as u64;
     let max_threads_by_memory = (available_memory / memory_per_thread) as usize;
-    
+
     // Return the minimum of requested threads and memory-limited threads
     // Always allow at least 1 thread
     requested_threads.min(max_threads_by_memory.max(1))
