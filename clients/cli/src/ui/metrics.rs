@@ -109,8 +109,12 @@ impl SystemMetrics {
         // Track peak process RAM usage over application lifetime
         let peak_ram = previous_peak.max(ram_total);
 
+        // Normalize CPU percentage by dividing by number of cores to get true percentage
+        let num_cores = crate::system::num_cores() as f32;
+        let normalized_cpu_percent = cpu_total / num_cores;
+
         Self {
-            cpu_percent: cpu_total,
+            cpu_percent: normalized_cpu_percent,
             ram_bytes: ram_total,
             peak_ram_bytes: peak_ram,
             total_ram_bytes: sysinfo.total_memory(),
