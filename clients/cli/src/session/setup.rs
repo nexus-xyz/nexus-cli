@@ -31,32 +31,23 @@ pub struct SessionData {
     pub num_workers: usize,
 }
 
-/// Clamp thread count based on available memory
-/// Returns the maximum number of threads that can be safely used given current memory
+/// Clamp thread count based on available system memory
+/// Returns the maximum number of threads that can be safely used given system memory
 fn clamp_threads_by_memory(requested_threads: usize) -> usize {
-    let current_pid = Pid::from(std::process::id() as usize);
-
     let mut sysinfo = System::new();
-    sysinfo.refresh_processes_specifics(
-        ProcessesToUpdate::Some(&[current_pid]),
-        true, // Refresh exact processes
-        ProcessRefreshKind::nothing().with_memory(),
-    );
-
-    if let Some(process) = sysinfo.process(current_pid) {
-        let available_memory = process.memory();
-        let memory_per_thread = crate::consts::cli_consts::PROJECTED_MEMORY_REQUIREMENT;
-
-        // Calculate max threads based on available memory
-        let max_threads_by_memory = (available_memory / memory_per_thread) as usize;
-
-        // Return the minimum of requested threads and memory-limited threads
-        // Always allow at least 1 thread
-        requested_threads.min(max_threads_by_memory.max(1))
-    } else {
-        // If we can't get process info, be conservative and allow only 1 thread
-        1
-    }
+    sysinfo.refresh_memory();
+    
+    let total_system_memory = sysinfo.total_memory();
+    let memory_per_thread = crate::consts::cli_consts::PROJECTED_MEMORY_REQUIREMENT;
+    
+    // Calculate max threads based on total system memory
+    // Reserve 25% of system memory for OS and other processes
+    let available_memory = (total_system_memory as f64 * 0.75) as u64;
+    let max_threads_by_memory = (available_memory / memory_per_thread) as usize;
+    
+    // Return the minimum of requested threads and memory-limited threads
+    // Always allow at least 1 thread
+    requested_threads.min(max_threads_by_memory.max(1))
 }
 
 /// Warn the user if their available memory seems insufficient for the task(s) at hand
