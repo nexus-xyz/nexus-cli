@@ -31,6 +31,34 @@ pub struct SessionData {
     pub num_workers: usize,
 }
 
+/// Clamp thread count based on available memory
+/// Returns the maximum number of threads that can be safely used given current memory
+fn clamp_threads_by_memory(requested_threads: usize) -> usize {
+    let current_pid = Pid::from(std::process::id() as usize);
+
+    let mut sysinfo = System::new();
+    sysinfo.refresh_processes_specifics(
+        ProcessesToUpdate::Some(&[current_pid]),
+        true, // Refresh exact processes
+        ProcessRefreshKind::nothing().with_memory(),
+    );
+
+    if let Some(process) = sysinfo.process(current_pid) {
+        let available_memory = process.memory();
+        let memory_per_thread = crate::consts::cli_consts::PROJECTED_MEMORY_REQUIREMENT;
+
+        // Calculate max threads based on available memory
+        let max_threads_by_memory = (available_memory / memory_per_thread) as usize;
+
+        // Return the minimum of requested threads and memory-limited threads
+        // Always allow at least 1 thread
+        requested_threads.min(max_threads_by_memory.max(1))
+    } else {
+        // If we can't get process info, be conservative and allow only 1 thread
+        1
+    }
+}
+
 /// Warn the user if their available memory seems insufficient for the task(s) at hand
 pub fn warn_memory_configuration(max_threads: Option<u32>) {
     if let Some(threads) = max_threads {
@@ -93,14 +121,28 @@ pub async fn setup_session(
     // Create orchestrator client
     let orchestrator_client = OrchestratorClient::new(env.clone());
 
-    // Warn the user if the memory demands of their configuration is risky
-    if check_mem {
-        warn_memory_configuration(max_threads);
-    }
-
     // Clamp the number of workers to [1, num_cores]. Use CPU cores for better performance.
     let max_workers = crate::system::num_cores();
-    let num_workers: usize = max_threads.unwrap_or(1).clamp(1, max_workers as u32) as usize;
+    let mut num_workers: usize = max_threads.unwrap_or(1).clamp(1, max_workers as u32) as usize;
+
+    // Check memory and clamp threads if max-threads was explicitly set OR check-memory flag is set
+    if max_threads.is_some() || check_mem {
+        let memory_clamped_workers = clamp_threads_by_memory(num_workers);
+        if memory_clamped_workers < num_workers {
+            crate::print_cmd_warn!(
+                "Memory limit",
+                "Reduced thread count from {} to {} due to insufficient memory. Each thread requires ~4GB RAM.",
+                num_workers,
+                memory_clamped_workers
+            );
+            num_workers = memory_clamped_workers;
+        }
+    }
+
+    // Additional memory warning if explicitly requested
+    if check_mem {
+        warn_memory_configuration(Some(num_workers as u32));
+    }
 
     // Create shutdown channel - only one shutdown signal needed
     let (shutdown_sender, _) = broadcast::channel(1);
