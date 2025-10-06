@@ -24,13 +24,25 @@ A high-performance command-line interface for contributing proofs to the Nexus n
 [Nexus](https://nexus.xyz/) is a global distributed prover network that unites the world's computers to power a new and
 better Internet: the Verifiable Internet.
 
+## Network Status
+
+**Current Version**: v0.10.17
+
 There have been several testnets so far:
 
 - Testnet 0: [October 8 – 28, 2024](https://blog.nexus.xyz/nexus-launches-worlds-first-open-prover-network/)
 - Testnet I: [December 9 – 13, 2024](https://blog.nexus.xyz/the-new-nexus-testnet-is-live/)
 - Testnet II: [February 18 – 22, 2025](https://blog.nexus.xyz/testnet-ii-is-open/)
 - Devnet: [February 22 - June 20, 2025](https://docs.nexus.xyz/layer-1/testnet/devnet)
-- Testnet III: [Ongoing](https://blog.nexus.xyz/live-everywhere/)
+- Testnet III: [March 2025 - Ongoing](https://blog.nexus.xyz/live-everywhere/)
+
+### Recent Improvements (v0.10.17)
+
+- **Enhanced Thread Management**: Automatic optimization based on CPU cores and available memory
+- **Improved Memory Checking**: Real-time monitoring with detailed warnings
+- **Better Error Handling**: Timeout protection and progressive error categorization
+- **Performance Optimization**: More efficient parallel processing with `join_all`
+- **Stability Improvements**: Enhanced error recovery and resource management
 
 ---
 
@@ -76,7 +88,7 @@ nexus-cli register-node --node-id <your-cli-node-id>
 nexus-cli start
 ```
 
-To run the CLI noninteractively, you can also opt to start it in headless mode.
+To run the CLI non-interactively, you can also opt to start it in headless mode.
 
 ```bash
 nexus-cli start --headless
@@ -96,6 +108,27 @@ For troubleshooting or to see available command-line options, run:
 nexus-cli --help
 ```
 
+### Thread Management and Performance
+
+The Nexus CLI automatically optimizes thread usage based on your system's capabilities:
+
+- **Default threads**: Half of your CPU cores for optimal performance
+- **Maximum threads**: Capped at 75% of total cores to maintain system stability
+- **Memory checking**: Each thread requires ~4GB RAM, automatically adjusted based on available memory
+
+#### Thread Configuration
+
+```bash
+# Let CLI auto-detect optimal thread count (recommended)
+nexus-cli start
+
+# Manually specify thread count
+nexus-cli start --max-threads 4
+
+# Enable detailed memory checking
+nexus-cli start --check-mem
+```
+
 ### Adaptive Task Difficulty
 
 The Nexus CLI features an **adaptive difficulty system** that automatically adjusts task difficulty based on your node's performance. This ensures optimal resource utilization while preventing system overload.
@@ -107,13 +140,13 @@ The Nexus CLI features an **adaptive difficulty system** that automatically adju
 
 #### When to Override Difficulty
 
-**Lower Difficulty** (e.g. `Small` or `SmallMedium`):
+**Lower Difficulty** (e.g. `small` or `small_medium`):
 - Resource-constrained systems
 - Background processing alongside other apps
 - Testing/development environments
 - Battery-powered devices
 
-**Higher Difficulty** (e.g. `Large`, `ExtraLarge`, or `ExtraLarge2`):
+**Higher Difficulty** (e.g. `large`, `extra_large`, or `extra_large_2`):
 - High-performance hardware (8+ cores, 16+ GB RAM)
 - Dedicated proving machines
 - Maximum reward optimization
@@ -142,12 +175,13 @@ nexus-cli start --max-difficulty Medium
 
 #### Difficulty Guidelines
 
-| Difficulty | Use Case |
-|------------|----------|
-| `small` | Default, starting task |
-| `small_medium` | Building reputation |
-| `medium` and `large` | Standard desktop/laptop |
-| `extra_large` and above | High-performance systems, more points |
+| Difficulty | RAM Required | CPU Cores | Use Case |
+|------------|--------------|-----------|----------|
+| `small` | 4-8GB | 1-2 cores | Default, starting task |
+| `small_medium` | 8-12GB | 2-4 cores | Building reputation |
+| `medium` | 12-16GB | 4-6 cores | Standard desktop/laptop |
+| `large` | 16-24GB | 6-8 cores | High-performance desktop |
+| `extra_large` and above | 24GB+ | 8+ cores | Dedicated proving machines, maximum points |
 
 > **Tip**: Use `nexus-cli start --help` to see the full auto-promotion details in the CLI help text.
 
@@ -155,7 +189,7 @@ nexus-cli start --max-difficulty Medium
 
 **Tasks taking too long:**
 
-Try a lower difficulty.
+Try a lower difficulty:
 
 ```bash
 nexus-cli start --max-difficulty small_medium
@@ -163,16 +197,18 @@ nexus-cli start --max-difficulty small_medium
 
 **Want more challenging tasks:**
 
-Request a harder difficulty. It will still take time to build up reputation to get the requested difficulty.
+Request a harder difficulty. Note: It will still take time to build up reputation to get the requested difficulty:
 
 ```bash
 nexus-cli start --max-difficulty extra_large_2
 ```
 
 **Unsure about system capabilities:**
-- Use the default adaptive system (no `--max-difficulty` needed)
+- Use the default adaptive system (no `--max-difficulty` flag needed)
 - The system will automatically find the optimal difficulty for your hardware
-- Only override if you're fine-tuning performance
+- CLI now defaults to optimal thread count based on your CPU cores
+- Memory checking ensures stable operation without system overload
+- Only override if you're fine-tuning performance for specific use cases
 
 ### Docker Installation
 
@@ -187,6 +223,20 @@ docker compose build --no-cache
 docker compose up -d
 docker compose logs  # Check logs
 docker compose down  # Shutdown
+```
+
+**Note for Apple Silicon (M1/M2/M3/M4) users**: If you encounter issues with Docker containers since v0.10.15, try using the previous working version:
+
+```bash
+docker run -d --name nexus-node --restart unless-stopped --init \
+  nexusxyz/nexus-cli:v0.10.14 start --headless --node-id <your-node-id>
+```
+
+For the latest version, you can also try:
+
+```bash
+docker run -d --name nexus-node --restart unless-stopped --init \
+  nexusxyz/nexus-cli:latest start --headless --node-id <your-node-id>
 ```
 
 ---
@@ -212,13 +262,55 @@ following format:
 
 ---
 
+## Performance Optimization
+
+### System Requirements
+
+**Minimum Requirements:**
+- 4GB RAM (for 1 thread)
+- 2 CPU cores
+- Stable internet connection
+
+**Recommended for Optimal Performance:**
+- 16GB+ RAM (for 4+ threads)
+- 8+ CPU cores
+- SSD storage
+- Dedicated proving machine
+
+### Memory Management
+
+The CLI includes intelligent memory management:
+- Automatic thread count optimization based on available memory
+- Real-time memory monitoring and warnings
+- Graceful degradation on memory-constrained systems
+- Each proving thread requires approximately 4GB RAM
+
+### Troubleshooting Performance Issues
+
+**Memory Warnings:**
+```bash
+# Check available memory before starting
+nexus-cli start --check-mem
+
+# Reduce threads if getting memory warnings
+nexus-cli start --max-threads 2
+```
+
+**CPU Optimization:**
+```bash
+# Let CLI auto-detect optimal settings (recommended)
+nexus-cli start
+
+# Manual tuning for specific hardware
+nexus-cli start --max-threads 6 --max-difficulty large
+```
+
 ## Get Help
 
 - [Network FAQ](https://docs.nexus.xyz/layer-1/testnet/faq)
 - [Discord Community](https://discord.gg/nexus-xyz)
 - Technical issues? [Open an issue](https://github.com/nexus-xyz/nexus-cli/issues)
-- To submit programs to the network for proving, contact
-  [growth@nexus.xyz](mailto:growth@nexus.xyz).
+- To submit programs to the network for proving, contact [growth@nexus.xyz](mailto:growth@nexus.xyz)
 
 ---
 
@@ -247,6 +339,9 @@ sudo apt update
 sudo apt upgrade
 sudo apt install build-essential pkg-config libssl-dev git-all
 sudo apt install protobuf-compiler
+
+# Verify installation
+protoc --version
 ```
 
 #### macOS
@@ -261,13 +356,39 @@ protoc --version
 
 #### Windows
 
-[Install WSL](https://learn.microsoft.com/en-us/windows/wsl/install),
-then see Linux instructions above.
+**Option 1: WSL (Recommended)**
+[Install WSL](https://learn.microsoft.com/en-us/windows/wsl/install), then follow Linux instructions above.
 
-```bash
+**Option 2: Native Windows**
+```powershell
 # Install using Chocolatey
 choco install protobuf
+
+# Or using winget
+winget install protobuf
+
+# Verify installation
+protoc --version
 ```
+
+**Option 3: Manual Installation**
+Download protobuf compiler from [GitHub releases](https://github.com/protocolbuffers/protobuf/releases) and add to PATH.
+
+## Changelog
+
+### v0.10.17 (Current)
+- **Enhanced Thread Management**: Intelligent default thread allocation (half of CPU cores)
+- **Improved Memory Checking**: Real-time available memory calculation with detailed warnings
+- **Better Parallel Processing**: Timeout protection and improved error handling for proving pipeline
+- **Performance Optimization**: More efficient resource utilization and stability improvements
+- **Bug Fixes**: Various stability and performance improvements
+
+### Previous Versions
+- v0.10.16: Bug fixes and stability improvements
+- v0.10.15: Core proving engine updates (Note: Docker compatibility issues on Apple Silicon)
+- v0.10.14: Stable release with full Docker support
+
+For complete changelog, see [GitHub Releases](https://github.com/nexus-xyz/nexus-cli/releases).
 
 ## License
 
