@@ -38,16 +38,32 @@ fn clamp_threads_by_memory(requested_threads: usize) -> usize {
     sysinfo.refresh_memory();
 
     let total_system_memory = sysinfo.total_memory();
+    let used_memory = sysinfo.used_memory();
     let memory_per_thread = crate::consts::cli_consts::PROJECTED_MEMORY_REQUIREMENT;
 
-    // Calculate max threads based on total system memory
-    // Reserve 25% of system memory for OS and other processes
-    let available_memory = (total_system_memory as f64 * 0.75) as u64;
-    let max_threads_by_memory = (available_memory / memory_per_thread) as usize;
+    // Calculate available memory more accurately
+    // Use actual available memory instead of just reserving 25%
+    let available_memory = total_system_memory.saturating_sub(used_memory);
+    
+    // Reserve additional 2GB for OS and other processes to be safe
+    let reserved_memory = 2_147_483_648u64; // 2GB
+    let usable_memory = available_memory.saturating_sub(reserved_memory);
+    
+    let max_threads_by_memory = (usable_memory / memory_per_thread) as usize;
 
     // Return the minimum of requested threads and memory-limited threads
-    // Always allow at least 1 thread
-    requested_threads.min(max_threads_by_memory.max(1))
+    // Always allow at least 1 thread, but warn if memory is very low
+    let result = requested_threads.min(max_threads_by_memory.max(1));
+    
+    if max_threads_by_memory == 0 {
+        crate::print_cmd_warn!(
+            "Low memory",
+            "Available memory ({:.1}GB) is below recommended minimum. Performance may be degraded.",
+            usable_memory as f64 / 1_073_741_824.0
+        );
+    }
+    
+    result
 }
 
 /// Warn the user if their available memory seems insufficient for the task(s) at hand
@@ -115,7 +131,17 @@ pub async fn setup_session(
     // Clamp the number of workers to [1, 75% of num_cores]. Leave room for other processes.
     let total_cores = crate::system::num_cores();
     let max_workers = ((total_cores as f64 * 0.75).ceil() as usize).max(1);
-    let mut num_workers: usize = max_threads.unwrap_or(1).clamp(1, max_workers as u32) as usize;
+    
+    // Default to optimal thread count instead of just 1
+    let default_threads = if total_cores >= 4 { 
+        (total_cores / 2).max(1) 
+    } else { 
+        1 
+    };
+    
+    let mut num_workers: usize = max_threads
+        .unwrap_or(default_threads as u32)
+        .clamp(1, max_workers as u32) as usize;
 
     // Check memory and clamp threads if max-threads was explicitly set OR check-memory flag is set
     if max_threads.is_some() || check_mem {
@@ -128,6 +154,18 @@ pub async fn setup_session(
                 memory_clamped_workers
             );
             num_workers = memory_clamped_workers;
+        }
+        
+        // Additional detailed memory check
+        let (sufficient, available_gb, required_gb) = crate::system::check_memory_for_threads(num_workers);
+        if !sufficient {
+            crate::print_cmd_warn!(
+                "Memory warning",
+                "Available memory ({:.1}GB) may be insufficient for {} threads (requires {:.1}GB). Consider reducing --max-threads.",
+                available_gb,
+                num_workers,
+                required_gb
+            );
         }
     }
 
