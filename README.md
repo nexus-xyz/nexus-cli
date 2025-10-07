@@ -225,14 +225,7 @@ docker compose logs  # Check logs
 docker compose down  # Shutdown
 ```
 
-**Note for Apple Silicon (M1/M2/M3/M4) users**: If you encounter issues with Docker containers since v0.10.15, try using the previous working version:
-
-```bash
-docker run -d --name nexus-node --restart unless-stopped --init \
-  nexusxyz/nexus-cli:v0.10.14 start --headless --node-id <your-node-id>
-```
-
-For the latest version, you can also try:
+For direct Docker usage:
 
 ```bash
 docker run -d --name nexus-node --restart unless-stopped --init \
@@ -382,11 +375,6 @@ Download protobuf compiler from [GitHub releases](https://github.com/protocolbuf
 - **Better Parallel Processing**: Timeout protection and improved error handling for proving pipeline
 - **Performance Optimization**: More efficient resource utilization and stability improvements
 - **Bug Fixes**: Various stability and performance improvements
-
-### Previous Versions
-- v0.10.16: Bug fixes and stability improvements
-- v0.10.15: Core proving engine updates (Note: Docker compatibility issues on Apple Silicon)
-- v0.10.14: Stable release with full Docker support
 
 For complete changelog, see [GitHub Releases](https://github.com/nexus-xyz/nexus-cli/releases).
 
