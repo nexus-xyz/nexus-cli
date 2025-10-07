@@ -126,7 +126,7 @@ nexus-cli start
 nexus-cli start --max-threads 4
 
 # Enable detailed memory checking
-nexus-cli start --check-mem
+nexus-cli start --check-memory
 ```
 
 ### Adaptive Task Difficulty
