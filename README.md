@@ -278,25 +278,7 @@ The CLI includes intelligent memory management:
 - Graceful degradation on memory-constrained systems
 - Each proving thread requires approximately 4GB RAM
 
-### Troubleshooting Performance Issues
 
-**Memory Warnings:**
-```bash
-# Check available memory before starting
-nexus-cli start --check-mem
-
-# Reduce threads if getting memory warnings
-nexus-cli start --max-threads 2
-```
-
-**CPU Optimization:**
-```bash
-# Let CLI auto-detect optimal settings (recommended)
-nexus-cli start
-
-# Manual tuning for specific hardware
-nexus-cli start --max-threads 6 --max-difficulty large
-```
 
 ## Get Help
 
