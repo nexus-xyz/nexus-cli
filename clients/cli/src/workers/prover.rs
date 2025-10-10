@@ -44,7 +44,10 @@ impl TaskProver {
                 self.event_sender
                     .send_prover_event(
                         self.config.num_workers, // Use num_workers as thread identifier for multi-threaded prover
-                        format!("Step 3 of 4: Proof generated for task {} (using {} workers)", task.task_id, self.config.num_workers),
+                        format!(
+                            "Step 3 of 4: Proof generated for task {} (using {} workers)",
+                            task.task_id, self.config.num_workers
+                        ),
                         EventType::Success,
                         LogLevel::Info,
                     )
@@ -67,7 +70,10 @@ impl TaskProver {
                 self.event_sender
                     .send_prover_event(
                         self.config.num_workers, // Use num_workers as thread identifier for multi-threaded prover
-                        format!("Proof generation failed for task {} (using {} workers): {}", task.task_id, self.config.num_workers, e),
+                        format!(
+                            "Proof generation failed for task {} (using {} workers): {}",
+                            task.task_id, self.config.num_workers, e
+                        ),
                         EventType::Error,
                         LogLevel::Error,
                     )
