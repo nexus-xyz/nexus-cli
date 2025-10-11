@@ -2,7 +2,9 @@
 [![CI](https://github.com/nexus-xyz/nexus-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/nexus-xyz/nexus-cli/actions)
 [![License](https://img.shields.io/badge/License-Apache_2.0-green.svg)](https://github.com/nexus-xyz/nexus-cli/blob/main/LICENSE-APACHE)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/nexus-xyz/nexus-cli/blob/main/LICENSE-MIT)
-[![Twitter](https://img.shields.io/twitter/follow/NexusLabs)](https://x.com/NexusLabs)
+[![Twitter]@Rbswt26979
+
+(https://img.shields.io/twitter/follow/NexusLabs)](https://x.com/NexusLabs)
 [![Discord](https://img.shields.io/badge/Discord-Join-7289da.svg?logo=discord&logoColor=white)](https://discord.com/invite/nexus-xyz)
 
 # Nexus CLI
@@ -62,10 +64,14 @@ NONINTERACTIVE=1 ./install.sh
 
 Proving with the CLI is documented [here](https://docs.nexus.xyz/layer-1/testnet/cli-node).
 
-To start with an existing node ID, run:
+To start with an existing node ID, run:36722428
+
+
 
 ```bash
-nexus-cli start --node-id <your-node-id>
+ne36722428
+
+xus-cli start --node-id <your-node-id>
 ```
 
 Alternatively, you can register your wallet address and create a node ID with the CLI, or at [app.nexus.xyz](https://app.nexus.xyz).
@@ -76,7 +82,8 @@ nexus-cli register-node --node-id <your-cli-node-id>
 nexus-cli start
 ```
 
-To run the CLI noninteractively, you can also opt to start it in headless mode.
+To run the CLI noninteractively, you can also opt to start it in headless mode.36722428
+
 
 ```bash
 nexus-cli start --headless
@@ -200,7 +207,8 @@ First-time users running interactively will be prompted to accept these terms.
 
 ---
 
-## Node ID
+## Node ID36722428
+
 
 During the CLI's startup, you'll be asked for your node ID. To skip prompts in a
 non-interactive environment, manually create a `~/.nexus/config.json` in the
@@ -208,6 +216,8 @@ following format:
 
 ```json
 {
+36722428
+
    "node_id": "<YOUR NODE ID>"
 }
 ```
