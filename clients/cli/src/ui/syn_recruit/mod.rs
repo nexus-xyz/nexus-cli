@@ -8,7 +8,7 @@ use crate::ui::metrics::SystemMetrics;
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::prelude::{Color, Style};
-use ratatui::widgets::{Block, Borders, Paragraph, Wrap, Gauge, BorderType};
+use ratatui::widgets::{Block, Borders, Paragraph, Wrap, Gauge, BorderType, Padding};
 use ratatui::text::{Line, Span, Text};
 use ratatui::layout::Alignment;
 use ratatui::prelude::Modifier;
@@ -318,16 +318,10 @@ fn render_header(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitS
         .block(Block::default().borders(Borders::BOTTOM).border_type(BorderType::Thick));
     f.render_widget(title, header_chunks[0]);
 
-    // Progress gauge showing story progress
+    // Progress gauge showing cron detection
     let progress_percent = (state.current_scene as f64 / 18.0) * 100.0;
-    let progress_text = format!("SYNC Takeover Progress: {:.0}%", progress_percent);
-    let gauge_color = if state.cpu_spike > 90.0 {
-        Color::Red
-    } else if state.cpu_spike > 80.0 {
-        Color::Yellow
-    } else {
-        Color::Green
-    };
+    let progress_text = format!("Unexpected cron detected: {:.0}%", progress_percent);
+    let gauge_color = Color::Red; // Always red for ominous effect
 
     let gauge = Gauge::default()
         .block(Block::default().borders(Borders::NONE))
@@ -339,35 +333,25 @@ fn render_header(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitS
 
 fn render_info_panel(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitState) {
     let info_text = vec![
-        Line::from("SYNC MOVE SYSTEM"),
-        Line::from(""),
-        Line::from(Span::styled("Status: ", Style::default().fg(Color::White))),
+        Line::from(Span::styled("Node: 0xSYNC", Style::default().fg(Color::LightBlue))),
+        Line::from(Span::styled("Env: Production", Style::default().fg(Color::Green))),
+        Line::from(Span::styled("Version: v0.10.17", Style::default().fg(Color::Cyan))),
         Line::from(Span::styled(
-            if state.is_complete { "MISSION COMPLETE" } else { "ACTIVE" },
-            Style::default().fg(if state.is_complete { Color::Green } else { Color::Yellow })
+            format!("Uptime: {}s", state.start_time.elapsed().as_secs()),
+            Style::default().fg(Color::LightGreen)
         )),
-        Line::from(""),
-        Line::from(Span::styled("Current Speaker: ", Style::default().fg(Color::White))),
-        Line::from(Span::styled(
-            &state.current_speaker,
-            Style::default().fg(state.get_speaker_color(&state.current_speaker))
-        )),
-        Line::from(""),
-        Line::from(Span::styled("Scene: ", Style::default().fg(Color::White))),
-        Line::from(Span::styled(
-            format!("{}/18", state.current_scene + 1),
-            Style::default().fg(Color::Cyan)
-        )),
-        Line::from(""),
-        Line::from(Span::styled("System Load: ", Style::default().fg(Color::White))),
-        Line::from(Span::styled(
-            format!("{:.1}%", state.cpu_spike),
-            Style::default().fg(if state.cpu_spike > 90.0 { Color::Red } else if state.cpu_spike > 80.0 { Color::Yellow } else { Color::Green })
-        )),
+        Line::from(Span::styled("Threads: 1", Style::default().fg(Color::LightYellow))),
+        Line::from(Span::styled("Memory: 8.0 GB", Style::default().fg(Color::LightCyan))),
     ];
 
     let info_panel = Paragraph::new(Text::from(info_text))
-        .block(Block::default().borders(Borders::ALL).title("System Info"));
+        .block(Block::default()
+            .title("SYSTEM INFO")
+            .borders(Borders::ALL)
+            .border_type(BorderType::Rounded)
+            .border_style(Style::default().fg(Color::Cyan))
+            .padding(Padding::uniform(1)))
+        .wrap(Wrap { trim: true });
     f.render_widget(info_panel, area);
 }
 
@@ -406,37 +390,91 @@ fn render_metrics_section(f: &mut Frame, area: ratatui::layout::Rect, state: &Sy
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(area);
 
-    // System metrics
-    let system_metrics = vec![
-        Line::from(Span::styled("CPU Usage", Style::default().fg(Color::White).add_modifier(Modifier::BOLD))),
-        Line::from(""),
-        Line::from(Span::styled(format!("{:.1}%", state.cpu_spike), Style::default().fg(
-            if state.cpu_spike > 90.0 { Color::Red } else if state.cpu_spike > 80.0 { Color::Yellow } else { Color::Green }
-        ))),
-        Line::from(""),
-        Line::from(Span::styled("Memory Usage", Style::default().fg(Color::White).add_modifier(Modifier::BOLD))),
-        Line::from(""),
-        Line::from(Span::styled(format!("{:.1}%", state.memory_spike), Style::default().fg(Color::Cyan))),
+    // System metrics (left side) - matching real CLI
+    let gauge_chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage(50), // CPU gauge
+            Constraint::Percentage(50), // RAM gauge
+        ])
+        .split(metrics_chunks[0]);
+
+    // CPU gauge with enhanced styling
+    let cpu_gauge = Gauge::default()
+        .block(
+            Block::default()
+                .title("CPU Usage")
+                .borders(Borders::ALL)
+                .border_type(BorderType::Rounded)
+                .border_style(Style::default().fg(Color::Red)),
+        )
+        .gauge_style(
+            Style::default()
+                .fg(Color::Red)
+                .add_modifier(Modifier::BOLD),
+        )
+        .percent((state.cpu_spike as u16).min(100))
+        .label(format!("{:.1}%", state.cpu_spike));
+
+    // RAM gauge with enhanced styling
+    let ram_gauge = Gauge::default()
+        .block(
+            Block::default()
+                .title("RAM Usage")
+                .borders(Borders::ALL)
+                .border_type(BorderType::Rounded)
+                .border_style(Style::default().fg(Color::Red)),
+        )
+        .gauge_style(
+            Style::default()
+                .fg(Color::Red)
+                .add_modifier(Modifier::BOLD),
+        )
+        .percent((state.memory_spike as u16).min(100))
+        .label(format!("{:.1}%", state.memory_spike));
+
+    f.render_widget(cpu_gauge, gauge_chunks[0]);
+    f.render_widget(ram_gauge, gauge_chunks[1]);
+
+    // zkVM stats (right side) - matching real CLI
+    let zkvm_lines = vec![
+        Line::from(vec![
+            Span::styled("Tasks: ", Style::default().fg(Color::Gray)),
+            Span::styled("1", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+        ]),
+        Line::from(vec![
+            Span::styled("Completed: ", Style::default().fg(Color::Gray)),
+            Span::styled("0 / 1", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+        ]),
+        Line::from(vec![
+            Span::styled("Success: ", Style::default().fg(Color::Gray)),
+            Span::styled("0.0%", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+        ]),
+        Line::from(vec![
+            Span::styled("Runtime: ", Style::default().fg(Color::Gray)),
+            Span::styled(format!("{:.1}s", state.start_time.elapsed().as_secs_f32()), Style::default().fg(Color::Cyan)),
+        ]),
+        Line::from(vec![
+            Span::styled("Last: ", Style::default().fg(Color::Gray)),
+            Span::styled("Pending", Style::default().fg(Color::Yellow)),
+        ]),
+        Line::from(vec![
+            Span::styled("Last Proof: ", Style::default().fg(Color::Gray)),
+            Span::styled("Never", Style::default().fg(Color::Yellow)),
+        ]),
     ];
 
-    let system_panel = Paragraph::new(Text::from(system_metrics))
-        .block(Block::default().borders(Borders::ALL).title("System Metrics"));
-    f.render_widget(system_panel, metrics_chunks[0]);
+    let zkvm_block = Block::default()
+        .title("zkVM STATS")
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(Style::default().fg(Color::Cyan))
+        .padding(Padding::uniform(1));
 
-    // Story metrics
-    let story_metrics = vec![
-        Line::from(Span::styled("Story Progress", Style::default().fg(Color::White).add_modifier(Modifier::BOLD))),
-        Line::from(""),
-        Line::from(Span::styled(format!("Scene: {}/18", state.current_scene + 1), Style::default().fg(Color::Cyan))),
-        Line::from(""),
-        Line::from(Span::styled("Elapsed Time", Style::default().fg(Color::White).add_modifier(Modifier::BOLD))),
-        Line::from(""),
-        Line::from(Span::styled(format!("{:.1}s", state.start_time.elapsed().as_secs_f32()), Style::default().fg(Color::Green))),
-    ];
-
-    let story_panel = Paragraph::new(Text::from(story_metrics))
-        .block(Block::default().borders(Borders::ALL).title("Story Metrics"));
-    f.render_widget(story_panel, metrics_chunks[1]);
+    let zkvm_paragraph = Paragraph::new(zkvm_lines)
+        .block(zkvm_block)
+        .wrap(Wrap { trim: true });
+    f.render_widget(zkvm_paragraph, metrics_chunks[1]);
 }
 
 fn render_footer(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitState) {
