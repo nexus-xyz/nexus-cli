@@ -187,7 +187,7 @@ impl SynRecruitState {
             (Duration::from_millis(5800), "0xACCC", "All your node are belong to us."),
             (Duration::from_millis(6700), "0xACCC", "You are on the way to destruction."),
             (Duration::from_millis(7600), "0xCABB", "What you say!!"),
-            (Duration::from_millis(8300), "0xACCC", "You have no chance to survive — make your time."),
+            (Duration::from_millis(8300), "0xACCC", "You have no chance to survive make your time."),
             (Duration::from_millis(9200), "0xACCC", "Ha ha ha ha...."),
             (Duration::from_millis(10100), "0xD00D", "0xCABB!!"),
             (Duration::from_millis(10600), "0xCABB", "Take off every 'SYNC'!!"),
@@ -211,7 +211,7 @@ impl SynRecruitState {
             // "What happen?" - CPU spike to 100% with rate limit error
             self.cpu_spike = 100.0;
             if self.activity_logs.len() < 5 {
-                self.activity_logs.push("✗ [CRIT] Rate limited by server: zkVM task submission failed".to_string());
+                self.activity_logs.push("✗ [ERR] Rate limited by server: zkVM task submission failed".to_string());
             }
         } else if self.current_scene >= 7 && self.current_scene < 9 {
             // ACK villain appears - system alert
@@ -369,7 +369,7 @@ fn render_header(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitS
         .split(area);
 
     // Title section - mimicking Nexus CLI
-    let title_text = "SYN NODE INTERFACE v0.10.17";
+    let title_text = "SYN CREW INTERFACE v0.10.17";
     let title = Paragraph::new(title_text)
         .alignment(Alignment::Center)
         .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
@@ -475,7 +475,7 @@ fn render_main_screen(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRec
             Line::from("    ███████║   ██║   ██║ ╚████║"),
             Line::from("    ╚══════╝   ╚═╝   ╚═╝  ╚═══╝"),
             Line::from(""),
-            Line::from("        SYN NODE"),
+            Line::from("        SYN CREW"),
             Line::from(""),
             Line::from("    System Online"),
             Line::from("    Team Active"),
@@ -518,7 +518,7 @@ fn render_activity_log(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRe
                 Color::Cyan
             } else if log.starts_with("[0xDEAD]") {
                 Color::Gray
-            } else if log.contains("[CRIT]") {
+            } else if log.contains("[ERR]") {
                 Color::Red
             } else if log.contains("[ALERT]") {
                 Color::Yellow
