@@ -1,161 +1,50 @@
-use serde::Deserialize;
-use std::fs;
-use std::thread;
-use std::time::Duration;
-use crate::audio::{AudioEngine, generate_background_music, generate_sound_effects};
-
-#[derive(Deserialize)]
-struct Scene {
-    speaker: String,
-    line: String,
-    delay_ms: u64,
-}
-
-#[derive(Deserialize)]
-struct LogEntry {
-    level: String,
-    msg: String,
-}
-
-const RESET: &str = "\x1b[0m";
-const BOLD: &str = "\x1b[1m";
-const DIM: &str = "\x1b[2m";
-const GRAY: &str = "\x1b[90m";
-const YELLOW: &str = "\x1b[33m";
-const GREEN: &str = "\x1b[32m";
-const CYAN: &str = "\x1b[36m";
-const MAGENTA: &str = "\x1b[35m";
-const RED: &str = "\x1b[31m";
-
-fn speaker_color(speaker: &str) -> &str {
-    match speaker {
-        "0xACCC" => MAGENTA,
-        "0xCABB" => YELLOW,
-        "0xF1X3" => GREEN,
-        "0xD00D" => CYAN,
-        "0xDEAD" => GRAY,
-        _ => RESET,
-    }
-}
-
-fn level_color(level: &str) -> &str {
-    match level {
-        "INFO" => CYAN,
-        "WARN" => YELLOW,
-        "ALERT" => MAGENTA,
-        "CRIT" => RED,
-        "ERROR" => RED,
-        "OK" => GREEN,
-        _ => GRAY,
-    }
-}
-
-fn now() -> String {
-    chrono::Utc::now()
-        .format("%Y-%m-%d %H:%M:%S")
-        .to_string()
-}
-
-async fn print_activity(logs: &[LogEntry]) {
-    println!("{DIM}── Activity Log ───────────────────────────────{RESET}");
-    for entry in logs {
-        println!(
-            "[{GRAY}{}{RESET}] {}{}{RESET} {}",
-            now(),
-            level_color(&entry.level),
-            entry.level,
-            entry.msg
-        );
-        thread::sleep(Duration::from_millis(200));
-    }
-    println!("{DIM}───────────────────────────────────────────────{RESET}");
-}
-
-async fn rocket_launch() {
-    println!("{YELLOW}MOVE 'SYNC'! 🚀🚀🚀{RESET}");
-    thread::sleep(Duration::from_millis(800));
-}
-
-async fn robot_arms_celebration() {
-    println!("{GREEN}FOR GREAT JUSTICE! 🤖🦾{RESET}");
-    thread::sleep(Duration::from_millis(1000));
-}
-
-async fn print_ascii(file_path: &str, color: &str) {
-    if let Ok(content) = fs::read_to_string(file_path) {
-        for line in content.lines() {
-            println!("{}{}{}", color, line, RESET);
-            thread::sleep(Duration::from_millis(15));
-        }
-    }
-}
+use crate::ui::syn_recruit::SynRecruitState;
+use crate::ui::app::{App, Screen, UIConfig};
+use crate::environment::Environment;
+use ratatui::{backend::CrosstermBackend, Terminal};
+use tokio::sync::{broadcast, mpsc};
 
 pub async fn run_syn_recruit() -> Result<(), Box<dyn std::error::Error>> {
-    // Generate audio files if they don't exist
-    if !std::path::Path::new("../../assets/audio").exists() {
-        generate_sound_effects()?;
-        generate_background_music()?;
-    }
+    // Initialize terminal
+    crossterm::terminal::enable_raw_mode()?;
+    crossterm::execute!(std::io::stdout(), crossterm::terminal::EnterAlternateScreen)?;
     
-    // Initialize audio engine
-    let audio_engine = AudioEngine::new()?;
+    let backend = CrosstermBackend::new(std::io::stdout());
+    let mut terminal = Terminal::new(backend)?;
     
-    // Clear screen
-    print!("\x1b[2J\x1b[H");
+    // Create the recruitment video state
+    let syn_recruit_state = SynRecruitState::new();
     
-    // Read data files - adjust paths to be relative to project root
-    let scenes_content = fs::read_to_string("../../scripts/syn/all-your-node.scenes.json")?;
-    let logs_content = fs::read_to_string("../../scripts/syn/activity.log.json")?;
+    // Create a minimal app structure for the TUI
+    let (_event_sender, event_receiver) = mpsc::channel(100);
+    let (shutdown_sender, _shutdown_receiver) = broadcast::channel(1);
+    let (_, max_tasks_shutdown_receiver) = broadcast::channel(1);
     
-    let scenes: Vec<Scene> = serde_json::from_str(&scenes_content)?;
-    let logs: Vec<LogEntry> = serde_json::from_str(&logs_content)?;
+    let ui_config = UIConfig::new(
+        true,  // with_background_color
+        1,     // num_threads
+        false, // update_available
+        None,  // latest_version
+    );
     
-    println!("{GRAY}BOOT> INITIALIZING SYN SYSTEM ...{RESET}");
-    thread::sleep(Duration::from_millis(400));
+    let mut app = App::new(
+        None,  // node_id
+        Environment::default(),
+        event_receiver,
+        shutdown_sender,
+        max_tasks_shutdown_receiver,
+        ui_config,
+    );
     
-    // Start background music
-    let _ = audio_engine.play_sound("../../assets/audio/syn_bg_music.wav");
+    // Override the screen to show the recruitment video
+    app.current_screen = Screen::SynRecruit(Box::new(syn_recruit_state));
     
-    for scene in scenes {
-        // Play console beep for each message
-        let _ = audio_engine.play_sound("../../assets/audio/console_beep.wav");
-        
-        println!(
-            "{}{}{}{}: {}",
-            BOLD,
-            speaker_color(&scene.speaker),
-            scene.speaker,
-            RESET,
-            scene.line
-        );
-        thread::sleep(Duration::from_millis(scene.delay_ms));
-        
-        if scene.line.contains("Take off every 'SYNC'") {
-            // Play alert sound
-            let _ = audio_engine.play_sound("../../assets/audio/alert.wav");
-            print_activity(&logs[0..5]).await;
-        }
-        
-        if scene.line.contains("Move 'SYNC'") {
-            // Play rocket sound
-            let _ = audio_engine.play_sound("../../assets/audio/rocket.wav");
-            rocket_launch().await;
-            print_activity(&logs[5..8]).await;
-        }
-        
-        if scene.line.contains("For great justice") {
-            // Play victory sound
-            let _ = audio_engine.play_sound("../../assets/audio/victory.wav");
-            robot_arms_celebration().await;
-            print_activity(&logs[8..]).await;
-        }
-    }
+    // Run the TUI
+    let result = crate::ui::run(&mut terminal, app).await;
     
-    print_ascii("../../assets/ascii/outro-syn.txt", GREEN).await;
-    println!("{DIM}Broadcast complete. Packet dropped.{RESET}");
+    // Cleanup terminal
+    crossterm::execute!(std::io::stdout(), crossterm::terminal::LeaveAlternateScreen)?;
+    crossterm::terminal::disable_raw_mode()?;
     
-    // Stop audio
-    audio_engine.stop();
-    
-    Ok(())
+    Ok(result?)
 }

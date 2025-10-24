@@ -7,6 +7,7 @@ use crate::events::Event as WorkerEvent;
 use crate::ui::dashboard::{DashboardState, render_dashboard};
 use crate::ui::login::render_login;
 use crate::ui::splash::render_splash;
+use crate::ui::syn_recruit::{SynRecruitState, render_syn_recruit};
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::{Frame, Terminal, backend::Backend};
 use std::time::{Duration, Instant};
@@ -47,6 +48,8 @@ pub enum Screen {
     Login,
     /// Dashboard screen displaying node information and status.
     Dashboard(Box<DashboardState>),
+    /// SYN recruitment video screen
+    SynRecruit(Box<SynRecruitState>),
 }
 
 /// Application state
@@ -62,7 +65,7 @@ pub struct App {
     environment: Environment,
 
     /// The current screen being displayed in the application.
-    current_screen: Screen,
+    pub current_screen: Screen,
 
     /// Receives events from worker threads.
     event_receiver: mpsc::Receiver<WorkerEvent>,
@@ -161,6 +164,10 @@ pub async fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::i
                 // Update the dashboard with new tick and metrics
                 state.update();
             }
+            Screen::SynRecruit(state) => {
+                // Update the recruitment video state
+                state.update();
+            }
         }
         terminal.draw(|f| render(f, &app.current_screen))?;
 
@@ -222,6 +229,12 @@ pub async fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::i
                         }
                     }
                     Screen::Dashboard(_dashboard_state) => {}
+                    Screen::SynRecruit(_syn_recruit_state) => {
+                        // Any key press will exit the recruitment video
+                        if key.code != KeyCode::Esc && key.code != KeyCode::Char('q') {
+                            return Ok(());
+                        }
+                    }
                 }
             }
         }
@@ -234,5 +247,6 @@ fn render(f: &mut Frame, screen: &Screen) {
         Screen::Splash => render_splash(f),
         Screen::Login => render_login(f),
         Screen::Dashboard(state) => render_dashboard(f, state),
+        Screen::SynRecruit(state) => render_syn_recruit(f, state),
     }
 }
