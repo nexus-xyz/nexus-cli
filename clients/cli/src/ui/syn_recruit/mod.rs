@@ -444,6 +444,37 @@ fn render_main_screen(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRec
     let content = if state.current_scene < 5 {
         // Hide everything until "main screen turn on" (scene 5)
         vec![Line::from("")]
+    } else if state.is_complete {
+        // Mission complete - show rocket emoji SYN celebration
+        vec![
+            Line::from(""),
+            Line::from(""),
+            Line::from(""),
+            Line::from(""),
+            Line::from(""),
+            Line::from("        🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀"),
+            Line::from("        🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀"),
+            Line::from("        🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀"),
+            Line::from("        🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀"),
+            Line::from("        🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀"),
+            Line::from(""),
+            Line::from("        🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀"),
+            Line::from("        🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀"),
+            Line::from("        🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀"),
+            Line::from("        🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀"),
+            Line::from("        🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀"),
+            Line::from(""),
+            Line::from("        🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀"),
+            Line::from("        🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀"),
+            Line::from("        🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀"),
+            Line::from("        🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀"),
+            Line::from("        🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀"),
+            Line::from(""),
+            Line::from(""),
+            Line::from("        FOR GREAT JUSTICE"),
+            Line::from(""),
+            Line::from(""),
+        ]
     } else if state.current_speaker == "0xACCC" {
         // Show ACC team logo when ACCC is speaking
         vec![
@@ -529,7 +560,7 @@ fn render_main_screen(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRec
 
 fn render_activity_log(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitState) {
     // Create scrollable list items with proper color coding
-    let mut list_items: Vec<ListItem> = state.activity_logs
+    let list_items: Vec<ListItem> = state.activity_logs
         .iter()
         .map(|log| {
             // Color code based on speaker and log type
@@ -557,9 +588,6 @@ fn render_activity_log(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRe
             ListItem::new(Span::styled(log.as_str(), Style::default().fg(color)))
         })
         .collect();
-    
-    // Add padding line at the top for better visibility
-    list_items.insert(0, ListItem::new(Span::styled("", Style::default().fg(Color::White))));
     
     // Create a scrollable list widget with proper scrolling
     let logs = List::new(list_items)
