@@ -211,7 +211,7 @@ impl SynRecruitState {
             // "Somebody set up us the cron" - CPU spike to 100%
             self.cpu_spike = 100.0;
             if self.activity_logs.len() < 5 {
-                self.activity_logs.push("[CRIT] Cron job detected: CPU usage at 100%".to_string());
+                self.activity_logs.push("✗ [CRIT] Rate limited by server: zkVM task submission failed".to_string());
             }
         } else if self.current_scene >= 7 && self.current_scene < 9 {
             // ACK villain appears - system alert
@@ -477,7 +477,7 @@ fn render_activity_log(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRe
     let logs_text: Vec<Line> = state.activity_logs
         .iter()
         .map(|log| {
-            // Color code based on speaker
+            // Color code based on speaker and log type
             let color = if log.starts_with("[0xACCC]") {
                 Color::Magenta
             } else if log.starts_with("[0xCABB]") {
@@ -488,6 +488,14 @@ fn render_activity_log(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRe
                 Color::Cyan
             } else if log.starts_with("[0xDEAD]") {
                 Color::Gray
+            } else if log.contains("[CRIT]") {
+                Color::Red
+            } else if log.contains("[ALERT]") {
+                Color::Yellow
+            } else if log.contains("[INFO]") {
+                Color::Cyan
+            } else if log.contains("[OK]") {
+                Color::Green
             } else {
                 Color::White
             };
