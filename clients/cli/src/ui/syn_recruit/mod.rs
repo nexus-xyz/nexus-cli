@@ -1,8 +1,8 @@
-//! SYN Recruitment Video TUI Module
+//! SYNC Move Interface TUI Module
 //!
-//! This module provides a TUI-based recruitment video experience that integrates
+//! This module provides a TUI-based SYNC takeover interface that integrates
 //! with the existing dashboard system, showing real-time system metrics during
-//! the "All Your Node Are Belong To Us" parody.
+//! the "All Your Node Are Belong To Us" parody - taking off every SYNC.
 
 use crate::ui::metrics::SystemMetrics;
 use ratatui::Frame;
@@ -16,7 +16,7 @@ use std::time::{Duration, Instant};
 use sysinfo::System;
 use std::io::Write;
 
-/// State for the SYN recruitment video
+/// State for the SYNC Move interface
 #[derive(Debug)]
 pub struct SynRecruitState {
     /// Current scene index
@@ -135,7 +135,7 @@ impl SynRecruitState {
             TypingState::Typing => {
                 // Type characters one by one
                 if self.char_index < self.full_line.len() {
-                    let char_delay = Duration::from_millis(50); // Adjust typing speed
+                    let char_delay = Duration::from_millis(30); // Faster typing speed
                     if self.last_char_time.elapsed() >= char_delay {
                         let ch = self.full_line.chars().nth(self.char_index).unwrap();
                         self.current_line.push(ch);
@@ -158,7 +158,7 @@ impl SynRecruitState {
             }
             TypingState::Complete => {
                 // Wait a bit before starting next scene
-                let wait_time = Duration::from_millis(800);
+                let wait_time = Duration::from_millis(1200);
                 if self.last_char_time.elapsed() >= wait_time {
                     self.typing_state = TypingState::Waiting;
                 }
@@ -246,7 +246,7 @@ impl SynRecruitState {
     }
 
     fn play_beep(&self) {
-        // Simple beep sound using system bell
+        // Typewriter-like sound (softer, more mechanical)
         print!("\x07");
         std::io::stdout().flush().unwrap_or_default();
     }
@@ -311,7 +311,7 @@ fn render_header(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitS
         .split(area);
 
     // Title section - mimicking Nexus CLI
-    let title_text = "NEXUS PROVER v0.10.17 - SYN RECRUITMENT MODE";
+    let title_text = "NEXUS PROVER v0.10.17 - SYNC MOVE INTERFACE";
     let title = Paragraph::new(title_text)
         .alignment(Alignment::Center)
         .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
@@ -320,7 +320,7 @@ fn render_header(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitS
 
     // Progress gauge showing story progress
     let progress_percent = (state.current_scene as f64 / 18.0) * 100.0;
-    let progress_text = format!("SYN Protocol Progress: {:.0}%", progress_percent);
+    let progress_text = format!("SYNC Takeover Progress: {:.0}%", progress_percent);
     let gauge_color = if state.cpu_spike > 90.0 {
         Color::Red
     } else if state.cpu_spike > 80.0 {
@@ -339,7 +339,7 @@ fn render_header(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitS
 
 fn render_info_panel(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitState) {
     let info_text = vec![
-        Line::from("SYN RECRUITMENT SYSTEM"),
+        Line::from("SYNC MOVE SYSTEM"),
         Line::from(""),
         Line::from(Span::styled("Status: ", Style::default().fg(Color::White))),
         Line::from(Span::styled(
@@ -441,9 +441,9 @@ fn render_metrics_section(f: &mut Frame, area: ratatui::layout::Rect, state: &Sy
 
 fn render_footer(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitState) {
     let footer_text = if state.is_complete {
-        "🎬 SYN RECRUITMENT COMPLETE - All Your Node Are Belong To Us! Press any key to exit."
+        "🚀 SYNC MOVE COMPLETE - All Your Node Are Belong To Us! Press any key to exit."
     } else {
-        "🎬 SYN RECRUITMENT VIDEO - Press any key to exit"
+        "🚀 SYNC MOVE INTERFACE - Taking off every SYNC - Press any key to exit"
     };
     
     let footer = Paragraph::new(footer_text)

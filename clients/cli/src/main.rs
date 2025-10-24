@@ -152,8 +152,8 @@ enum Command {
         #[arg(long)]
         inputs: String,
     },
-    /// Play the SYN recruitment video (All Your Node meme)
-    SynRecruit,
+        /// Play the SYNC Move interface (All Your Node meme)
+        SynRecruit,
 }
 
 #[tokio::main]

@@ -12,7 +12,7 @@ pub async fn run_syn_recruit() -> Result<(), Box<dyn std::error::Error>> {
     let backend = CrosstermBackend::new(std::io::stdout());
     let mut terminal = Terminal::new(backend)?;
     
-    // Create the recruitment video state
+    // Create the SYNC Move interface state
     let syn_recruit_state = SynRecruitState::new();
     
     // Create a minimal app structure for the TUI
@@ -36,7 +36,7 @@ pub async fn run_syn_recruit() -> Result<(), Box<dyn std::error::Error>> {
         ui_config,
     );
     
-    // Override the screen to show the recruitment video
+    // Override the screen to show the SYNC Move interface
     app.current_screen = Screen::SynRecruit(Box::new(syn_recruit_state));
     
     // Run the TUI
