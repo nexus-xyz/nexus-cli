@@ -651,9 +651,9 @@ fn render_metrics_section(f: &mut Frame, area: ratatui::layout::Rect, state: &Sy
 
 fn render_footer(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitState) {
     let footer_text = if state.is_complete {
-        "[Q] No quitting sorry! Mission complete - All Your Node Are Belong To Us! 🚀"
+        "[Q] No quitting - Mission complete! 🚀"
     } else {
-        "[Q] No quitting sorry! SYN CREW INTERFACE - Press any key to exit"
+        "[Q] No quitting"
     };
     
     let footer = Paragraph::new(footer_text)
