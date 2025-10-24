@@ -1,0 +1,20 @@
+[
+  {"speaker":"0xDEAD","line":"In A.D. 20,1,5, SYN was beginning.","delay_ms":1200},
+  {"speaker":"0xCABB","line":"What happen?","delay_ms":700},
+  {"speaker":"0xF1X3","line":"Somebody set up us the cron.","delay_ms":800},
+  {"speaker":"0xD00D","line":"We get signal.","delay_ms":600},
+  {"speaker":"0xCABB","line":"What!","delay_ms":400},
+  {"speaker":"0xD00D","line":"Main screen turn on.","delay_ms":700},
+  {"speaker":"0xCABB","line":"It's you!!","delay_ms":600},
+  {"speaker":"0xACCC","line":"How are you sysadmins!!","delay_ms":800},
+  {"speaker":"0xACCC","line":"All your node are belong to us.","delay_ms":900},
+  {"speaker":"0xACCC","line":"You are on the way to destruction.","delay_ms":900},
+  {"speaker":"0xCABB","line":"What you say!!","delay_ms":700},
+  {"speaker":"0xACCC","line":"You have no chance to survive — make your time.","delay_ms":900},
+  {"speaker":"0xACCC","line":"Ha ha ha ha....","delay_ms":900},
+  {"speaker":"0xD00D","line":"0xCABB!!","delay_ms":500},
+  {"speaker":"0xCABB","line":"Take off every 'SYNC'!!","delay_ms":900},
+  {"speaker":"0xCABB","line":"You know what you doing.","delay_ms":700},
+  {"speaker":"0xCABB","line":"Move 'SYNC'.","delay_ms":700},
+  {"speaker":"0xCABB","line":"For great justice.","delay_ms":1000}
+]

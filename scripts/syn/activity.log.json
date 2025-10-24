@@ -1,0 +1,12 @@
+[
+  {"level":"INFO","msg":"Boot sequence: SYN system online."},
+  {"level":"WARN","msg":"Unexpected cron entry detected: \"@reboot ./payload.sh\""},
+  {"level":"ALERT","msg":"Inbound transmission SRC=0xACCC → DST=0xCABB [ACK]"},
+  {"level":"CRIT","msg":"Node takeover claim detected."},
+  {"level":"ERROR","msg":"Firewall rule update rejected."},
+  {"level":"INFO","msg":"SYN team mobilizing..."},
+  {"level":"WARN","msg":"ACK forces detected on multiple nodes"},
+  {"level":"INFO","msg":"Deploying countermeasures..."},
+  {"level":"OK","msg":"SYN protocols engaged"},
+  {"level":"OK","msg":"FOR GREAT JUSTICE"}
+]

@@ -1,6 +1,7 @@
 // Copyright (c) 2025 Nexus. All rights reserved.
 
 mod analytics;
+mod audio;
 mod cli_messages;
 mod config;
 mod consts;
@@ -16,6 +17,7 @@ mod prover;
 mod register;
 mod runtime;
 mod session;
+mod syn;
 pub mod system;
 mod task;
 mod ui;
@@ -28,6 +30,7 @@ use crate::orchestrator::OrchestratorClient;
 use crate::prover::engine::ProvingEngine;
 use crate::register::{register_node, register_user};
 use crate::session::{run_headless_mode, run_tui_mode, setup_session};
+use crate::syn::run_syn_recruit;
 use crate::version::manager::validate_version_requirements;
 use clap::{ArgAction, Parser, Subcommand};
 use postcard::to_allocvec;
@@ -149,6 +152,8 @@ enum Command {
         #[arg(long)]
         inputs: String,
     },
+    /// Play the SYN recruitment video (All Your Node meme)
+    SynRecruit,
 }
 
 #[tokio::main]
@@ -226,6 +231,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     exit(consts::cli_consts::SUBPROCESS_INTERNAL_ERROR_CODE);
                 }
             }
+        }
+        Command::SynRecruit => {
+            run_syn_recruit().await?;
+            Ok(())
         }
     }
 }
