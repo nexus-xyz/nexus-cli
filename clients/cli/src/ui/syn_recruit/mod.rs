@@ -344,39 +344,20 @@ pub fn render_syn_recruit(f: &mut Frame, state: &SynRecruitState) {
         .constraints([Constraint::Percentage(20), Constraint::Percentage(60), Constraint::Percentage(20)])
         .split(main_chunks[1]);
 
-    // Only show panels after main screen turns on (scene 5+)
-    if state.current_scene >= 5 {
-        // Info panel (left side)
-        render_info_panel(f, content_chunks[0], state);
-        
-        // Activity log (center) - main script dialogue with scrolling
-        render_activity_log(f, content_chunks[1], state);
-        
-        // Main screen (right side) - shows team logos
-        render_main_screen(f, content_chunks[2], state);
-    } else {
-        // Hide everything until main screen turns on
-        let empty_block = Block::default()
-            .style(Style::default().bg(Color::Rgb(16, 20, 24)));
-        f.render_widget(empty_block, main_chunks[1]);
-    }
+    // Info panel (left side) - always visible
+    render_info_panel(f, content_chunks[0], state);
     
-    // Only show metrics and footer after main screen turns on (scene 5+)
-    if state.current_scene >= 5 {
-        // Metrics section (bottom)
-        render_metrics_section(f, main_chunks[2], state);
-        
-        // Footer
-        render_footer(f, main_chunks[3], state);
-    } else {
-        // Hide metrics and footer until main screen turns on
-        let empty_block1 = Block::default()
-            .style(Style::default().bg(Color::Rgb(16, 20, 24)));
-        let empty_block2 = Block::default()
-            .style(Style::default().bg(Color::Rgb(16, 20, 24)));
-        f.render_widget(empty_block1, main_chunks[2]);
-        f.render_widget(empty_block2, main_chunks[3]);
-    }
+    // Activity log (center) - always visible
+    render_activity_log(f, content_chunks[1], state);
+    
+    // Main screen (right side) - only shows after main screen turns on
+    render_main_screen(f, content_chunks[2], state);
+    
+    // Metrics section (bottom) - always visible
+    render_metrics_section(f, main_chunks[2], state);
+    
+    // Footer - always visible
+    render_footer(f, main_chunks[3], state);
 }
 
 fn render_header(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitState) {
@@ -417,7 +398,7 @@ fn render_info_panel(f: &mut Frame, area: ratatui::layout::Rect, _state: &SynRec
         Line::from(Span::styled("Status: Online", Style::default().fg(Color::Green))),
         Line::from(Span::styled("Env: Production", Style::default().fg(Color::Green))),
         Line::from(Span::styled("Version: v0.10.17", Style::default().fg(Color::Cyan))),
-        Line::from(Span::styled("Threads: 27,400", Style::default().fg(Color::LightYellow))),
+        Line::from(Span::styled("Threads: 1753600", Style::default().fg(Color::LightYellow))),
         Line::from(Span::styled("Memory: 8.0 GB", Style::default().fg(Color::LightCyan))),
     ];
 
