@@ -325,14 +325,17 @@ pub fn render_syn_recruit(f: &mut Frame, state: &SynRecruitState) {
     // Main content area - split like real CLI
     let content_chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(30), Constraint::Percentage(70)])
+        .constraints([Constraint::Percentage(25), Constraint::Percentage(50), Constraint::Percentage(25)])
         .split(main_chunks[1]);
 
     // Info panel (left side)
     render_info_panel(f, content_chunks[0], state);
     
+    // Main screen (center) - shows ACK logo when ACCC speaks
+    render_main_screen(f, content_chunks[1], state);
+    
     // Activity log (right side) - just the script dialogue
-    render_activity_log(f, content_chunks[1], state);
+    render_activity_log(f, content_chunks[2], state);
     
     // Metrics section (bottom)
     render_metrics_section(f, main_chunks[2], state);
@@ -397,6 +400,65 @@ fn render_info_panel(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecr
             .padding(Padding::uniform(1)))
         .wrap(Wrap { trim: true });
     f.render_widget(info_panel, area);
+}
+
+fn render_main_screen(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitState) {
+    let content = if state.current_speaker == "0xACCC" {
+        // Show ACK team logo when ACCC is speaking
+        vec![
+            Line::from(""),
+            Line::from(""),
+            Line::from("    ██████╗  ██████╗██╗  ██╗"),
+            Line::from("   ██╔════╝ ██╔════╝██║ ██╔╝"),
+            Line::from("   ██║  ███╗██║     █████╔╝ "),
+            Line::from("   ██║   ██║██║     ██╔═██╗ "),
+            Line::from("   ╚██████╔╝╚██████╗██║  ██╗"),
+            Line::from("    ╚═════╝  ╚═════╝╚═╝  ╚═╝"),
+            Line::from(""),
+            Line::from("        TEAM ACK"),
+            Line::from(""),
+            Line::from("    All your node are"),
+            Line::from("      belong to us"),
+            Line::from(""),
+            Line::from(""),
+        ]
+    } else {
+        // Default system status
+        vec![
+            Line::from(""),
+            Line::from(""),
+            Line::from("    ███████╗██╗   ██╗███╗   ██╗"),
+            Line::from("    ██╔════╝╚██╗ ██╔╝████╗  ██║"),
+            Line::from("    ███████╗ ╚████╔╝ ██╔██╗ ██║"),
+            Line::from("    ╚════██║  ╚██╔╝  ██║╚██╗██║"),
+            Line::from("    ███████║   ██║   ██║ ╚████║"),
+            Line::from("    ╚══════╝   ╚═╝   ╚═╝  ╚═══╝"),
+            Line::from(""),
+            Line::from("        SYN NODE"),
+            Line::from(""),
+            Line::from("    System Online"),
+            Line::from("    Team Active"),
+            Line::from(""),
+            Line::from(""),
+        ]
+    };
+
+    let color = if state.current_speaker == "0xACCC" {
+        Color::Magenta
+    } else {
+        Color::Green
+    };
+
+    let main_screen = Paragraph::new(Text::from(content))
+        .block(Block::default()
+            .title("MAIN SCREEN")
+            .borders(Borders::ALL)
+            .border_type(BorderType::Rounded)
+            .border_style(Style::default().fg(color))
+            .padding(Padding::uniform(1)))
+        .alignment(Alignment::Center)
+        .wrap(Wrap { trim: true });
+    f.render_widget(main_screen, area);
 }
 
 fn render_activity_log(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitState) {
