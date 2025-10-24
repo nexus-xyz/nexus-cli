@@ -8,7 +8,7 @@ use crate::ui::metrics::SystemMetrics;
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::prelude::{Color, Style};
-use ratatui::widgets::{Block, Borders, Paragraph, Wrap, Gauge, BorderType, Padding};
+use ratatui::widgets::{Block, Borders, Paragraph, Wrap, Gauge, BorderType, Padding, List, ListItem};
 use ratatui::text::{Line, Span, Text};
 use ratatui::layout::Alignment;
 use ratatui::prelude::Modifier;
@@ -325,17 +325,17 @@ pub fn render_syn_recruit(f: &mut Frame, state: &SynRecruitState) {
     // Main content area - split like real CLI
     let content_chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(25), Constraint::Percentage(50), Constraint::Percentage(25)])
+        .constraints([Constraint::Percentage(20), Constraint::Percentage(60), Constraint::Percentage(20)])
         .split(main_chunks[1]);
 
     // Info panel (left side)
     render_info_panel(f, content_chunks[0], state);
     
-    // Main screen (center) - shows ACK logo when ACCC speaks
-    render_main_screen(f, content_chunks[1], state);
+    // Activity log (center) - main script dialogue with scrolling
+    render_activity_log(f, content_chunks[1], state);
     
-    // Activity log (right side) - just the script dialogue
-    render_activity_log(f, content_chunks[2], state);
+    // Main screen (right side) - shows team logos
+    render_main_screen(f, content_chunks[2], state);
     
     // Metrics section (bottom)
     render_metrics_section(f, main_chunks[2], state);
@@ -473,8 +473,8 @@ fn render_main_screen(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRec
 }
 
 fn render_activity_log(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitState) {
-    // Only show script dialogue in activity log
-    let logs_text: Vec<Line> = state.activity_logs
+    // Create scrollable list items with proper color coding
+    let list_items: Vec<ListItem> = state.activity_logs
         .iter()
         .map(|log| {
             // Color code based on speaker and log type
@@ -499,12 +499,12 @@ fn render_activity_log(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRe
             } else {
                 Color::White
             };
-            Line::from(Span::styled(log.as_str(), Style::default().fg(color)))
+            ListItem::new(Span::styled(log.as_str(), Style::default().fg(color)))
         })
         .collect();
     
-    let logs = Paragraph::new(Text::from(logs_text))
-        .wrap(Wrap { trim: true })
+    // Create a scrollable list widget
+    let logs = List::new(list_items)
         .block(Block::default().borders(Borders::ALL).title("Activity Log"));
     f.render_widget(logs, area);
 }
