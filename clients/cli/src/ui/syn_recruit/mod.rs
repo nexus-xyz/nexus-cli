@@ -272,6 +272,32 @@ impl SynRecruitState {
             50.0 // Default
         }
     }
+
+    fn get_task_count(&self) -> u32 {
+        // Dynamic task counting based on story progression
+        let elapsed_seconds = self.start_time.elapsed().as_secs();
+        
+        if self.current_scene <= 0 {
+            // Intro - tasks climbing rapidly
+            (elapsed_seconds * 50 + 1000).min(5000) as u32
+        } else if self.current_scene >= 1 && self.current_scene <= 15 {
+            // During ACCC crisis - tasks stop climbing
+            let base_tasks = (self.start_time.elapsed().as_secs() * 50 + 1000).min(5000) as u32;
+            // Stop at the peak when ACCC shows up (around scene 7)
+            if self.current_scene >= 7 {
+                5000 // Peak reached, no more growth
+            } else {
+                base_tasks
+            }
+        } else if self.current_scene >= 16 {
+            // Move SYNC - tasks resume climbing
+            let base_tasks = 5000; // Start from peak
+            let additional_tasks = ((self.start_time.elapsed().as_secs() - 10) * 30).max(0) as u32;
+            base_tasks + additional_tasks
+        } else {
+            1000 // Default
+        }
+    }
 }
 
 pub fn render_syn_recruit(f: &mut Frame, state: &SynRecruitState) {
@@ -322,7 +348,7 @@ fn render_header(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitS
         .split(area);
 
     // Title section - mimicking Nexus CLI
-    let title_text = "NEXUS PROVER v0.10.17 - SYN NODE INTERFACE";
+    let title_text = "SYN NODE INTERFACE v0.10.17";
     let title = Paragraph::new(title_text)
         .alignment(Alignment::Center)
         .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
@@ -458,10 +484,11 @@ fn render_metrics_section(f: &mut Frame, area: ratatui::layout::Rect, state: &Sy
     f.render_widget(ram_gauge, gauge_chunks[1]);
 
     // zkVM stats (right side) - matching real CLI
+    let task_count = state.get_task_count();
     let zkvm_lines = vec![
         Line::from(vec![
             Span::styled("Tasks: ", Style::default().fg(Color::Gray)),
-            Span::styled("1", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::styled(format!("{}", task_count), Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
         ]),
         Line::from(vec![
             Span::styled("Completed: ", Style::default().fg(Color::Gray)),
