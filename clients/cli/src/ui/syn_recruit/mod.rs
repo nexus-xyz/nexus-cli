@@ -8,10 +8,13 @@ use crate::ui::metrics::SystemMetrics;
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::prelude::{Color, Style};
-use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
-use ratatui::text::{Line, Text};
+use ratatui::widgets::{Block, Borders, Paragraph, Wrap, Gauge, BorderType};
+use ratatui::text::{Line, Span, Text};
+use ratatui::layout::Alignment;
+use ratatui::prelude::Modifier;
 use std::time::{Duration, Instant};
 use sysinfo::System;
+use std::io::Write;
 
 /// State for the SYN recruitment video
 #[derive(Debug)]
@@ -26,8 +29,10 @@ pub struct SynRecruitState {
     pub system_metrics: SystemMetrics,
     /// System info instance for CPU monitoring
     pub sysinfo: System,
-    /// Current dialogue line
+    /// Current dialogue line being typed
     pub current_line: String,
+    /// Full dialogue line to type
+    pub full_line: String,
     /// Current speaker
     pub current_speaker: String,
     /// Activity log entries
@@ -40,6 +45,21 @@ pub struct SynRecruitState {
     pub memory_spike: f32,
     /// Animation tick counter
     pub tick: usize,
+    /// Character typing animation state
+    pub typing_state: TypingState,
+    /// Last character typed time
+    pub last_char_time: Instant,
+    /// Current character index being typed
+    pub char_index: usize,
+}
+
+/// State for character-by-character typing animation
+#[derive(Debug)]
+pub enum TypingState {
+    Waiting,        // Waiting for next scene
+    Typing,         // Currently typing characters
+    Complete,       // Current line complete, waiting for next
+    Finished,       // All scenes complete
 }
 
 impl SynRecruitState {
@@ -54,12 +74,16 @@ impl SynRecruitState {
             system_metrics: SystemMetrics::default(),
             sysinfo,
             current_line: String::new(),
+            full_line: String::new(),
             current_speaker: String::new(),
             activity_logs: Vec::new(),
             is_complete: false,
             cpu_spike: 0.0,
             memory_spike: 0.0,
             tick: 0,
+            typing_state: TypingState::Waiting,
+            last_char_time: Instant::now(),
+            char_index: 0,
         }
     }
 
@@ -73,6 +97,9 @@ impl SynRecruitState {
         self.system_metrics.ram_bytes = self.sysinfo.used_memory();
         self.system_metrics.total_ram_bytes = self.sysinfo.total_memory();
         
+        // Handle typing animation
+        self.update_typing_animation();
+        
         // Update the recruitment video based on elapsed time
         self.update_scene();
         
@@ -80,11 +107,70 @@ impl SynRecruitState {
         self.update_cpu_spikes();
     }
 
-    fn update_scene(&mut self) {
-        let elapsed = self.start_time.elapsed();
-        
-        // Define scene timing based on the original "All your base" structure
-        let scenes = [
+    fn update_typing_animation(&mut self) {
+        match self.typing_state {
+            TypingState::Waiting => {
+                // Check if it's time to start typing the next scene
+                let elapsed = self.start_time.elapsed();
+                let scenes = self.get_scenes();
+                
+                if self.current_scene < scenes.len() {
+                    let (scene_time, speaker, line) = scenes[self.current_scene];
+                    if elapsed >= scene_time {
+                        self.current_speaker = speaker.to_string();
+                        self.full_line = line.to_string();
+                        self.current_line.clear();
+                        self.char_index = 0;
+                        self.typing_state = TypingState::Typing;
+                        self.last_char_time = Instant::now();
+                        
+                        // Add speaker to activity log
+                        self.activity_logs.push(format!("[{}] {}", speaker, ""));
+                    }
+                } else {
+                    self.typing_state = TypingState::Finished;
+                    self.is_complete = true;
+                }
+            }
+            TypingState::Typing => {
+                // Type characters one by one
+                if self.char_index < self.full_line.len() {
+                    let char_delay = Duration::from_millis(50); // Adjust typing speed
+                    if self.last_char_time.elapsed() >= char_delay {
+                        let ch = self.full_line.chars().nth(self.char_index).unwrap();
+                        self.current_line.push(ch);
+                        self.char_index += 1;
+                        self.last_char_time = Instant::now();
+                        
+                        // Play beep sound for each character
+                        self.play_beep();
+                        
+                        // Update the last activity log entry with current text
+                        if let Some(last_log) = self.activity_logs.last_mut() {
+                            *last_log = format!("[{}] {}", self.current_speaker, self.current_line);
+                        }
+                    }
+                } else {
+                    // Line complete, wait before next scene
+                    self.typing_state = TypingState::Complete;
+                    self.current_scene += 1;
+                }
+            }
+            TypingState::Complete => {
+                // Wait a bit before starting next scene
+                let wait_time = Duration::from_millis(800);
+                if self.last_char_time.elapsed() >= wait_time {
+                    self.typing_state = TypingState::Waiting;
+                }
+            }
+            TypingState::Finished => {
+                self.is_complete = true;
+            }
+        }
+    }
+
+    fn get_scenes(&self) -> Vec<(Duration, &'static str, &'static str)> {
+        vec![
             (Duration::from_millis(0), "0xDEAD", "In A.D. 20,1,5, SYN was beginning."),
             (Duration::from_millis(1200), "0xCABB", "What happen?"),
             (Duration::from_millis(1900), "0xF1X3", "Somebody set up us the cron."),
@@ -103,57 +189,44 @@ impl SynRecruitState {
             (Duration::from_millis(11500), "0xCABB", "You know what you doing."),
             (Duration::from_millis(12200), "0xCABB", "Move 'SYNC'."),
             (Duration::from_millis(12900), "0xCABB", "For great justice."),
-        ];
+        ]
+    }
 
-        // Find current scene based on elapsed time
-        let mut current_scene_idx = 0;
-        for (i, (time, speaker, line)) in scenes.iter().enumerate() {
-            if elapsed >= *time {
-                current_scene_idx = i;
-                self.current_speaker = speaker.to_string();
-                self.current_line = line.to_string();
-            } else {
-                break;
-            }
-        }
-
-        self.current_scene = current_scene_idx;
-        
-        // Check if video is complete
-        if elapsed >= Duration::from_millis(13900) {
-            self.is_complete = true;
-        }
+    fn update_scene(&mut self) {
+        // This method is now handled by update_typing_animation
+        // Keep it for CPU spike logic
     }
 
     fn update_cpu_spikes(&mut self) {
-        let elapsed = self.start_time.elapsed();
+        let _elapsed = self.start_time.elapsed();
+        let _scenes = self.get_scenes();
         
         // CPU spikes based on story events
-        if elapsed >= Duration::from_millis(1900) && elapsed < Duration::from_millis(2700) {
+        if self.current_scene >= 2 && self.current_scene < 4 {
             // "Somebody set up us the cron" - CPU spike to 100%
             self.cpu_spike = 100.0;
             if self.activity_logs.len() < 5 {
                 self.activity_logs.push("[CRIT] Cron job detected: CPU usage at 100%".to_string());
             }
-        } else if elapsed >= Duration::from_millis(5000) && elapsed < Duration::from_millis(5800) {
+        } else if self.current_scene >= 7 && self.current_scene < 9 {
             // ACK villain appears - system alert
             self.cpu_spike = 85.0;
             if self.activity_logs.len() < 6 {
                 self.activity_logs.push("[ALERT] Unauthorized access detected from 0xACCC".to_string());
             }
-        } else if elapsed >= Duration::from_millis(10600) && elapsed < Duration::from_millis(11500) {
+        } else if self.current_scene >= 14 && self.current_scene < 16 {
             // "Take off every 'SYNC'" - SYN flood begins
             self.cpu_spike = 95.0;
             if self.activity_logs.len() < 7 {
                 self.activity_logs.push("[INFO] SYN flood protocols initiated".to_string());
             }
-        } else if elapsed >= Duration::from_millis(12200) && elapsed < Duration::from_millis(12900) {
+        } else if self.current_scene >= 16 && self.current_scene < 18 {
             // "Move 'SYNC'" - rocket launch
             self.cpu_spike = 90.0;
             if self.activity_logs.len() < 8 {
                 self.activity_logs.push("[OK] SYN packets launched successfully".to_string());
             }
-        } else if elapsed >= Duration::from_millis(12900) {
+        } else if self.current_scene >= 18 {
             // Victory - system normalizes
             self.cpu_spike = 25.0;
             if self.activity_logs.len() < 9 {
@@ -172,6 +245,12 @@ impl SynRecruitState {
         }
     }
 
+    fn play_beep(&self) {
+        // Simple beep sound using system bell
+        print!("\x07");
+        std::io::stdout().flush().unwrap_or_default();
+    }
+
     fn get_speaker_color(&self, speaker: &str) -> Color {
         match speaker {
             "0xACCC" => Color::Magenta,
@@ -185,96 +264,191 @@ impl SynRecruitState {
 }
 
 pub fn render_syn_recruit(f: &mut Frame, state: &SynRecruitState) {
-    // Create layout
-    let chunks = Layout::default()
+    // Use the same background as the real CLI
+    f.render_widget(
+        Block::default().style(Style::default().bg(Color::Rgb(16, 20, 24))),
+        f.area(),
+    );
+
+    // Create layout matching the real Nexus CLI
+    let main_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3), // Header
-            Constraint::Length(3), // Current dialogue
-            Constraint::Fill(1),   // Main content
-            Constraint::Length(8), // Activity logs
-            Constraint::Length(3), // System metrics
+            Constraint::Length(4),  // Header
+            Constraint::Fill(1),    // Main content
+            Constraint::Percentage(35), // Metrics
+            Constraint::Length(2),  // Footer
         ])
         .margin(1)
         .split(f.area());
 
-    // Header
-    let header = Paragraph::new("🎬 SYN RECRUITMENT VIDEO - All Your Node Are Belong To Us")
-        .style(Style::default().fg(Color::Cyan))
-        .block(Block::default().borders(Borders::ALL));
-    f.render_widget(header, chunks[0]);
+    // Render header (mimicking Nexus CLI)
+    render_header(f, main_chunks[0], state);
 
-    // Current dialogue
-    let dialogue_color = state.get_speaker_color(&state.current_speaker);
-    let dialogue_text = if !state.current_line.is_empty() {
-        format!("{}: {}", state.current_speaker, state.current_line)
-    } else {
-        "Initializing SYN system...".to_string()
-    };
+    // Main content area - split like real CLI
+    let content_chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(30), Constraint::Percentage(70)])
+        .split(main_chunks[1]);
+
+    // Info panel (left side)
+    render_info_panel(f, content_chunks[0], state);
     
-    let dialogue = Paragraph::new(dialogue_text)
-        .style(Style::default().fg(dialogue_color))
-        .block(Block::default().borders(Borders::ALL).title("Dialogue"));
-    f.render_widget(dialogue, chunks[1]);
+    // Activity log (right side) - just the script dialogue
+    render_activity_log(f, content_chunks[1], state);
+    
+    // Metrics section (bottom)
+    render_metrics_section(f, main_chunks[2], state);
+    
+    // Footer
+    render_footer(f, main_chunks[3], state);
+}
 
-    // Main content area - show ASCII art or system status
-    let main_content = if state.is_complete {
-        // Show SYN ASCII art
-        let ascii_art = vec![
-            Line::from("██████╗ ██╗   ██╗ ███╗   ██╗"),
-            Line::from("██╔══██╗╚██╗ ██╔╝ ████╗  ██║"),
-            Line::from("██████╔╝ ╚████╔╝  ██╔██╗ ██║"),
-            Line::from("██╔══██╗  ╚██╔╝   ██║╚██╗██║"),
-            Line::from("██████╔╝   ██║    ██║ ╚████║"),
-            Line::from("╚═════╝    ╚═╝    ╚═╝  ╚═══╝"),
-            Line::from(""),
-            Line::from("                 A.D. 20,1,5"),
-        ];
-        Paragraph::new(Text::from(ascii_art))
-            .style(Style::default().fg(Color::Green))
-            .block(Block::default().borders(Borders::ALL).title("SYN"))
+fn render_header(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitState) {
+    let header_chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(2), Constraint::Length(2)])
+        .split(area);
+
+    // Title section - mimicking Nexus CLI
+    let title_text = "NEXUS PROVER v0.10.17 - SYN RECRUITMENT MODE";
+    let title = Paragraph::new(title_text)
+        .alignment(Alignment::Center)
+        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        .block(Block::default().borders(Borders::BOTTOM).border_type(BorderType::Thick));
+    f.render_widget(title, header_chunks[0]);
+
+    // Progress gauge showing story progress
+    let progress_percent = (state.current_scene as f64 / 18.0) * 100.0;
+    let progress_text = format!("SYN Protocol Progress: {:.0}%", progress_percent);
+    let gauge_color = if state.cpu_spike > 90.0 {
+        Color::Red
+    } else if state.cpu_spike > 80.0 {
+        Color::Yellow
     } else {
-        // Show system status with emojis
-        let status_text = if state.cpu_spike > 90.0 {
-            "🚀🚀🚀 SYN PACKETS LAUNCHING... 🚀🚀🚀"
-        } else if state.cpu_spike > 80.0 {
-            "⚠️  SYSTEM ALERT - ACK FORCES DETECTED ⚠️"
-        } else if state.current_speaker == "0xCABB" && state.current_line.contains("Move") {
-            "🚀 MOVE 'SYNC'! 🚀"
-        } else if state.current_speaker == "0xCABB" && state.current_line.contains("justice") {
-            "🤖🦾 FOR GREAT JUSTICE! 🤖🦾"
-        } else {
-            "🔄 SYN SYSTEM OPERATIONAL 🔄"
-        };
-        
-        Paragraph::new(status_text)
-            .style(Style::default().fg(Color::Yellow))
-            .block(Block::default().borders(Borders::ALL).title("Status"))
+        Color::Green
     };
-    f.render_widget(main_content, chunks[2]);
 
-    // Activity logs
+    let gauge = Gauge::default()
+        .block(Block::default().borders(Borders::NONE))
+        .gauge_style(Style::default().fg(gauge_color))
+        .percent(progress_percent as u16)
+        .label(progress_text);
+    f.render_widget(gauge, header_chunks[1]);
+}
+
+fn render_info_panel(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitState) {
+    let info_text = vec![
+        Line::from("SYN RECRUITMENT SYSTEM"),
+        Line::from(""),
+        Line::from(Span::styled("Status: ", Style::default().fg(Color::White))),
+        Line::from(Span::styled(
+            if state.is_complete { "MISSION COMPLETE" } else { "ACTIVE" },
+            Style::default().fg(if state.is_complete { Color::Green } else { Color::Yellow })
+        )),
+        Line::from(""),
+        Line::from(Span::styled("Current Speaker: ", Style::default().fg(Color::White))),
+        Line::from(Span::styled(
+            &state.current_speaker,
+            Style::default().fg(state.get_speaker_color(&state.current_speaker))
+        )),
+        Line::from(""),
+        Line::from(Span::styled("Scene: ", Style::default().fg(Color::White))),
+        Line::from(Span::styled(
+            format!("{}/18", state.current_scene + 1),
+            Style::default().fg(Color::Cyan)
+        )),
+        Line::from(""),
+        Line::from(Span::styled("System Load: ", Style::default().fg(Color::White))),
+        Line::from(Span::styled(
+            format!("{:.1}%", state.cpu_spike),
+            Style::default().fg(if state.cpu_spike > 90.0 { Color::Red } else if state.cpu_spike > 80.0 { Color::Yellow } else { Color::Green })
+        )),
+    ];
+
+    let info_panel = Paragraph::new(Text::from(info_text))
+        .block(Block::default().borders(Borders::ALL).title("System Info"));
+    f.render_widget(info_panel, area);
+}
+
+fn render_activity_log(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitState) {
+    // Only show script dialogue in activity log
     let logs_text: Vec<Line> = state.activity_logs
         .iter()
-        .map(|log| Line::from(log.as_str()))
+        .map(|log| {
+            // Color code based on speaker
+            let color = if log.starts_with("[0xACCC]") {
+                Color::Magenta
+            } else if log.starts_with("[0xCABB]") {
+                Color::Yellow
+            } else if log.starts_with("[0xF1X3]") {
+                Color::Green
+            } else if log.starts_with("[0xD00D]") {
+                Color::Cyan
+            } else if log.starts_with("[0xDEAD]") {
+                Color::Gray
+            } else {
+                Color::White
+            };
+            Line::from(Span::styled(log.as_str(), Style::default().fg(color)))
+        })
         .collect();
     
     let logs = Paragraph::new(Text::from(logs_text))
         .wrap(Wrap { trim: true })
         .block(Block::default().borders(Borders::ALL).title("Activity Log"));
-    f.render_widget(logs, chunks[3]);
+    f.render_widget(logs, area);
+}
+
+fn render_metrics_section(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitState) {
+    let metrics_chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .split(area);
 
     // System metrics
-    let metrics_text = format!(
-        "CPU: {:.1}% | Memory: {:.1}% | Scene: {}/18 | Time: {:.1}s",
-        state.cpu_spike,
-        state.memory_spike,
-        state.current_scene + 1,
-        state.start_time.elapsed().as_secs_f32()
-    );
-    
-    let metrics = Paragraph::new(metrics_text)
-        .style(Style::default().fg(Color::White))
+    let system_metrics = vec![
+        Line::from(Span::styled("CPU Usage", Style::default().fg(Color::White).add_modifier(Modifier::BOLD))),
+        Line::from(""),
+        Line::from(Span::styled(format!("{:.1}%", state.cpu_spike), Style::default().fg(
+            if state.cpu_spike > 90.0 { Color::Red } else if state.cpu_spike > 80.0 { Color::Yellow } else { Color::Green }
+        ))),
+        Line::from(""),
+        Line::from(Span::styled("Memory Usage", Style::default().fg(Color::White).add_modifier(Modifier::BOLD))),
+        Line::from(""),
+        Line::from(Span::styled(format!("{:.1}%", state.memory_spike), Style::default().fg(Color::Cyan))),
+    ];
+
+    let system_panel = Paragraph::new(Text::from(system_metrics))
         .block(Block::default().borders(Borders::ALL).title("System Metrics"));
-    f.render_widget(metrics, chunks[4]);
+    f.render_widget(system_panel, metrics_chunks[0]);
+
+    // Story metrics
+    let story_metrics = vec![
+        Line::from(Span::styled("Story Progress", Style::default().fg(Color::White).add_modifier(Modifier::BOLD))),
+        Line::from(""),
+        Line::from(Span::styled(format!("Scene: {}/18", state.current_scene + 1), Style::default().fg(Color::Cyan))),
+        Line::from(""),
+        Line::from(Span::styled("Elapsed Time", Style::default().fg(Color::White).add_modifier(Modifier::BOLD))),
+        Line::from(""),
+        Line::from(Span::styled(format!("{:.1}s", state.start_time.elapsed().as_secs_f32()), Style::default().fg(Color::Green))),
+    ];
+
+    let story_panel = Paragraph::new(Text::from(story_metrics))
+        .block(Block::default().borders(Borders::ALL).title("Story Metrics"));
+    f.render_widget(story_panel, metrics_chunks[1]);
+}
+
+fn render_footer(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitState) {
+    let footer_text = if state.is_complete {
+        "🎬 SYN RECRUITMENT COMPLETE - All Your Node Are Belong To Us! Press any key to exit."
+    } else {
+        "🎬 SYN RECRUITMENT VIDEO - Press any key to exit"
+    };
+    
+    let footer = Paragraph::new(footer_text)
+        .alignment(Alignment::Center)
+        .style(Style::default().fg(Color::Cyan))
+        .block(Block::default().borders(Borders::TOP));
+    f.render_widget(footer, area);
 }
