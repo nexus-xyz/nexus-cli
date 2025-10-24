@@ -426,7 +426,7 @@ fn render_info_panel(f: &mut Frame, area: ratatui::layout::Rect, _state: &SynRec
         Line::from(Span::styled("Env: Production", Style::default().fg(Color::Green))),
         Line::from(Span::styled("Version: v0.10.17", Style::default().fg(Color::Cyan))),
         Line::from(Span::styled("Threads: 1753600", Style::default().fg(Color::LightYellow))),
-        Line::from(Span::styled("Memory: 8.0 GB", Style::default().fg(Color::LightCyan))),
+        Line::from(Span::styled("Memory: 2304 TB", Style::default().fg(Color::LightCyan))),
     ];
 
     let info_panel = Paragraph::new(Text::from(info_text))
@@ -529,7 +529,7 @@ fn render_main_screen(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRec
 
 fn render_activity_log(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitState) {
     // Create scrollable list items with proper color coding
-    let list_items: Vec<ListItem> = state.activity_logs
+    let mut list_items: Vec<ListItem> = state.activity_logs
         .iter()
         .map(|log| {
             // Color code based on speaker and log type
@@ -557,6 +557,9 @@ fn render_activity_log(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRe
             ListItem::new(Span::styled(log.as_str(), Style::default().fg(color)))
         })
         .collect();
+    
+    // Add padding line at the top for better visibility
+    list_items.insert(0, ListItem::new(Span::styled("", Style::default().fg(Color::White))));
     
     // Create a scrollable list widget with proper scrolling
     let logs = List::new(list_items)
