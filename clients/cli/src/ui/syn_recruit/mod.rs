@@ -290,28 +290,30 @@ impl SynRecruitState {
     }
 
     fn get_task_count(&self) -> u32 {
-        // Dynamic task counting based on story progression
-        let elapsed_seconds = self.start_time.elapsed().as_secs();
+        // Dynamic task counting based on story progression with fast updates
+        let elapsed_milliseconds = self.start_time.elapsed().as_millis();
         
         if self.current_scene <= 0 {
-            // Intro - tasks climbing rapidly
-            (elapsed_seconds * 50 + 1000).min(5000) as u32
+            // Intro - tasks climbing rapidly (10+ updates per second)
+            let base_tasks = 1000000;
+            let additional_tasks = (elapsed_milliseconds * 50) as u32; // Fast updates
+            (base_tasks + additional_tasks).min(23953940)
         } else if self.current_scene >= 1 && self.current_scene <= 15 {
             // During ACCC crisis - tasks stop climbing
-            let base_tasks = (self.start_time.elapsed().as_secs() * 50 + 1000).min(5000) as u32;
+            let base_tasks = 1000000 + (elapsed_milliseconds * 50) as u32;
             // Stop at the peak when ACCC shows up (around scene 7)
             if self.current_scene >= 7 {
-                5000 // Peak reached, no more growth
+                23953940 // Peak reached, no more growth
             } else {
-                base_tasks
+                base_tasks.min(23953940)
             }
         } else if self.current_scene >= 16 {
-            // Move SYNC - tasks resume climbing
-            let base_tasks = 5000; // Start from peak
-            let additional_tasks = ((self.start_time.elapsed().as_secs() - 10) * 30).max(0) as u32;
+            // Move SYNC - tasks resume climbing rapidly
+            let base_tasks = 23953940; // Start from peak
+            let additional_tasks = ((elapsed_milliseconds - 10000) * 30).max(0) as u32;
             base_tasks + additional_tasks
         } else {
-            1000 // Default
+            1000000 // Default
         }
     }
 }
