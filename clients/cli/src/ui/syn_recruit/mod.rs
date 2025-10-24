@@ -273,6 +273,17 @@ impl SynRecruitState {
         }
     }
 
+    fn get_uptime(&self) -> u64 {
+        // Uptime logic: reset to zero during crisis period
+        if self.current_scene >= 1 && self.current_scene <= 15 {
+            // Crisis period: uptime resets to zero
+            0
+        } else {
+            // Normal operation: show real elapsed time
+            self.start_time.elapsed().as_secs()
+        }
+    }
+
     fn get_task_count(&self) -> u32 {
         // Dynamic task counting based on story progression
         let elapsed_seconds = self.start_time.elapsed().as_secs();
@@ -379,12 +390,11 @@ fn render_header(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitS
 
 fn render_info_panel(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitState) {
     let info_text = vec![
-        Line::from(Span::styled("Node: 0xSYN", Style::default().fg(Color::LightBlue))),
         Line::from(Span::styled("Status: Online", Style::default().fg(Color::Green))),
         Line::from(Span::styled("Env: Production", Style::default().fg(Color::Green))),
         Line::from(Span::styled("Version: v0.10.17", Style::default().fg(Color::Cyan))),
         Line::from(Span::styled(
-            format!("Uptime: {}s", state.start_time.elapsed().as_secs()),
+            format!("Uptime: {}s", state.get_uptime()),
             Style::default().fg(Color::LightGreen)
         )),
         Line::from(Span::styled("Threads: 1", Style::default().fg(Color::LightYellow))),
@@ -503,7 +513,7 @@ fn render_activity_log(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRe
         })
         .collect();
     
-    // Create a scrollable list widget
+    // Create a scrollable list widget with proper scrolling
     let logs = List::new(list_items)
         .block(Block::default().borders(Borders::ALL).title("Activity Log"));
     f.render_widget(logs, area);
