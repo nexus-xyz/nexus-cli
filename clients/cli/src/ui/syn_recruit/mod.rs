@@ -344,20 +344,39 @@ pub fn render_syn_recruit(f: &mut Frame, state: &SynRecruitState) {
         .constraints([Constraint::Percentage(20), Constraint::Percentage(60), Constraint::Percentage(20)])
         .split(main_chunks[1]);
 
-    // Info panel (left side)
-    render_info_panel(f, content_chunks[0], state);
+    // Only show panels after main screen turns on (scene 5+)
+    if state.current_scene >= 5 {
+        // Info panel (left side)
+        render_info_panel(f, content_chunks[0], state);
+        
+        // Activity log (center) - main script dialogue with scrolling
+        render_activity_log(f, content_chunks[1], state);
+        
+        // Main screen (right side) - shows team logos
+        render_main_screen(f, content_chunks[2], state);
+    } else {
+        // Hide everything until main screen turns on
+        let empty_block = Block::default()
+            .style(Style::default().bg(Color::Rgb(16, 20, 24)));
+        f.render_widget(empty_block, main_chunks[1]);
+    }
     
-    // Activity log (center) - main script dialogue with scrolling
-    render_activity_log(f, content_chunks[1], state);
-    
-    // Main screen (right side) - shows team logos
-    render_main_screen(f, content_chunks[2], state);
-    
-    // Metrics section (bottom)
-    render_metrics_section(f, main_chunks[2], state);
-    
-    // Footer
-    render_footer(f, main_chunks[3], state);
+    // Only show metrics and footer after main screen turns on (scene 5+)
+    if state.current_scene >= 5 {
+        // Metrics section (bottom)
+        render_metrics_section(f, main_chunks[2], state);
+        
+        // Footer
+        render_footer(f, main_chunks[3], state);
+    } else {
+        // Hide metrics and footer until main screen turns on
+        let empty_block1 = Block::default()
+            .style(Style::default().bg(Color::Rgb(16, 20, 24)));
+        let empty_block2 = Block::default()
+            .style(Style::default().bg(Color::Rgb(16, 20, 24)));
+        f.render_widget(empty_block1, main_chunks[2]);
+        f.render_widget(empty_block2, main_chunks[3]);
+    }
 }
 
 fn render_header(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitState) {
@@ -414,34 +433,51 @@ fn render_info_panel(f: &mut Frame, area: ratatui::layout::Rect, _state: &SynRec
 }
 
 fn render_main_screen(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitState) {
-    let content = if state.current_speaker == "0xACCC" {
-        // Show ACK team logo when ACCC is speaking
+    let content = if state.current_scene < 5 {
+        // Hide everything until "main screen turn on" (scene 5)
+        vec![Line::from("")]
+    } else if state.current_speaker == "0xACCC" {
+        // Show ACC team logo when ACCC is speaking
         vec![
             Line::from(""),
             Line::from(""),
-            Line::from("        ╭─────────╮"),
-            Line::from("       ╱           ╲"),
-            Line::from("      ╱             ╲"),
-            Line::from("     ╱       ●       ╲"),
-            Line::from("    ╱                 ╲"),
-            Line::from("   ╱         ▼         ╲"),
-            Line::from("  ╱                     ╲"),
-            Line::from(" ╱                       ╲"),
-            Line::from("╱                         ╲"),
-            Line::from("╲                         ╱"),
-            Line::from(" ╲                       ╱"),
-            Line::from("  ╲                     ╱"),
-            Line::from("   ╲                   ╱"),
-            Line::from("    ╲                 ╱"),
-            Line::from("     ╲               ╱"),
-            Line::from("      ╲             ╱"),
-            Line::from("       ╲           ╱"),
-            Line::from("        ╰─────────╯"),
+            Line::from("        ○"),
+            Line::from("       ▲"),
+            Line::from("        ●"),
             Line::from(""),
-            Line::from("        TEAM ACK"),
+            Line::from("        ○"),
+            Line::from("       ▲"),
+            Line::from("        ●"),
+            Line::from(""),
+            Line::from("        ○"),
+            Line::from("       ▲"),
+            Line::from("        ●"),
+            Line::from(""),
+            Line::from("        TEAM ACC"),
             Line::from(""),
             Line::from("    All your node are"),
             Line::from("      belong to us"),
+            Line::from(""),
+        ]
+    } else if state.current_speaker == "0xCABB" {
+        // Show robot arm for CABB
+        vec![
+            Line::from(""),
+            Line::from(""),
+            Line::from("        🤖"),
+            Line::from("       🤖🤖"),
+            Line::from("      🤖🤖🤖"),
+            Line::from("     🤖🤖🤖🤖"),
+            Line::from("    🤖🤖🤖🤖🤖"),
+            Line::from("   🤖🤖🤖🤖🤖🤖"),
+            Line::from("  🤖🤖🤖🤖🤖🤖🤖"),
+            Line::from(" 🤖🤖🤖🤖🤖🤖🤖🤖"),
+            Line::from("🤖🤖🤖🤖🤖🤖🤖🤖🤖"),
+            Line::from(""),
+            Line::from("        CABB"),
+            Line::from(""),
+            Line::from("    Robot Arm"),
+            Line::from("    Activated"),
             Line::from(""),
         ]
     } else {
