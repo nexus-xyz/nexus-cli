@@ -145,10 +145,15 @@ impl SynRecruitState {
                             // Play beep sound for each character
                             self.play_beep();
                             
-                            // Update the last activity log entry with current text
-                            if let Some(last_log) = self.activity_logs.last_mut() {
-                                *last_log = format!("[{}] {}", self.current_speaker, self.current_line);
-                            }
+                        // Update the last activity log entry with current text
+                        if let Some(last_log) = self.activity_logs.last_mut() {
+                            *last_log = format!("[{}] {}", self.current_speaker, self.current_line);
+                        }
+                        
+                        // Keep only the last 20 log entries to prevent overflow
+                        if self.activity_logs.len() > 20 {
+                            self.activity_logs.remove(0);
+                        }
                         } else {
                             // Character not found, move to next state
                             self.typing_state = TypingState::Complete;
@@ -212,30 +217,50 @@ impl SynRecruitState {
             self.cpu_spike = 100.0;
             if self.activity_logs.len() < 5 {
                 self.activity_logs.push("✗ [ERR] Rate limited by server: zkVM task submission failed".to_string());
+                // Keep only the last 20 log entries
+                if self.activity_logs.len() > 20 {
+                    self.activity_logs.remove(0);
+                }
             }
         } else if self.current_scene >= 7 && self.current_scene < 9 {
             // ACK villain appears - system alert
             self.cpu_spike = 85.0;
             if self.activity_logs.len() < 6 {
                 self.activity_logs.push("[ALERT] Unauthorized access detected from 0xACCC".to_string());
+                // Keep only the last 20 log entries
+                if self.activity_logs.len() > 20 {
+                    self.activity_logs.remove(0);
+                }
             }
         } else if self.current_scene >= 14 && self.current_scene < 16 {
             // "Take off every 'SYNC'" - SYN flood begins
             self.cpu_spike = 95.0;
             if self.activity_logs.len() < 7 {
                 self.activity_logs.push("[INFO] SYN flood protocols initiated".to_string());
+                // Keep only the last 20 log entries
+                if self.activity_logs.len() > 20 {
+                    self.activity_logs.remove(0);
+                }
             }
         } else if self.current_scene >= 16 && self.current_scene < 18 {
             // "Move 'SYNC'" - rocket launch
             self.cpu_spike = 90.0;
             if self.activity_logs.len() < 8 {
                 self.activity_logs.push("[OK] SYN packets launched successfully".to_string());
+                // Keep only the last 20 log entries
+                if self.activity_logs.len() > 20 {
+                    self.activity_logs.remove(0);
+                }
             }
         } else if self.current_scene >= 18 {
             // Victory - system normalizes
             self.cpu_spike = 25.0;
             if self.activity_logs.len() < 9 {
                 self.activity_logs.push("[OK] FOR GREAT JUSTICE - Mission complete".to_string());
+                // Keep only the last 20 log entries
+                if self.activity_logs.len() > 20 {
+                    self.activity_logs.remove(0);
+                }
             }
         } else {
             // Normal operation
