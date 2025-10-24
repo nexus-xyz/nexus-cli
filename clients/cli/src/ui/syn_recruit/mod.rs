@@ -137,17 +137,22 @@ impl SynRecruitState {
                 if self.char_index < self.full_line.len() {
                     let char_delay = Duration::from_millis(30); // Faster typing speed
                     if self.last_char_time.elapsed() >= char_delay {
-                        let ch = self.full_line.chars().nth(self.char_index).unwrap();
-                        self.current_line.push(ch);
-                        self.char_index += 1;
-                        self.last_char_time = Instant::now();
-                        
-                        // Play beep sound for each character
-                        self.play_beep();
-                        
-                        // Update the last activity log entry with current text
-                        if let Some(last_log) = self.activity_logs.last_mut() {
-                            *last_log = format!("[{}] {}", self.current_speaker, self.current_line);
+                        if let Some(ch) = self.full_line.chars().nth(self.char_index) {
+                            self.current_line.push(ch);
+                            self.char_index += 1;
+                            self.last_char_time = Instant::now();
+                            
+                            // Play beep sound for each character
+                            self.play_beep();
+                            
+                            // Update the last activity log entry with current text
+                            if let Some(last_log) = self.activity_logs.last_mut() {
+                                *last_log = format!("[{}] {}", self.current_speaker, self.current_line);
+                            }
+                        } else {
+                            // Character not found, move to next state
+                            self.typing_state = TypingState::Complete;
+                            self.current_scene += 1;
                         }
                     }
                 } else {
