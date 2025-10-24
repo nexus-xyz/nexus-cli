@@ -273,14 +273,19 @@ impl SynRecruitState {
         }
     }
 
-    fn get_uptime(&self) -> u64 {
-        // Uptime logic: reset to zero during crisis period
-        if self.current_scene >= 1 && self.current_scene <= 15 {
-            // Crisis period: uptime resets to zero
-            0
+    fn get_success_rate(&self) -> f64 {
+        // Success rate logic based on story progression
+        if self.current_scene <= 0 {
+            // Intro - high success rate
+            100.0
+        } else if self.current_scene >= 1 && self.current_scene <= 15 {
+            // During crisis - success rate drops to 0%
+            0.0
+        } else if self.current_scene >= 16 {
+            // Move SYNC and after - success rate restored
+            100.0
         } else {
-            // Normal operation: show real elapsed time
-            self.start_time.elapsed().as_secs()
+            50.0 // Default
         }
     }
 
@@ -371,7 +376,7 @@ fn render_header(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitS
 
     // Progress gauge showing team activity level
     let team_activity_percent = state.get_team_activity_percent();
-    let progress_text = format!("Team Activity: {:.0}%", team_activity_percent);
+    let progress_text = format!("SYN Online: {:.0}%", team_activity_percent);
     let gauge_color = if team_activity_percent >= 80.0 {
         Color::Green
     } else if team_activity_percent >= 50.0 {
@@ -388,16 +393,12 @@ fn render_header(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitS
     f.render_widget(gauge, header_chunks[1]);
 }
 
-fn render_info_panel(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitState) {
+fn render_info_panel(f: &mut Frame, area: ratatui::layout::Rect, _state: &SynRecruitState) {
     let info_text = vec![
         Line::from(Span::styled("Status: Online", Style::default().fg(Color::Green))),
         Line::from(Span::styled("Env: Production", Style::default().fg(Color::Green))),
         Line::from(Span::styled("Version: v0.10.17", Style::default().fg(Color::Cyan))),
-        Line::from(Span::styled(
-            format!("Uptime: {}s", state.get_uptime()),
-            Style::default().fg(Color::LightGreen)
-        )),
-        Line::from(Span::styled("Threads: 1", Style::default().fg(Color::LightYellow))),
+        Line::from(Span::styled("Threads: 27,400", Style::default().fg(Color::LightYellow))),
         Line::from(Span::styled("Memory: 8.0 GB", Style::default().fg(Color::LightCyan))),
     ];
 
@@ -576,36 +577,18 @@ fn render_metrics_section(f: &mut Frame, area: ratatui::layout::Rect, state: &Sy
 
     // zkVM stats (right side) - matching real CLI
     let task_count = state.get_task_count();
+    let success_rate = state.get_success_rate();
     let zkvm_lines = vec![
         Line::from(vec![
             Span::styled("Tasks: ", Style::default().fg(Color::Gray)),
             Span::styled(format!("{}", task_count), Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
         ]),
         Line::from(vec![
-            Span::styled("Completed: ", Style::default().fg(Color::Gray)),
-            Span::styled(
-                if team_activity >= 80.0 { "1 / 1" } else { "0 / 1" },
-                Style::default().fg(if team_activity >= 80.0 { Color::Green } else { Color::Red }).add_modifier(Modifier::BOLD)
-            ),
-        ]),
-        Line::from(vec![
             Span::styled("Success: ", Style::default().fg(Color::Gray)),
             Span::styled(
-                if team_activity >= 80.0 { "100.0%" } else { "0.0%" },
-                Style::default().fg(if team_activity >= 80.0 { Color::Green } else { Color::Red }).add_modifier(Modifier::BOLD)
+                format!("{:.1}%", success_rate),
+                Style::default().fg(if success_rate >= 80.0 { Color::Green } else { Color::Red }).add_modifier(Modifier::BOLD)
             ),
-        ]),
-        Line::from(vec![
-            Span::styled("Runtime: ", Style::default().fg(Color::Gray)),
-            Span::styled(format!("{:.1}s", state.start_time.elapsed().as_secs_f32()), Style::default().fg(Color::Cyan)),
-        ]),
-        Line::from(vec![
-            Span::styled("Last: ", Style::default().fg(Color::Gray)),
-            Span::styled("Pending", Style::default().fg(Color::Yellow)),
-        ]),
-        Line::from(vec![
-            Span::styled("Last Proof: ", Style::default().fg(Color::Gray)),
-            Span::styled("Never", Style::default().fg(Color::Yellow)),
         ]),
     ];
 
