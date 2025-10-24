@@ -207,8 +207,8 @@ impl SynRecruitState {
         let _scenes = self.get_scenes();
         
         // CPU spikes based on story events
-        if self.current_scene >= 2 && self.current_scene < 4 {
-            // "Somebody set up us the cron" - CPU spike to 100%
+        if self.current_scene >= 1 && self.current_scene < 3 {
+            // "What happen?" - CPU spike to 100% with rate limit error
             self.cpu_spike = 100.0;
             if self.activity_logs.len() < 5 {
                 self.activity_logs.push("✗ [CRIT] Rate limited by server: zkVM task submission failed".to_string());
