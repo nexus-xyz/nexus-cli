@@ -257,14 +257,19 @@ impl SynRecruitState {
         std::io::stdout().flush().unwrap_or_default();
     }
 
-    fn get_speaker_color(&self, speaker: &str) -> Color {
-        match speaker {
-            "0xACCC" => Color::Magenta,
-            "0xCABB" => Color::Yellow,
-            "0xF1X3" => Color::Green,
-            "0xD00D" => Color::Cyan,
-            "0xDEAD" => Color::Gray,
-            _ => Color::White,
+    fn get_team_activity_percent(&self) -> f64 {
+        // Team activity logic based on story progression
+        if self.current_scene <= 0 {
+            // Intro - high activity
+            90.0
+        } else if self.current_scene >= 1 && self.current_scene <= 15 {
+            // During the crisis - low activity
+            10.0
+        } else if self.current_scene >= 16 {
+            // "Move 'SYNC'" and after - high activity restored
+            90.0
+        } else {
+            50.0 // Default
         }
     }
 }
@@ -324,19 +329,21 @@ fn render_header(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitS
         .block(Block::default().borders(Borders::BOTTOM).border_type(BorderType::Thick));
     f.render_widget(title, header_chunks[0]);
 
-    // Progress gauge showing cron detection
-    let progress_percent = (state.current_scene as f64 / 18.0) * 100.0;
-    let progress_text = format!("SYN Node Status: {:.0}%", progress_percent);
-    let gauge_color = if state.current_scene > 0 {
-        Color::Red // Red after narrator starts
+    // Progress gauge showing team activity level
+    let team_activity_percent = state.get_team_activity_percent();
+    let progress_text = format!("Team Activity: {:.0}%", team_activity_percent);
+    let gauge_color = if team_activity_percent >= 80.0 {
+        Color::Green
+    } else if team_activity_percent >= 50.0 {
+        Color::Yellow
     } else {
-        Color::Green // Green initially
+        Color::Red
     };
 
     let gauge = Gauge::default()
         .block(Block::default().borders(Borders::NONE))
         .gauge_style(Style::default().fg(gauge_color))
-        .percent(progress_percent as u16)
+        .percent(team_activity_percent as u16)
         .label(progress_text);
     f.render_widget(gauge, header_chunks[1]);
 }
@@ -344,6 +351,7 @@ fn render_header(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitS
 fn render_info_panel(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitState) {
     let info_text = vec![
         Line::from(Span::styled("Node: 0xSYN", Style::default().fg(Color::LightBlue))),
+        Line::from(Span::styled("Status: Online", Style::default().fg(Color::Green))),
         Line::from(Span::styled("Env: Production", Style::default().fg(Color::Green))),
         Line::from(Span::styled("Version: v0.10.17", Style::default().fg(Color::Cyan))),
         Line::from(Span::styled(
@@ -410,7 +418,8 @@ fn render_metrics_section(f: &mut Frame, area: ratatui::layout::Rect, state: &Sy
         .split(metrics_chunks[0]);
 
     // CPU gauge with enhanced styling
-    let cpu_color = if state.current_scene > 0 { Color::Red } else { Color::Green };
+    let team_activity = state.get_team_activity_percent();
+    let cpu_color = if team_activity >= 80.0 { Color::Green } else { Color::Red };
     let cpu_gauge = Gauge::default()
         .block(
             Block::default()
@@ -428,7 +437,7 @@ fn render_metrics_section(f: &mut Frame, area: ratatui::layout::Rect, state: &Sy
         .label(format!("{:.1}%", state.cpu_spike));
 
     // RAM gauge with enhanced styling
-    let ram_color = if state.current_scene > 0 { Color::Red } else { Color::Green };
+    let ram_color = if team_activity >= 80.0 { Color::Green } else { Color::Red };
     let ram_gauge = Gauge::default()
         .block(
             Block::default()
@@ -457,15 +466,15 @@ fn render_metrics_section(f: &mut Frame, area: ratatui::layout::Rect, state: &Sy
         Line::from(vec![
             Span::styled("Completed: ", Style::default().fg(Color::Gray)),
             Span::styled(
-                if state.current_scene > 0 { "0 / 1" } else { "1 / 1" },
-                Style::default().fg(if state.current_scene > 0 { Color::Red } else { Color::Green }).add_modifier(Modifier::BOLD)
+                if team_activity >= 80.0 { "1 / 1" } else { "0 / 1" },
+                Style::default().fg(if team_activity >= 80.0 { Color::Green } else { Color::Red }).add_modifier(Modifier::BOLD)
             ),
         ]),
         Line::from(vec![
             Span::styled("Success: ", Style::default().fg(Color::Gray)),
             Span::styled(
-                if state.current_scene > 0 { "0.0%" } else { "100.0%" },
-                Style::default().fg(if state.current_scene > 0 { Color::Red } else { Color::Green }).add_modifier(Modifier::BOLD)
+                if team_activity >= 80.0 { "100.0%" } else { "0.0%" },
+                Style::default().fg(if team_activity >= 80.0 { Color::Green } else { Color::Red }).add_modifier(Modifier::BOLD)
             ),
         ]),
         Line::from(vec![
