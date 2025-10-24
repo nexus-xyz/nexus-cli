@@ -246,8 +246,9 @@ impl SynRecruitState {
     }
 
     fn play_beep(&self) {
-        // Typewriter-like sound (softer, more mechanical)
-        print!("\x07");
+        // Typewriter-like sound (softer click, not warning bell)
+        // Use a different bell character for softer sound
+        print!("\x08"); // Backspace character for softer click
         std::io::stdout().flush().unwrap_or_default();
     }
 
@@ -311,7 +312,7 @@ fn render_header(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitS
         .split(area);
 
     // Title section - mimicking Nexus CLI
-    let title_text = "NEXUS PROVER v0.10.17 - SYNC MOVE INTERFACE";
+    let title_text = "NEXUS PROVER v0.10.17 - SYN NODE INTERFACE";
     let title = Paragraph::new(title_text)
         .alignment(Alignment::Center)
         .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
@@ -320,8 +321,12 @@ fn render_header(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitS
 
     // Progress gauge showing cron detection
     let progress_percent = (state.current_scene as f64 / 18.0) * 100.0;
-    let progress_text = format!("Unexpected cron detected: {:.0}%", progress_percent);
-    let gauge_color = Color::Red; // Always red for ominous effect
+    let progress_text = format!("SYN Node Status: {:.0}%", progress_percent);
+    let gauge_color = if state.current_scene > 0 {
+        Color::Red // Red after narrator starts
+    } else {
+        Color::Green // Green initially
+    };
 
     let gauge = Gauge::default()
         .block(Block::default().borders(Borders::NONE))
@@ -333,7 +338,7 @@ fn render_header(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitS
 
 fn render_info_panel(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitState) {
     let info_text = vec![
-        Line::from(Span::styled("Node: 0xSYNC", Style::default().fg(Color::LightBlue))),
+        Line::from(Span::styled("Node: 0xSYN", Style::default().fg(Color::LightBlue))),
         Line::from(Span::styled("Env: Production", Style::default().fg(Color::Green))),
         Line::from(Span::styled("Version: v0.10.17", Style::default().fg(Color::Cyan))),
         Line::from(Span::styled(
@@ -400,34 +405,36 @@ fn render_metrics_section(f: &mut Frame, area: ratatui::layout::Rect, state: &Sy
         .split(metrics_chunks[0]);
 
     // CPU gauge with enhanced styling
+    let cpu_color = if state.current_scene > 0 { Color::Red } else { Color::Green };
     let cpu_gauge = Gauge::default()
         .block(
             Block::default()
                 .title("CPU Usage")
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded)
-                .border_style(Style::default().fg(Color::Red)),
+                .border_style(Style::default().fg(cpu_color)),
         )
         .gauge_style(
             Style::default()
-                .fg(Color::Red)
+                .fg(cpu_color)
                 .add_modifier(Modifier::BOLD),
         )
         .percent((state.cpu_spike as u16).min(100))
         .label(format!("{:.1}%", state.cpu_spike));
 
     // RAM gauge with enhanced styling
+    let ram_color = if state.current_scene > 0 { Color::Red } else { Color::Green };
     let ram_gauge = Gauge::default()
         .block(
             Block::default()
                 .title("RAM Usage")
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded)
-                .border_style(Style::default().fg(Color::Red)),
+                .border_style(Style::default().fg(ram_color)),
         )
         .gauge_style(
             Style::default()
-                .fg(Color::Red)
+                .fg(ram_color)
                 .add_modifier(Modifier::BOLD),
         )
         .percent((state.memory_spike as u16).min(100))
@@ -444,11 +451,17 @@ fn render_metrics_section(f: &mut Frame, area: ratatui::layout::Rect, state: &Sy
         ]),
         Line::from(vec![
             Span::styled("Completed: ", Style::default().fg(Color::Gray)),
-            Span::styled("0 / 1", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                if state.current_scene > 0 { "0 / 1" } else { "1 / 1" },
+                Style::default().fg(if state.current_scene > 0 { Color::Red } else { Color::Green }).add_modifier(Modifier::BOLD)
+            ),
         ]),
         Line::from(vec![
             Span::styled("Success: ", Style::default().fg(Color::Gray)),
-            Span::styled("0.0%", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                if state.current_scene > 0 { "0.0%" } else { "100.0%" },
+                Style::default().fg(if state.current_scene > 0 { Color::Red } else { Color::Green }).add_modifier(Modifier::BOLD)
+            ),
         ]),
         Line::from(vec![
             Span::styled("Runtime: ", Style::default().fg(Color::Gray)),
@@ -479,9 +492,9 @@ fn render_metrics_section(f: &mut Frame, area: ratatui::layout::Rect, state: &Sy
 
 fn render_footer(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitState) {
     let footer_text = if state.is_complete {
-        "🚀 SYNC MOVE COMPLETE - All Your Node Are Belong To Us! Press any key to exit."
+        "🚀 SYN NODE COMPLETE - All Your Node Are Belong To Us! Press any key to exit."
     } else {
-        "🚀 SYNC MOVE INTERFACE - Taking off every SYNC - Press any key to exit"
+        "🚀 SYN NODE INTERFACE - Press any key to exit"
     };
     
     let footer = Paragraph::new(footer_text)

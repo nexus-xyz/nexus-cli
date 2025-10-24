@@ -152,7 +152,7 @@ enum Command {
         #[arg(long)]
         inputs: String,
     },
-        /// Play the SYNC Move interface (All Your Node meme)
+        /// Play the SYN Node interface (All Your Node meme)
         SynRecruit,
 }
 
