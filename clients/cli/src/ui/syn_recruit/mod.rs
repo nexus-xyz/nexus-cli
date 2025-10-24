@@ -67,6 +67,10 @@ impl SynRecruitState {
         let mut sysinfo = System::new_all();
         sysinfo.refresh_all();
         
+        // Initialize with the first INFO log entry
+        let mut activity_logs = Vec::new();
+        activity_logs.push("[INFO] In A.D. 2,0,2,5, SYN was beginning.".to_string());
+        
         Self {
             current_scene: 0,
             start_time: Instant::now(),
@@ -76,7 +80,7 @@ impl SynRecruitState {
             current_line: String::new(),
             full_line: String::new(),
             current_speaker: String::new(),
-            activity_logs: Vec::new(),
+            activity_logs,
             is_complete: false,
             cpu_spike: 0.0,
             memory_spike: 0.0,
@@ -117,6 +121,12 @@ impl SynRecruitState {
                 if self.current_scene < scenes.len() {
                     let (scene_time, speaker, line) = scenes[self.current_scene];
                     if elapsed >= scene_time {
+                        // Skip 0x0000 scene entirely since it's shown as INFO log
+                        if speaker == "0x0000" {
+                            self.current_scene += 1;
+                            return;
+                        }
+                        
                         self.current_speaker = speaker.to_string();
                         self.full_line = line.to_string();
                         self.current_line.clear();
@@ -126,6 +136,8 @@ impl SynRecruitState {
                         
                         // Add speaker to activity log
                         self.activity_logs.push(format!("[{}] {}", speaker, ""));
+                        // Play gentle tap sound for new log entry
+                        self.play_tap_sound();
                     }
                 } else {
                     self.typing_state = TypingState::Finished;
@@ -181,24 +193,22 @@ impl SynRecruitState {
 
     fn get_scenes(&self) -> Vec<(Duration, &'static str, &'static str)> {
         vec![
-            (Duration::from_millis(0), "0xDEAD", "In A.D. 20,1,5, SYN was beginning."),
-            (Duration::from_millis(1200), "0xCABB", "What happen?"),
-            (Duration::from_millis(1900), "0xF1X3", "Somebody set up us the cron."),
-            (Duration::from_millis(2700), "0xD00D", "We get signal."),
-            (Duration::from_millis(3300), "0xCABB", "What!"),
-            (Duration::from_millis(3700), "0xD00D", "Main screen turn on."),
-            (Duration::from_millis(4400), "0xCABB", "It's you!!"),
-            (Duration::from_millis(5000), "0xACCC", "How are you sysadmins!!"),
-            (Duration::from_millis(5800), "0xACCC", "All your node are belong to us."),
-            (Duration::from_millis(6700), "0xACCC", "You are on the way to destruction."),
-            (Duration::from_millis(7600), "0xCABB", "What you say!!"),
-            (Duration::from_millis(8300), "0xACCC", "You have no chance to survive make your time."),
-            (Duration::from_millis(9200), "0xACCC", "Ha ha ha ha...."),
-            (Duration::from_millis(10100), "0xD00D", "0xCABB!!"),
-            (Duration::from_millis(10600), "0xCABB", "Take off every 'SYNC'!!"),
-            (Duration::from_millis(11500), "0xCABB", "You know what you doing."),
-            (Duration::from_millis(12200), "0xCABB", "Move 'SYNC'."),
-            (Duration::from_millis(12900), "0xCABB", "For great justice."),
+            (Duration::from_millis(0), "0x0000", "In A.D. 2,0,2,5, SYN was beginning."),
+            (Duration::from_millis(1200), "0x0001", "What happen?"),
+            (Duration::from_millis(1900), "0x0002", "Somebody set up us the cron."),
+            (Duration::from_millis(2700), "0x0003", "We get signal."),
+            (Duration::from_millis(3300), "0x0001", "What!"),
+            (Duration::from_millis(3700), "0x0003", "Main screen turn on."),
+            (Duration::from_millis(4000), "0xACCC", "How are you sysadmins!!"),
+            (Duration::from_millis(4400), "0x0001", "It's you!!"),
+            (Duration::from_millis(5000), "0xACCC", "All your node are belong to us."),
+            (Duration::from_millis(5800), "0xACCC", "You are on the way to destruction."),
+            (Duration::from_millis(6700), "0x0001", "What you say!!"),
+            (Duration::from_millis(7400), "0xACCC", "You have no chance to survive make your time."),
+            (Duration::from_millis(8300), "0xACCC", "Ha ha ha ha...."),
+            (Duration::from_millis(10600), "0x0001", "Take off every 'SYNC'!!"),
+            (Duration::from_millis(11500), "0x0001", "You know what you doing."),
+            (Duration::from_millis(12200), "0x0001", "Move 'SYNC'."),
         ]
     }
 
@@ -223,7 +233,7 @@ impl SynRecruitState {
                 }
             }
         } else if self.current_scene >= 7 && self.current_scene < 9 {
-            // ACK villain appears - system alert
+            // 0xACCC villain appears - system alert
             self.cpu_spike = 85.0;
             if self.activity_logs.len() < 6 {
                 self.activity_logs.push("[ALERT] Unauthorized access detected from 0xACCC".to_string());
@@ -279,6 +289,13 @@ impl SynRecruitState {
         // Typewriter-like sound (softer click, not warning bell)
         // Use a different bell character for softer sound
         print!("\x08"); // Backspace character for softer click
+        std::io::stdout().flush().unwrap_or_default();
+    }
+
+    fn play_tap_sound(&self) {
+        // Pleasant tap sound for new log entries
+        // Use a soft, musical combination for a gentle notification
+        print!("\x08\x08\x08"); // Triple backspace for a soft, pleasant tap
         std::io::stdout().flush().unwrap_or_default();
     }
 
@@ -341,20 +358,155 @@ impl SynRecruitState {
             1000000 // Default
         }
     }
+
+    fn get_rocket_positions(&self) -> Vec<usize> {
+        // Get animated rocket positions based on tick
+        let base_positions = vec![0, 5, 10, 15, 20];
+        base_positions.iter().map(|&pos| (pos + self.tick) % 25).collect()
+    }
+
+    fn get_fade_intensity(&self) -> f32 {
+        // Calculate fade intensity based on completion time
+        if !self.is_complete {
+            return 0.0;
+        }
+        let completion_time = self.start_time.elapsed().as_secs_f32();
+        let pause_start = 13.0; // Pause for 2 seconds after completion
+        let fade_start = 15.0; // Start fading after pause
+        if completion_time < pause_start {
+            0.0 // Pause - no fade
+        } else {
+            ((completion_time - fade_start) / 3.0).clamp(0.0, 1.0) // Fade over 3 seconds
+        }
+    }
+
+    fn should_show_progressive_fade(&self) -> bool {
+        // Show progressive fade after completion
+        self.is_complete
+    }
+
+    fn get_progressive_fade_progress(&self) -> f32 {
+        if !self.should_show_progressive_fade() {
+            return 0.0;
+        }
+        
+        let completion_time = self.start_time.elapsed().as_secs_f32();
+        let fade_start = 13.0; // Start fading after completion
+        let fade_duration = 4.0; // Fade over 4 seconds
+        
+        ((completion_time - fade_start) / fade_duration).clamp(0.0, 1.0)
+    }
+    fn should_show_rocket_fill(&self) -> bool {
+        // Show rocket fill during "You know what you doing" (scene 15) to "Move SYNC" (scene 16)
+        self.current_scene >= 15 && self.current_scene <= 16
+    }
+
+    fn get_rocket_fill_progress(&self) -> f32 {
+        if !self.should_show_rocket_fill() {
+            return 0.0;
+        }
+        
+        // Calculate progress based on scene and time within scene
+        let scene_progress = if self.current_scene == 15 {
+            // "You know what you doing" - start filling
+            0.0
+        } else if self.current_scene == 16 {
+            // "Move SYNC" - complete filling
+            1.0
+        } else {
+            0.0
+        };
+        
+        // Add time-based progression within the current scene
+        let elapsed = self.start_time.elapsed().as_secs_f32();
+        let scene_start_time = if self.current_scene == 15 { 11.5 } else { 12.2 };
+        let time_in_scene = (elapsed - scene_start_time).max(0.0);
+        
+        // Gradual fill over 2 seconds total
+        let time_progress = (time_in_scene / 2.0).clamp(0.0, 1.0);
+        
+        // Combine scene progress with time progress
+        (scene_progress + time_progress * 0.5).clamp(0.0, 1.0)
+    }
 }
 
 pub fn render_syn_recruit(f: &mut Frame, state: &SynRecruitState) {
+    // Check if we should show progressive fade
+    let fade_progress = state.get_progressive_fade_progress();
+    
+    if fade_progress > 0.0 {
+        // Progressive fade to rockets with SYN
+        render_progressive_fade(f, state, fade_progress);
+    } else {
+        // Normal rendering
+        render_normal_ui(f, state);
+    }
+}
+
+fn render_progressive_fade(f: &mut Frame, state: &SynRecruitState, fade_progress: f32) {
+    // Create animated rockets moving to the right
+    let base_rocket_line = "🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀";
+    
+    // Calculate offset based on tick for movement
+    let offset = (state.tick / 2) % 3; // Move every 2 ticks, cycle every 3 positions
+    let rocket_line = match offset {
+        0 => base_rocket_line,
+        1 => " 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀",
+        2 => "  🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀",
+        _ => base_rocket_line,
+    };
+    
+    // Create full screen of rockets
+    let mut lines = vec![];
+    for _ in 0..f.area().height {
+        lines.push(Line::from(rocket_line));
+    }
+    
+    // Add SYN display in center
+    let syn_text = vec![
+        Line::from(""),
+        Line::from(""),
+        Line::from(""),
+        Line::from(""),
+        Line::from(""),
+        Line::from(" ███████╗██╗   ██╗███╗   ██╗"),
+        Line::from(" ██╔════╝╚██╗ ██╔╝████╗  ██║"),
+        Line::from(" ███████╗ ╚████╔╝ ██╔██╗ ██║"),
+        Line::from(" ╚════██║  ╚██╔╝  ██║╚██╗██║"),
+        Line::from(" ███████║   ██║   ██║ ╚████║"),
+        Line::from(" ╚══════╝   ╚═╝   ╚═╝  ╚═══╝"),
+        Line::from(""),
+        Line::from(""),
+        Line::from(" FOR GREAT JUSTICE"),
+        Line::from(""),
+        Line::from(""),
+    ];
+    
+    // Replace center lines with SYN display
+    let start_line = (f.area().height as usize - syn_text.len()) / 2;
+    for (i, syn_line) in syn_text.iter().enumerate() {
+        if start_line + i < lines.len() {
+            lines[start_line + i] = syn_line.clone();
+        }
+    }
+    
+    let syn_display = Paragraph::new(Text::from(lines))
+        .alignment(Alignment::Center)
+        .style(Style::default().fg(Color::Green).add_modifier(Modifier::BOLD));
+    
+    f.render_widget(syn_display, f.area());
+}
+
+fn render_normal_ui(f: &mut Frame, state: &SynRecruitState) {
     // Use the same background as the real CLI
     f.render_widget(
         Block::default().style(Style::default().bg(Color::Rgb(16, 20, 24))),
         f.area(),
     );
-
-    // Create layout matching the real Nexus CLI
     let main_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(4),  // Header
+            Constraint::Length(3),  // Header (reduced from 4 to 3)
             Constraint::Fill(1),    // Main content
             Constraint::Percentage(35), // Metrics
             Constraint::Length(2),  // Footer
@@ -371,13 +523,13 @@ pub fn render_syn_recruit(f: &mut Frame, state: &SynRecruitState) {
         .constraints([Constraint::Percentage(20), Constraint::Percentage(60), Constraint::Percentage(20)])
         .split(main_chunks[1]);
 
-    // Info panel (left side) - always visible
+    // Info panel (left side) - always active
     render_info_panel(f, content_chunks[0], state);
     
-    // Activity log (center) - always visible
+    // Activity log (center) - always active
     render_activity_log(f, content_chunks[1], state);
     
-    // Main screen (right side) - only shows after main screen turns on
+    // Main screen (right side) - shows empty until main screen turns on
     render_main_screen(f, content_chunks[2], state);
     
     // Metrics section (bottom) - always visible
@@ -390,7 +542,7 @@ pub fn render_syn_recruit(f: &mut Frame, state: &SynRecruitState) {
 fn render_header(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitState) {
     let header_chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Length(2), Constraint::Length(2)])
+        .constraints([Constraint::Length(2), Constraint::Length(1)]) // Progress bar now 1 height
         .split(area);
 
     // Title section - mimicking Nexus CLI
@@ -442,102 +594,68 @@ fn render_info_panel(f: &mut Frame, area: ratatui::layout::Rect, _state: &SynRec
 
 fn render_main_screen(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitState) {
     let content = if state.current_scene < 5 {
-        // Hide everything until "main screen turn on" (scene 5)
+        // Show empty panel until "main screen turn on" (scene 5)
         vec![Line::from("")]
     } else if state.is_complete {
-        // Mission complete - show rocket emoji SYN celebration
-        vec![
-            Line::from(""),
-            Line::from(""),
-            Line::from(""),
-            Line::from(""),
-            Line::from(""),
-            Line::from("        🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀"),
-            Line::from("        🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀"),
-            Line::from("        🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀"),
-            Line::from("        🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀"),
-            Line::from("        🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀"),
-            Line::from(""),
-            Line::from("        🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀"),
-            Line::from("        🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀"),
-            Line::from("        🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀"),
-            Line::from("        🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀"),
-            Line::from("        🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀"),
-            Line::from(""),
-            Line::from("        🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀"),
-            Line::from("        🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀"),
-            Line::from("        🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀"),
-            Line::from("        🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀"),
-            Line::from("        🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀"),
-            Line::from(""),
-            Line::from(""),
-            Line::from("        FOR GREAT JUSTICE"),
-            Line::from(""),
-            Line::from(""),
-        ]
+        // Mission complete - show progressive fade to rockets with SYN
+        let fade_intensity = state.get_fade_intensity();
+        let mut lines = vec![];
+        
+        // Fill entire screen with rockets
+        let rocket_line = "🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀";
+        
+        // Create full screen of rockets
+        for _ in 0..20 {
+            lines.push(Line::from(rocket_line));
+        }
+        
+        lines
+    } else if state.should_show_rocket_fill() {
+        // During "Take off every SYNC" to "Move SYNC" - gradually fill screen with rockets
+        let fill_progress = state.get_rocket_fill_progress();
+        let mut lines = vec![];
+        
+        // Calculate how many lines to fill with rockets - use full area height
+        let total_lines = area.height as usize - 2; // Account for padding
+        let filled_lines = (total_lines as f32 * fill_progress) as usize;
+        
+        // Add rocket-filled lines
+        let rocket_line = "🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀";
+        for _ in 0..filled_lines {
+            lines.push(Line::from(rocket_line));
+        }
+        
+        // Add empty lines for remaining space
+        for _ in filled_lines..total_lines {
+            lines.push(Line::from(""));
+        }
+        
+        lines
     } else if state.current_speaker == "0xACCC" {
-        // Show ACC team logo when ACCC is speaking
+        // Show triangle made of dots for ACCC
         vec![
             Line::from(""),
             Line::from(""),
-            Line::from("        ○"),
-            Line::from("       ▲"),
-            Line::from("        ●"),
-            Line::from(""),
-            Line::from("        ○"),
-            Line::from("       ▲"),
-            Line::from("        ●"),
-            Line::from(""),
-            Line::from("        ○"),
-            Line::from("       ▲"),
-            Line::from("        ●"),
-            Line::from(""),
-            Line::from("        TEAM ACC"),
-            Line::from(""),
-            Line::from("    All your node are"),
-            Line::from("      belong to us"),
-            Line::from(""),
-        ]
-    } else if state.current_speaker == "0xCABB" {
-        // Show robot arm for CABB
-        vec![
             Line::from(""),
             Line::from(""),
-            Line::from("        🤖"),
-            Line::from("       🤖🤖"),
-            Line::from("      🤖🤖🤖"),
-            Line::from("     🤖🤖🤖🤖"),
-            Line::from("    🤖🤖🤖🤖🤖"),
-            Line::from("   🤖🤖🤖🤖🤖🤖"),
-            Line::from("  🤖🤖🤖🤖🤖🤖🤖"),
-            Line::from(" 🤖🤖🤖🤖🤖🤖🤖🤖"),
-            Line::from("🤖🤖🤖🤖🤖🤖🤖🤖🤖"),
             Line::from(""),
-            Line::from("        CABB"),
+            Line::from("           •"),
+            Line::from("          • •"),
+            Line::from("         • • •"),
+            Line::from("        • • • •"),
+            Line::from("       • • • • •"),
+            Line::from("      • • • • • •"),
+            Line::from("     • • • • • • •"),
+            Line::from("    • • • • • • • •"),
+            Line::from("   • • • • • • • • •"),
+            Line::from("  • • • • • • • • • •"),
             Line::from(""),
-            Line::from("    Robot Arm"),
-            Line::from("    Activated"),
+            Line::from(""),
             Line::from(""),
         ]
     } else {
-        // Default system status
-        vec![
-            Line::from(""),
-            Line::from(""),
-            Line::from("    ███████╗██╗   ██╗███╗   ██╗"),
-            Line::from("    ██╔════╝╚██╗ ██╔╝████╗  ██║"),
-            Line::from("    ███████╗ ╚████╔╝ ██╔██╗ ██║"),
-            Line::from("    ╚════██║  ╚██╔╝  ██║╚██╗██║"),
-            Line::from("    ███████║   ██║   ██║ ╚████║"),
-            Line::from("    ╚══════╝   ╚═╝   ╚═╝  ╚═══╝"),
-            Line::from(""),
-            Line::from("        SYN CREW"),
-            Line::from(""),
-            Line::from("    System Online"),
-            Line::from("    Team Active"),
-            Line::from(""),
-            Line::from(""),
-        ]
+        // Show empty for all other speakers (CABB, F1X3, D00D, etc.)
+        vec![Line::from("")]
     };
 
     let color = if state.current_speaker == "0xACCC" {
@@ -546,13 +664,24 @@ fn render_main_screen(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRec
         Color::Green
     };
 
+    // Apply fade to black effect if needed
+    let fade_intensity = state.get_fade_intensity();
+    let bg_color = if fade_intensity > 0.0 {
+        // Fade to black based on intensity
+        let fade_amount = (fade_intensity * 255.0) as u8;
+        Color::Rgb(fade_amount, fade_amount, fade_amount)
+    } else {
+        Color::Rgb(16, 20, 24) // Normal background
+    };
+
     let main_screen = Paragraph::new(Text::from(content))
         .block(Block::default()
             .title("MAIN SCREEN")
             .borders(Borders::ALL)
             .border_type(BorderType::Rounded)
             .border_style(Style::default().fg(color))
-            .padding(Padding::uniform(1)))
+            .padding(Padding::uniform(1))
+            .style(Style::default().bg(bg_color)))
         .alignment(Alignment::Center)
         .wrap(Wrap { trim: true });
     f.render_widget(main_screen, area);
@@ -566,13 +695,13 @@ fn render_activity_log(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRe
             // Color code based on speaker and log type
             let color = if log.starts_with("[0xACCC]") {
                 Color::Magenta
-            } else if log.starts_with("[0xCABB]") {
+            } else if log.starts_with("[0x0001]") {
                 Color::Yellow
-            } else if log.starts_with("[0xF1X3]") {
+            } else if log.starts_with("[0x0002]") {
                 Color::Green
-            } else if log.starts_with("[0xD00D]") {
+            } else if log.starts_with("[0x0003]") {
                 Color::Cyan
-            } else if log.starts_with("[0xDEAD]") {
+            } else if log.starts_with("[0x0000]") {
                 Color::Gray
             } else if log.contains("[ERR]") {
                 Color::Red
@@ -585,7 +714,15 @@ fn render_activity_log(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRe
             } else {
                 Color::White
             };
-            ListItem::new(Span::styled(log.as_str(), Style::default().fg(color)))
+            
+            // Add info icon for INFO entries
+            let display_text = if log.contains("[INFO]") {
+                format!("{}", log)
+            } else {
+                log.clone()
+            };
+            
+            ListItem::new(Span::styled(display_text, Style::default().fg(color)))
         })
         .collect();
     
@@ -682,7 +819,7 @@ fn render_metrics_section(f: &mut Frame, area: ratatui::layout::Rect, state: &Sy
 
 fn render_footer(f: &mut Frame, area: ratatui::layout::Rect, state: &SynRecruitState) {
     let footer_text = if state.is_complete {
-        "[Q] No quitting - Mission complete! 🚀"
+        "[Q] No quitting - 🚀"
     } else {
         "[Q] No quitting"
     };
