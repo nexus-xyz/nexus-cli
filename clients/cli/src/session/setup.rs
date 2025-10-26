@@ -123,7 +123,7 @@ pub async fn setup_session(
         if memory_clamped_workers < num_workers {
             crate::print_cmd_warn!(
                 "Memory limit",
-                "Reduced thread count from {} to {} due to insufficient memory. Each thread requires ~4GB RAM.",
+                "Reduced thread count from {} to {} due to insufficient memory. Each thread requires ~2GB RAM.",
                 num_workers,
                 memory_clamped_workers
             );

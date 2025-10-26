@@ -27,7 +27,7 @@ pub mod cli_consts {
     pub const SUBPROCESS_INTERNAL_ERROR_CODE: i32 = 3;
 
     /// "Reasonable" generic projection task memory requirement.
-    pub const PROJECTED_MEMORY_REQUIREMENT: u64 = 4294967296; // 4gb
+    pub const PROJECTED_MEMORY_REQUIREMENT: u64 = 2147483648; // 2gb
 
     // =============================================================================
     // DIFFICULTY CONFIGURATION
