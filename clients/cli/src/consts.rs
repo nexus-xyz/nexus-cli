@@ -50,13 +50,13 @@ pub mod cli_consts {
 
         /// Initial delay before retrying failed task fetch (milliseconds)
         /// Set to 2 minutes to align with server task creation frequency
-        pub const INITIAL_BACKOFF_MS: u64 = 120_000;
+        pub const INITIAL_BACKOFF_MS: u64 = 30_000;
         /// Maximum number of retry attempts for task fetching
-        pub const MAX_RETRIES: u32 = 2;
+        pub const MAX_RETRIES: u32 = 4;
 
         /// Minimum interval between task fetch requests (milliseconds)
         /// Set to 2 minutes to align with server task creation frequency
-        pub const RATE_LIMIT_INTERVAL_MS: u64 = 120_000;
+        pub const RATE_LIMIT_INTERVAL_MS: u64 = 10_000;
 
         /// Helper function to get initial backoff duration
         pub const fn initial_backoff() -> Duration {
