@@ -295,7 +295,7 @@ async fn start(
         max_tasks,
         max_difficulty_parsed,
         ignore_memory_requirement,
-)
+    )
     .await?;
 
     // 4. Run appropriate mode
