@@ -127,6 +127,10 @@ enum Command {
         /// Override max difficulty to request. Auto-promotion occurs when tasks complete in < 7 min
         #[arg(long = "max-difficulty", value_name = "DIFFICULTY")]
         max_difficulty: Option<String>,
+
+        /// Ignore memory requirements per thread (allows running more threads than recommended)
+        #[arg(long = "ignore-memory-requirement", default_value_t = false)]
+        ignore_memory_requirement: bool,
     },
     /// Register a new user
     RegisterUser {
@@ -287,7 +291,8 @@ async fn start(
         max_threads,
         max_tasks,
         max_difficulty_parsed,
-    )
+        ignore_memory_requirement,
+)
     .await?;
 
     // 4. Run appropriate mode
