@@ -101,6 +101,7 @@ pub async fn setup_session(
     max_threads: Option<u32>,
     max_tasks: Option<u32>,
     max_difficulty: Option<crate::nexus_orchestrator::TaskDifficulty>,
+    ignore_memory_requirement: bool,
 ) -> Result<SessionData, Box<dyn Error>> {
     let node_id = config.node_id.parse::<u64>()?;
     let client_id = config.user_id;
