@@ -107,13 +107,25 @@ impl ProvingPipeline {
             })
             .collect();
 
-        // Use join_all for better parallelization
-        let results = join_all(handles).await;
+        // Use join_all for better parallelization with timeout
+        let results = tokio::time::timeout(
+            std::time::Duration::from_secs(30 * 60), // 30 minute timeout
+            join_all(handles)
+        ).await;
+
+        let results = match results {
+            Ok(results) => results,
+            Err(_) => {
+                cancellation_token.cancel();
+                return Err(ProverError::MalformedTask("Task timeout exceeded".to_string()));
+            }
+        };
 
         // Process results and collect verification failures for batch handling
         let mut all_proofs = Vec::new();
         let mut proof_hashes = Vec::new();
         let mut verification_failures = Vec::new();
+        let mut critical_errors = Vec::new();
 
         for (result_index, result) in results.into_iter().enumerate() {
             match result {
@@ -122,7 +134,7 @@ impl ProvingPipeline {
                     proof_hashes.push(proof_hash);
                 }
                 Ok(Err(e)) => {
-                    // Collect verification failures for batch processing
+                    // Categorize errors for better handling
                     match e {
                         ProverError::Stwo(_) | ProverError::GuestProgram(_) => {
                             verification_failures.push((
@@ -133,16 +145,20 @@ impl ProvingPipeline {
                             ));
                         }
                         _ => {
-                            // Cancel remaining tasks on critical errors
-                            cancellation_token.cancel();
-                            return Err(e);
+                            critical_errors.push(e);
                         }
                     }
                 }
                 Err(join_error) => {
-                    return Err(ProverError::JoinError(join_error));
+                    critical_errors.push(ProverError::JoinError(join_error));
                 }
             }
+        }
+
+        // Handle critical errors first - cancel remaining tasks
+        if !critical_errors.is_empty() {
+            cancellation_token.cancel();
+            return Err(critical_errors.into_iter().next().unwrap());
         }
 
         // Handle all verification failures in batch (avoid nested spawns)

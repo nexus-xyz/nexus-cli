@@ -104,7 +104,7 @@ enum Command {
         #[arg(long = "headless", action = ArgAction::SetTrue)]
         headless: bool,
 
-        /// Maximum number of threads to use for proving. Capped at the number of CPU cores.
+        /// Maximum number of threads to use for proving. Defaults to half of CPU cores, capped at 75% of total cores.
         #[arg(long = "max-threads", value_name = "MAX_THREADS")]
         max_threads: Option<u32>,
 
@@ -237,7 +237,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 /// * `env` - The environment to connect to.
 /// * `config_path` - Path to the configuration file.
 /// * `headless` - If true, runs without the terminal UI.
-/// * `max_threads` - Optional maximum number of threads to use for proving.
+/// * `max_threads` - Optional maximum number of threads to use for proving. Defaults to optimal count based on CPU cores.
 /// * `check_mem` - Whether to check risky memory usage.
 /// * `with_background` - Whether to use the alternate TUI background color.
 /// * `max_tasks` - Optional maximum number of tasks to prove.

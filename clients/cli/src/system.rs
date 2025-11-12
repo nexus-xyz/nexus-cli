@@ -149,6 +149,24 @@ pub fn process_memory_gb() -> f64 {
     memory as f64 / 1024.0 / 1024.0 / 1024.0 // Convert to GB (binary)
 }
 
+/// Get available memory in GB (free + cached/buffered)
+pub fn available_memory_gb() -> f64 {
+    let mut sys = System::new();
+    sys.refresh_memory();
+    
+    let available_memory = sys.available_memory(); // bytes
+    available_memory as f64 / 1024.0 / 1024.0 / 1024.0 // Convert to GB (binary)
+}
+
+/// Check if system has enough memory for the requested number of threads
+pub fn check_memory_for_threads(num_threads: usize) -> (bool, f64, f64) {
+    let available_gb = available_memory_gb();
+    let required_gb = (num_threads as f64 * 4.0) + 2.0; // 4GB per thread + 2GB buffer
+    let sufficient = available_gb >= required_gb;
+    
+    (sufficient, available_gb, required_gb)
+}
+
 // We encode the memory usage to i32 type at client
 fn bytes_to_mb_i32(bytes: u64) -> i32 {
     // Convert to MB with 3 decimal places of precision
