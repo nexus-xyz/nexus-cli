@@ -42,7 +42,7 @@ fn fib_iter(n: u32, init_a: u32, init_b: u32) -> u32 {
 
 ## Building
 
-This guest program is built using the Nexus zkVM SDK. For detailed instructions on setting up and using the SDK, see the [Nexus zkVM SDK Quick Start Guide](https://docs.nexus.xyz/zkvm/proving/sdk).
+This guest program is built using the Nexus zkVM SDK. For detailed instructions on setting up and using the SDK, see the [Nexus zkVM SDK Quick Start Guide](https://docs.nexus.xyz/zkvm/development/sdk-quick-start).
 
 ### Prerequisites
 
@@ -81,6 +81,6 @@ The CLI will automatically run this program with hardcoded test inputs and gener
 
 ## Related Documentation
 
-- [Nexus zkVM SDK Quick Start](https://docs.nexus.xyz/zkvm/proving/sdk) - Complete setup and usage guide
-- [Nexus zkVM Architecture](https://docs.nexus.xyz/zkvm/architecture) - Technical details about the zkVM
-- [Nexus zkVM Runtime](https://docs.nexus.xyz/zkvm/proving/runtime) - Runtime features and APIs 
+- [Nexus zkVM SDK Quick Start](https://docs.nexus.xyz/zkvm/development/sdk-quick-start) - Complete setup and usage guide
+- [Nexus zkVM Architecture](https://docs.nexus.xyz/zkvm/overview/architecture) - Technical details about the zkVM
+- [Nexus zkVM Runtime](https://docs.nexus.xyz/zkvm/development/runtime) - Runtime features and APIs 
