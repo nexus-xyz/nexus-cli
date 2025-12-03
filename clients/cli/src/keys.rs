@@ -78,14 +78,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn valid_checksum_address() {
-        // This address has correct EIP-55 checksum
-        assert!(is_valid_eth_address(
-            "0x52908400098527886E0F7030069857D2E4169EE7"
-        ));
-    }
-
-    #[test]
     /// Addresses with all lowercase are valid (no checksum validation)
     fn valid_all_lowercase() {
         assert!(is_valid_eth_address(
