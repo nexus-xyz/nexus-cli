@@ -38,4 +38,4 @@ If the build fails, the script will print an error message.
 
 ## Usage
 
-The built ELF file is included in `
+The built ELF file is included in `../../clients/cli/assets/fib_input_initial` and is loaded by the CLI for anonymous proving.
