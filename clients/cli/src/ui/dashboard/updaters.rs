@@ -101,8 +101,8 @@ impl DashboardState {
     /// Handle Prover events
     fn handle_prover_event(&mut self, event: &WorkerEvent) {
         if matches!(event.event_type, EventType::Success) {
-            // Track Step 3 completion (proof generated)
-            if event.msg.contains("Step 3 of 4: Proof generated for task") {
+            // Track proof generation completion (completes Step 2)
+            if event.msg.contains("Proof generated for task") {
                 if let Some(start_time) = self.step2_start_time {
                     self.zkvm_metrics.zkvm_runtime_secs += start_time.elapsed().as_secs();
                     self.zkvm_metrics.last_task_status = "Proved".to_string();
@@ -212,6 +212,6 @@ impl DashboardState {
     /// Check if event indicates fetching activity start
     fn is_fetching_start_event(event: &WorkerEvent) -> bool {
         matches!(event.worker, Worker::TaskFetcher)
-            && event.msg.contains("Step 1 of 4: Requesting task...")
+            && event.msg.contains("Step 1 of 4: Fetching task...")
     }
 }
