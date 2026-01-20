@@ -94,7 +94,7 @@ jobs:
 
       # Upload the binary as an artifact
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: nexus-network-linux-x86_64 # Name of the artifact
           path: clients/cli/target/x86_64-unknown-linux-gnu/release/nexus-network-linux-x86_64 # Path to file to upload
@@ -161,7 +161,7 @@ jobs:
 
       # Upload the binary as an artifact
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: nexus-network-linux-arm64 # Name of the artifact
           path: clients/cli/target/aarch64-unknown-linux-gnu/release/nexus-network-linux-arm64 # Path to file to upload
@@ -225,7 +225,7 @@ jobs:
 
       # Upload the binary as an artifact
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: nexus-network-macos-x86_64 # Name of the artifact
           path: clients/cli/target/x86_64-apple-darwin/release/nexus-network-macos-x86_64 # Path to file to upload
@@ -281,7 +281,7 @@ jobs:
 
       # Upload the binary as an artifact
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: nexus-network-macos-arm64 # Name of the artifact
           path: clients/cli/target/aarch64-apple-darwin/release/nexus-network-macos-arm64 # Path to file to upload
@@ -334,7 +334,7 @@ jobs:
 
       # Upload the binary as an artifact
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: nexus-network-windows-x86_64.exe # Name of the artifact
           path: clients/cli/target/x86_64-pc-windows-msvc/release/nexus-network-windows-x86_64.exe # Path to file to upload
