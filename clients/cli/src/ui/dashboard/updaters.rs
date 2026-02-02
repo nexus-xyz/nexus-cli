@@ -45,6 +45,7 @@ impl DashboardState {
             Worker::TaskFetcher => self.handle_task_fetcher_event(event),
             Worker::Prover(_) => self.handle_prover_event(event),
             Worker::ProofSubmitter => self.handle_proof_submitter_event(event),
+            Worker::Rewards => self.handle_rewards_event(event),
         }
 
         // Handle state changes regardless of worker
@@ -135,8 +136,20 @@ impl DashboardState {
 
             // Update total points
             self.zkvm_metrics._total_points = (self.zkvm_metrics.tasks_submitted as u64) * 300;
+
+            // Dismiss rewards overlay when next proof is submitted
+            self.show_rewards_overlay = false;
         } else if matches!(event.event_type, EventType::Error) {
             self.zkvm_metrics.last_task_status = "Submit Failed".to_string();
+        }
+    }
+
+    /// Handle Rewards events (rewards_processed from reportProving)
+    fn handle_rewards_event(&mut self, event: &WorkerEvent) {
+        if matches!(event.event_type, EventType::Success)
+            && event.msg.contains("rewards have been processed")
+        {
+            self.show_rewards_overlay = true;
         }
     }
 

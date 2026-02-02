@@ -1,6 +1,6 @@
 //! Dashboard main renderer
 
-use super::components::{footer, header, info_panel, logs, metrics};
+use super::components::{footer, header, info_panel, logs, metrics, rewards_overlay};
 use super::state::DashboardState;
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout};
@@ -37,4 +37,9 @@ pub fn render_dashboard(f: &mut Frame, state: &DashboardState) {
     logs::render_logs_panel(f, content_chunks[1], state);
     metrics::render_metrics_section(f, main_chunks[2], state);
     footer::render_footer(f, main_chunks[3]);
+
+    // Render rewards overlay on top when active (until next proof submission)
+    if state.show_rewards_overlay {
+        rewards_overlay::render_rewards_overlay(f, f.area());
+    }
 }
