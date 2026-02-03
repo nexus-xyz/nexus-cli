@@ -136,9 +136,6 @@ impl DashboardState {
 
             // Update total points
             self.zkvm_metrics._total_points = (self.zkvm_metrics.tasks_submitted as u64) * 300;
-
-            // Dismiss rewards overlay when next proof is submitted
-            self.show_rewards_overlay = false;
         } else if matches!(event.event_type, EventType::Error) {
             self.zkvm_metrics.last_task_status = "Submit Failed".to_string();
         }

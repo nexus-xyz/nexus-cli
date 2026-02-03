@@ -7,4 +7,3 @@ pub mod header;
 pub mod info_panel;
 pub mod logs;
 pub mod metrics;
-pub mod rewards_overlay;

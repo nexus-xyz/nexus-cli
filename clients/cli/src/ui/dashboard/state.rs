@@ -105,7 +105,7 @@ impl DashboardState {
             current_prover_state: ProverState::Waiting,
             step2_start_time: None,
             waiting_start_info: None,
-            show_rewards_overlay: false,
+            show_rewards_overlay: ui_config.show_mock_notification,
         }
     }
     // Getter methods for private fields
