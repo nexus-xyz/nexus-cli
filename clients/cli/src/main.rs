@@ -127,6 +127,10 @@ enum Command {
         /// Override max difficulty to request. Auto-promotion occurs when tasks complete in < 7 min
         #[arg(long = "max-difficulty", value_name = "DIFFICULTY")]
         max_difficulty: Option<String>,
+
+        /// [Debug] Show the rewards notification on startup for testing
+        #[arg(long = "show-mock-notification", hide = true, action = ArgAction::SetTrue)]
+        show_mock_notification: bool,
     },
     /// Register a new user
     RegisterUser {
@@ -177,6 +181,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             with_background,
             max_tasks,
             max_difficulty,
+            show_mock_notification,
         } => {
             // If a custom orchestrator URL is provided, create a custom environment
             let final_environment = if let Some(url) = orchestrator_url {
@@ -196,6 +201,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 with_background,
                 max_tasks,
                 max_difficulty,
+                show_mock_notification,
             )
             .await
         }
@@ -241,6 +247,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 /// * `check_mem` - Whether to check risky memory usage.
 /// * `with_background` - Whether to use the alternate TUI background color.
 /// * `max_tasks` - Optional maximum number of tasks to prove.
+/// * `show_mock_notification` - [Debug] Show rewards overlay on startup for testing.
 #[allow(clippy::too_many_arguments)]
 async fn start(
     node_id: Option<u64>,
@@ -252,6 +259,7 @@ async fn start(
     with_background: bool,
     max_tasks: Option<u32>,
     max_difficulty: Option<String>,
+    show_mock_notification: bool,
 ) -> Result<(), Box<dyn Error>> {
     // 1. Version checking (will internally perform country detection without race)
     validate_version_requirements().await?;
@@ -294,7 +302,7 @@ async fn start(
     if headless {
         run_headless_mode(session).await
     } else {
-        run_tui_mode(session, with_background).await
+        run_tui_mode(session, with_background, show_mock_notification).await
     }
 }
 

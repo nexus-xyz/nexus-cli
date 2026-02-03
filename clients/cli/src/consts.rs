@@ -13,6 +13,10 @@ pub mod cli_consts {
     /// The maximum number of events to keep in the activity logs.
     pub const MAX_ACTIVITY_LOGS: usize = 100;
 
+    /// Message shown in header and activity log when reportProving returns rewards_processed
+    pub const REWARDS_PROCESSED_MESSAGE: &str =
+        "You've hit a cache of points! Claim at quest.nexus.xyz.";
+
     /// Maximum number of event buffer size for worker threads
     pub const EVENT_QUEUE_SIZE: usize = 100;
 

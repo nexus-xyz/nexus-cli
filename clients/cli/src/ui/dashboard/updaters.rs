@@ -45,6 +45,7 @@ impl DashboardState {
             Worker::TaskFetcher => self.handle_task_fetcher_event(event),
             Worker::Prover(_) => self.handle_prover_event(event),
             Worker::ProofSubmitter => self.handle_proof_submitter_event(event),
+            Worker::Rewards => self.handle_rewards_event(event),
         }
 
         // Handle state changes regardless of worker
@@ -138,6 +139,12 @@ impl DashboardState {
         } else if matches!(event.event_type, EventType::Error) {
             self.zkvm_metrics.last_task_status = "Submit Failed".to_string();
         }
+    }
+
+    /// Handle Rewards events (rewards_processed from reportProving).
+    /// Worker::Rewards is only sent when reportProving returns rewards_processed.
+    fn handle_rewards_event(&mut self, _event: &WorkerEvent) {
+        self.show_rewards_overlay = true;
     }
 
     /// Update task fetch countdown based on current waiting state

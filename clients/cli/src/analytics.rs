@@ -1,4 +1,6 @@
 use crate::environment::Environment;
+use crate::events::{Event, EventType};
+use crate::logging::LogLevel;
 use crate::prover::input::InputParser;
 use crate::system::{estimate_peak_gflops, measure_gflops, num_cores};
 use crate::task::Task;
@@ -158,13 +160,24 @@ const CLI_USER_AGENT: &str = concat!("nexus-cli/", env!("CARGO_PKG_VERSION"));
 static LAST_REPORT_BY_ADDRESS: OnceLock<Mutex<HashMap<String, Instant>>> = OnceLock::new();
 /// Global wallet address for reporting; set once during session setup
 static REPORT_WALLET_ADDRESS: OnceLock<String> = OnceLock::new();
+/// Optional event sender for rewards notifications (TUI only); set during session setup
+static REWARDS_EVENT_SENDER: OnceLock<tokio::sync::mpsc::Sender<crate::events::Event>> =
+    OnceLock::new();
 
 /// Set the wallet address used for reporting proving activity
 pub fn set_wallet_address_for_reporting(address: String) {
     let _ = REPORT_WALLET_ADDRESS.set(address);
 }
 
-/// Report proving activity to our Cloud Function at most once per hour per wallet address
+/// Set the event sender for rewards notifications (called from runtime when TUI is used).
+/// When reportProving returns rewards_processed, an event is sent to display the notification.
+pub fn set_rewards_event_sender(sender: tokio::sync::mpsc::Sender<crate::events::Event>) {
+    let _ = REWARDS_EVENT_SENDER.set(sender);
+}
+
+/// Report proving activity to our Cloud Function at most once per hour per wallet address.
+/// When the response contains `{"result":{"status":"ok","message":"rewards_processed"}}`,
+/// sends a rewards event to the TUI for display (if event sender is configured).
 pub async fn report_proving_if_needed() {
     let Some(wallet_address) = REPORT_WALLET_ADDRESS.get() else {
         return;
@@ -194,18 +207,46 @@ pub async fn report_proving_if_needed() {
         return;
     }
 
-    // Fire-and-forget POST; ignore errors
     let client = reqwest::Client::new();
     let body = json!({
         "data": { "address": wallet_address }
     });
 
-    let _ = client
+    let response = client
         .post(REPORT_PROVING_URL)
         .header(reqwest::header::USER_AGENT, CLI_USER_AGENT)
         .json(&body)
         .send()
         .await;
+
+    // Parse response for rewards_processed; send TUI notification if present
+    if let Ok(resp) = response {
+        if let Ok(text) = resp.text().await {
+            if let Ok(json) = serde_json::from_str::<Value>(&text) {
+                if json
+                    .get("result")
+                    .and_then(|r| r.get("status"))
+                    .and_then(|s| s.as_str())
+                    == Some("ok")
+                    && json
+                        .get("result")
+                        .and_then(|r| r.get("message"))
+                        .and_then(|m| m.as_str())
+                        == Some("rewards_processed")
+                {
+                    if let Some(sender) = REWARDS_EVENT_SENDER.get() {
+                        let _ = sender
+                            .send(Event::rewards_with_level(
+                                crate::consts::cli_consts::REWARDS_PROCESSED_MESSAGE.to_string(),
+                                EventType::Success,
+                                LogLevel::Info,
+                            ))
+                            .await;
+                    }
+                }
+            }
+        }
+    }
 }
 
 /// Track analytics for getting a task from orchestrator (non-blocking)
