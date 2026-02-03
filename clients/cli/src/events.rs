@@ -109,11 +109,7 @@ impl Event {
         Self::new(Worker::Prover(thread_id), msg, event_type, log_level)
     }
 
-    pub fn rewards_with_level(
-        msg: String,
-        event_type: EventType,
-        log_level: LogLevel,
-    ) -> Self {
+    pub fn rewards_with_level(msg: String, event_type: EventType, log_level: LogLevel) -> Self {
         Self::new(Worker::Rewards, msg, event_type, log_level)
     }
 
