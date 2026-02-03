@@ -45,7 +45,7 @@ impl TaskProver {
                     .send_prover_event(
                         self.config.num_workers, // Use num_workers as thread identifier for multi-threaded prover
                         format!(
-                            "Step 3 of 4: Proof generated for task {} (using {} workers)",
+                            "Proof generated for task {} (using {} workers)",
                             task.task_id, self.config.num_workers
                         ),
                         EventType::Success,
