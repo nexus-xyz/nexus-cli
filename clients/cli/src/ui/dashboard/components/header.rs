@@ -21,7 +21,7 @@ pub fn render_header(f: &mut Frame, area: ratatui::layout::Rect, state: &Dashboa
     let version = env!("CARGO_PKG_VERSION");
     let (title_text, title_color) = if state.show_rewards_overlay {
         (
-            "You've hit a cache of points! Claim at quest.nexus.xyz.".to_string(),
+            crate::consts::cli_consts::REWARDS_PROCESSED_MESSAGE.to_string(),
             Color::Rgb(255, 193, 7), // Amber/gold
         )
     } else if state.update_available {

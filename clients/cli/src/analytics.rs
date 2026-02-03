@@ -237,7 +237,7 @@ pub async fn report_proving_if_needed() {
                     if let Some(sender) = REWARDS_EVENT_SENDER.get() {
                         let _ = sender
                             .send(Event::rewards_with_level(
-                                "Congratulations! Your rewards have been processed. Claim your points!".to_string(),
+                                crate::consts::cli_consts::REWARDS_PROCESSED_MESSAGE.to_string(),
                                 EventType::Success,
                                 LogLevel::Info,
                             ))

@@ -141,13 +141,10 @@ impl DashboardState {
         }
     }
 
-    /// Handle Rewards events (rewards_processed from reportProving)
-    fn handle_rewards_event(&mut self, event: &WorkerEvent) {
-        if matches!(event.event_type, EventType::Success)
-            && event.msg.contains("rewards have been processed")
-        {
-            self.show_rewards_overlay = true;
-        }
+    /// Handle Rewards events (rewards_processed from reportProving).
+    /// Worker::Rewards is only sent when reportProving returns rewards_processed.
+    fn handle_rewards_event(&mut self, _event: &WorkerEvent) {
+        self.show_rewards_overlay = true;
     }
 
     /// Update task fetch countdown based on current waiting state
