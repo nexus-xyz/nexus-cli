@@ -263,7 +263,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let config_path = dir.path().join("config.json");
 
-        let wallet_address = "0xABCDEFabcdef1234567890123456789012345678";
+        let wallet_address = "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed";
         let user_id = "existing-user-id";
 
         // Write a pre-existing config with matching wallet and user_id
