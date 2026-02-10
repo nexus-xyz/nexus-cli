@@ -24,10 +24,10 @@ pub fn is_valid_eth_address(address: &str) -> bool {
 }
 
 /// Validates EIP-55 checksum for Ethereum addresses.
-/// 
+///
 /// EIP-55 defines a checksum encoding for Ethereum addresses that uses mixed case
 /// to encode the address hash. This allows for error detection when typing addresses.
-/// 
+///
 /// Algorithm:
 /// 1. Convert address to lowercase
 /// 2. Compute Keccak256 hash of the lowercase address
@@ -39,8 +39,12 @@ fn validate_eip55_checksum(address: &str) -> bool {
     let hex = &address[2..];
 
     // If the address is all lower or all upper, it's valid per EIP-55
-    if hex.chars().all(|c| !c.is_ascii_alphabetic() || c.is_ascii_lowercase())
-        || hex.chars().all(|c| !c.is_ascii_alphabetic() || c.is_ascii_uppercase())
+    if hex
+        .chars()
+        .all(|c| !c.is_ascii_alphabetic() || c.is_ascii_lowercase())
+        || hex
+            .chars()
+            .all(|c| !c.is_ascii_alphabetic() || c.is_ascii_uppercase())
     {
         return true;
     }
@@ -59,7 +63,11 @@ fn validate_eip55_checksum(address: &str) -> bool {
 
         // Determine the corresponding nibble from the hash
         let hash_byte = hash[i / 2];
-        let nibble = if i % 2 == 0 { hash_byte >> 4 } else { hash_byte & 0x0F };
+        let nibble = if i % 2 == 0 {
+            hash_byte >> 4
+        } else {
+            hash_byte & 0x0F
+        };
 
         if nibble >= 8 {
             if !ch.is_ascii_uppercase() {
