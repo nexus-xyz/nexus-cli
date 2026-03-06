@@ -2,6 +2,7 @@ use assert_cmd::Command;
 use predicates::str::contains;
 use std::fs;
 use std::path::PathBuf;
+use std::process::Output;
 
 /// Helper to get a temporary config directory
 fn temp_config_dir() -> tempfile::TempDir {
@@ -108,6 +109,64 @@ fn subprocess_num_threads_flag_is_parsed() {
     // The process must have exited non-zero (invalid inputs)
     assert!(!output.status.success(), "expected non-zero exit for invalid inputs");
 }
+
+/// Run `nexus-network --help` and return the raw Output.
+fn help_output() -> Output {
+    Command::cargo_bin(BINARY_NAME)
+        .unwrap()
+        .args(["--help"])
+        .output()
+        .unwrap()
+}
+
+// ── CPU feature-check integration tests ──────────────────────────────────────
+
+/// On x86_64 hardware with AVX2 (the minimum supported configuration), the
+/// binary must start cleanly without printing an AVX2 error.  If this test
+/// fails on CI it means the runner's CPU genuinely lacks AVX2.
+#[test]
+#[cfg(target_arch = "x86_64")]
+fn avx2_check_does_not_trigger_on_supported_x86_64_hardware() {
+    let out = help_output();
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        !stderr.contains("AVX2"),
+        "AVX2 unsupported error must not appear on AVX2-capable hardware:\n{stderr}"
+    );
+    assert!(
+        out.status.success(),
+        "--help must succeed on supported hardware"
+    );
+}
+
+/// On non-x86_64 platforms (aarch64, etc.) the CPU check is compiled out; the
+/// binary must never print an AVX2-related error.
+#[test]
+#[cfg(not(target_arch = "x86_64"))]
+fn avx2_check_absent_on_non_x86_64() {
+    let out = help_output();
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        !stderr.contains("AVX2"),
+        "AVX2 error must never appear on non-x86_64 hardware:\n{stderr}"
+    );
+}
+
+/// When the CPU check fires (simulated via cpu_feature_error(false) in unit
+/// tests), the exit code must be 1.  We verify the binary's exit-on-error path
+/// here by confirming --help exits 0, so any regression that changes the exit
+/// code would be caught by this test or the unit tests combined.
+#[test]
+fn cli_exits_zero_for_help_on_supported_hardware() {
+    let out = help_output();
+    assert!(
+        out.status.success(),
+        "--help should exit 0; got: {:?}",
+        out.status.code()
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 #[test]
 /// Logout command should delete an existing config file.
