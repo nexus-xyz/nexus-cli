@@ -160,6 +160,21 @@ enum Command {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    // Check for required CPU features before anything else runs.
+    // On x86_64, the prover requires AVX2 instructions. Older CPUs that lack AVX2
+    // will crash with a floating point exception (SIGILL) deep inside the prover
+    // instead of producing a clear error. We catch this early and exit gracefully.
+    #[cfg(target_arch = "x86_64")]
+    if !is_x86_feature_detected!("avx2") {
+        eprintln!("Error: Your CPU does not support AVX2 instructions, which are required by the Nexus prover.");
+        eprintln!();
+        eprintln!("Your processor is too old to run the Nexus CLI.");
+        eprintln!("Please use a machine with a newer CPU:");
+        eprintln!("  - Intel: Haswell (4th generation, 2013) or newer");
+        eprintln!("  - AMD: Ryzen (Zen, 2017) or newer");
+        std::process::exit(1);
+    }
+
     // Set up panic hook to prevent core dumps
     std::panic::set_hook(Box::new(|panic_info| {
         eprintln!("Panic occurred: {}", panic_info);
