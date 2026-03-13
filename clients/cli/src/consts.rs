@@ -13,6 +13,10 @@ pub mod cli_consts {
     /// The maximum number of events to keep in the activity logs.
     pub const MAX_ACTIVITY_LOGS: usize = 100;
 
+    /// Message shown in header and activity log when reportProving returns rewards_processed
+    pub const REWARDS_PROCESSED_MESSAGE: &str =
+        "You've hit a cache of points! Claim at quest.nexus.xyz.";
+
     /// Maximum number of event buffer size for worker threads
     pub const EVENT_QUEUE_SIZE: usize = 100;
 
@@ -28,6 +32,17 @@ pub mod cli_consts {
 
     /// "Reasonable" generic projection task memory requirement.
     pub const PROJECTED_MEMORY_REQUIREMENT: u64 = 4294967296; // 4gb
+
+    // =============================================================================
+    // DIFFICULTY CONFIGURATION
+    // =============================================================================
+
+    /// Task difficulty system configuration
+    pub mod difficulty {
+        /// Time threshold for auto-promotion (seconds)
+        /// Tasks completing faster than this will promote to next difficulty level
+        pub const PROMOTION_THRESHOLD_SECS: u64 = 7 * 60; // 7 minutes
+    }
 
     // =============================================================================
     // NETWORK CONFIGURATION

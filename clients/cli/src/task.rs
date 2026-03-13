@@ -23,6 +23,11 @@ pub struct Task {
 
     /// The type of task (proof required or only hash)
     pub task_type: crate::nexus_orchestrator::TaskType,
+
+    /// The actual difficulty level assigned to this task by the server.
+    /// This accounts for reputation-based gating and allows clients to track
+    /// the actual difficulty they're receiving vs what they requested.
+    pub difficulty: crate::nexus_orchestrator::TaskDifficulty,
 }
 
 impl Task {
@@ -33,6 +38,7 @@ impl Task {
         program_id: String,
         public_inputs: Vec<u8>,
         task_type: crate::nexus_orchestrator::TaskType,
+        difficulty: crate::nexus_orchestrator::TaskDifficulty,
     ) -> Self {
         Task {
             task_id,
@@ -40,6 +46,7 @@ impl Task {
             public_inputs: public_inputs.clone(),
             public_inputs_list: vec![public_inputs],
             task_type,
+            difficulty,
         }
     }
 
@@ -89,6 +96,8 @@ impl From<&crate::nexus_orchestrator::Task> for Task {
             public_inputs: task.public_inputs_list.first().cloned().unwrap_or_default(),
             public_inputs_list: task.public_inputs_list.clone(),
             task_type: crate::nexus_orchestrator::TaskType::try_from(task.task_type).unwrap(),
+            difficulty: crate::nexus_orchestrator::TaskDifficulty::try_from(task.difficulty)
+                .unwrap_or_default(),
         }
     }
 }
@@ -155,6 +164,7 @@ mod tests {
             "test_program".to_string(),
             vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
             crate::nexus_orchestrator::TaskType::ProofRequired,
+            crate::nexus_orchestrator::TaskDifficulty::Medium,
         );
 
         // Test all_inputs
@@ -175,6 +185,7 @@ mod tests {
             "test_program".to_string(),
             vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
             crate::nexus_orchestrator::TaskType::ProofRequired,
+            crate::nexus_orchestrator::TaskDifficulty::Medium,
         );
 
         // Add additional inputs
@@ -208,6 +219,7 @@ mod tests {
             "fib_input_initial".to_string(),
             vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
             crate::nexus_orchestrator::TaskType::ProofRequired,
+            crate::nexus_orchestrator::TaskDifficulty::Medium,
         );
 
         // Test that both legacy and new fields work

@@ -31,13 +31,23 @@ impl TaskProver {
     /// Generate proof for a task with proper logging
     pub async fn prove_task(&self, task: &Task) -> Result<ProverResult, ProveError> {
         // Use existing prover module for proof generation
-        match authenticated_proving(task, &self.config.environment, &self.config.client_id).await {
+        match authenticated_proving(
+            task,
+            &self.config.environment,
+            &self.config.client_id,
+            self.config.num_workers,
+        )
+        .await
+        {
             Ok((proofs, combined_hash, individual_proof_hashes)) => {
                 // Log successful proof generation
                 self.event_sender
                     .send_prover_event(
-                        0, // Single-threaded prover for now
-                        format!("Step 3 of 4: Proof generated for task {}", task.task_id),
+                        self.config.num_workers, // Use num_workers as thread identifier for multi-threaded prover
+                        format!(
+                            "Proof generated for task {} (using {} workers)",
+                            task.task_id, self.config.num_workers
+                        ),
                         EventType::Success,
                         LogLevel::Info,
                     )
@@ -59,13 +69,15 @@ impl TaskProver {
                 // Log proof generation failure
                 self.event_sender
                     .send_prover_event(
-                        0, // Single-threaded prover for now
-                        format!("Proof generation failed for task {}: {}", task.task_id, e),
+                        self.config.num_workers, // Use num_workers as thread identifier for multi-threaded prover
+                        format!(
+                            "Proof generation failed for task {} (using {} workers): {}",
+                            task.task_id, self.config.num_workers, e
+                        ),
                         EventType::Error,
                         LogLevel::Error,
                     )
                     .await;
-
                 Err(ProveError::Generation(e))
             }
         }

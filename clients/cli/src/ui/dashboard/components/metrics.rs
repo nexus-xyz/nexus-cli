@@ -101,7 +101,7 @@ pub fn render_zkvm_metrics(f: &mut Frame, area: ratatui::layout::Rect, state: &D
     let mut zkvm_lines = Vec::new();
 
     // // Points display - most prominent metric
-    // TODO: Add points display back in when we have a way to get pointsq
+    // TODO: Add points display back in when we have a way to get points
     // zkvm_lines.push(Line::from(vec![
     //     Span::styled("Points: ", Style::default().fg(Color::Gray)),
     //     Span::styled(

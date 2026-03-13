@@ -35,6 +35,54 @@ use std::error::Error;
 use std::io::Write;
 use std::process::exit;
 
+/// All available difficulty levels as (name, enum_value) pairs
+const DIFFICULTY_LEVELS: &[(&str, crate::nexus_orchestrator::TaskDifficulty)] = &[
+    ("SMALL", crate::nexus_orchestrator::TaskDifficulty::Small),
+    (
+        "SMALL_MEDIUM",
+        crate::nexus_orchestrator::TaskDifficulty::SmallMedium,
+    ),
+    ("MEDIUM", crate::nexus_orchestrator::TaskDifficulty::Medium),
+    ("LARGE", crate::nexus_orchestrator::TaskDifficulty::Large),
+    (
+        "EXTRA_LARGE",
+        crate::nexus_orchestrator::TaskDifficulty::ExtraLarge,
+    ),
+    (
+        "EXTRA_LARGE_2",
+        crate::nexus_orchestrator::TaskDifficulty::ExtraLarge2,
+    ),
+    (
+        "EXTRA_LARGE_3",
+        crate::nexus_orchestrator::TaskDifficulty::ExtraLarge3,
+    ),
+    (
+        "EXTRA_LARGE_4",
+        crate::nexus_orchestrator::TaskDifficulty::ExtraLarge4,
+    ),
+    (
+        "EXTRA_LARGE_5",
+        crate::nexus_orchestrator::TaskDifficulty::ExtraLarge5,
+    ),
+];
+
+/// Helper function to validate difficulty string and return parsed enum
+fn validate_difficulty(difficulty_str: &str) -> Option<crate::nexus_orchestrator::TaskDifficulty> {
+    let upper = difficulty_str.trim().to_ascii_uppercase();
+    DIFFICULTY_LEVELS
+        .iter()
+        .find(|(name, _)| *name == upper)
+        .map(|(_, difficulty)| *difficulty)
+}
+
+/// Helper function to print available difficulty levels dynamically from the enum
+fn print_available_difficulties() {
+    eprintln!("Valid difficulty levels are:");
+    for (name, _) in DIFFICULTY_LEVELS {
+        eprintln!("  {}", name);
+    }
+}
+
 #[derive(Parser)]
 #[command(author, version = concat!(env!("CARGO_PKG_VERSION"), " (build ", env!("BUILD_TIMESTAMP"), ")"), about, long_about = None)]
 /// Command-line arguments
@@ -56,7 +104,7 @@ enum Command {
         #[arg(long = "headless", action = ArgAction::SetTrue)]
         headless: bool,
 
-        /// DEPRECATED: WILL BE IGNORED. Maximum number of threads to use for proving.
+        /// Maximum number of threads to use for proving. Capped at the number of CPU cores.
         #[arg(long = "max-threads", value_name = "MAX_THREADS")]
         max_threads: Option<u32>,
 
@@ -76,9 +124,13 @@ enum Command {
         #[arg(long = "max-tasks", value_name = "MAX_TASKS")]
         max_tasks: Option<u32>,
 
-        /// Override max difficulty to request (SMALL, SMALL_MEDIUM, MEDIUM, LARGE, EXTRA_LARGE)
+        /// Override max difficulty to request. Auto-promotion occurs when tasks complete in < 7 min
         #[arg(long = "max-difficulty", value_name = "DIFFICULTY")]
         max_difficulty: Option<String>,
+
+        /// [Debug] Show the rewards notification on startup for testing
+        #[arg(long = "show-mock-notification", hide = true, action = ArgAction::SetTrue)]
+        show_mock_notification: bool,
     },
     /// Register a new user
     RegisterUser {
@@ -129,6 +181,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             with_background,
             max_tasks,
             max_difficulty,
+            show_mock_notification,
         } => {
             // If a custom orchestrator URL is provided, create a custom environment
             let final_environment = if let Some(url) = orchestrator_url {
@@ -148,6 +201,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 with_background,
                 max_tasks,
                 max_difficulty,
+                show_mock_notification,
             )
             .await
         }
@@ -205,6 +259,7 @@ fn validate_difficulty(difficulty_str: &str) -> Option<crate::nexus_orchestrator
     }
 }
 
+/// * `show_mock_notification` - [Debug] Show rewards overlay on startup for testing.
 #[allow(clippy::too_many_arguments)]
 async fn start(
     node_id: Option<u64>,
@@ -216,6 +271,7 @@ async fn start(
     with_background: bool,
     max_tasks: Option<u32>,
     max_difficulty: Option<String>,
+    show_mock_notification: bool,
 ) -> Result<(), Box<dyn Error>> {
     // 1. Version checking (will internally perform country detection without race)
     validate_version_requirements().await?;
@@ -230,14 +286,11 @@ async fn start(
         match validate_difficulty(difficulty_str) {
             Some(difficulty) => Some(difficulty),
             None => {
-                let invalid = difficulty_str.trim();
-                eprintln!("Error: Invalid difficulty level '{}'", invalid);
-                eprintln!("Valid difficulty levels are:");
-                eprintln!("  SMALL");
-                eprintln!("  SMALL_MEDIUM");
-                eprintln!("  MEDIUM");
-                eprintln!("  LARGE");
-                eprintln!("  EXTRA_LARGE");
+                eprintln!(
+                    "Error: Invalid difficulty level '{}'",
+                    difficulty_str.trim()
+                );
+                print_available_difficulties();
                 eprintln!();
                 eprintln!("Note: Difficulty levels are case-insensitive.");
                 std::process::exit(1);
@@ -261,7 +314,7 @@ async fn start(
     if headless {
         run_headless_mode(session).await
     } else {
-        run_tui_mode(session, with_background).await
+        run_tui_mode(session, with_background, show_mock_notification).await
     }
 }
 
@@ -292,6 +345,10 @@ mod tests {
             validate_difficulty("extra_large"),
             Some(TaskDifficulty::ExtraLarge)
         );
+        assert_eq!(
+            validate_difficulty("extra_large_2"),
+            Some(TaskDifficulty::ExtraLarge2)
+        );
 
         // Test invalid difficulty levels
         assert_eq!(validate_difficulty("invalid"), None);
@@ -300,5 +357,17 @@ mod tests {
         assert_eq!(validate_difficulty("   "), None);
         assert_eq!(validate_difficulty("SMALL_MEDIUM_EXTRA"), None);
         assert_eq!(validate_difficulty("123"), None);
+    }
+
+    fn validate_difficulty(difficulty_str: &str) -> Option<TaskDifficulty> {
+        match difficulty_str.trim().to_ascii_uppercase().as_str() {
+            "SMALL" => Some(TaskDifficulty::Small),
+            "SMALL_MEDIUM" => Some(TaskDifficulty::SmallMedium),
+            "MEDIUM" => Some(TaskDifficulty::Medium),
+            "LARGE" => Some(TaskDifficulty::Large),
+            "EXTRA_LARGE" => Some(TaskDifficulty::ExtraLarge),
+            "EXTRA_LARGE_2" => Some(TaskDifficulty::ExtraLarge2),
+            _ => None,
+        }
     }
 }

@@ -27,6 +27,23 @@ use std::time::Duration;
 /// 3. `Vec<String>`: list of per-input proof hashes (used for `AllProofHashes`; empty otherwise)
 pub(crate) type ProofPayload = (Vec<u8>, Vec<Vec<u8>>, Vec<String>);
 
+/// Result of fetching a proof task, including both the task and its actual difficulty
+#[derive(Debug, Clone)]
+pub struct ProofTaskResult {
+    pub task: Task,
+    pub actual_difficulty: crate::nexus_orchestrator::TaskDifficulty,
+}
+
+impl std::fmt::Display for ProofTaskResult {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Task {} (difficulty: {:?})",
+            self.task.task_id, self.actual_difficulty
+        )
+    }
+}
+
 // Build timestamp in milliseconds since epoch
 static BUILD_TIMESTAMP: &str = match option_env!("BUILD_TIMESTAMP") {
     Some(timestamp) => timestamp,
@@ -378,7 +395,7 @@ impl Orchestrator for OrchestratorClient {
         node_id: &str,
         verifying_key: VerifyingKey,
         max_difficulty: crate::nexus_orchestrator::TaskDifficulty,
-    ) -> Result<Task, OrchestratorError> {
+    ) -> Result<ProofTaskResult, OrchestratorError> {
         let request = GetProofTaskRequest {
             node_id: node_id.to_string(),
             node_type: NodeType::CliProver as i32,
@@ -387,7 +404,14 @@ impl Orchestrator for OrchestratorClient {
         };
         let request_bytes = Self::encode_request(&request);
         let response: GetProofTaskResponse = self.post_request("v3/tasks", request_bytes).await?;
-        Ok(Task::from(&response))
+
+        let task = Task::from(&response);
+        let actual_difficulty = task.difficulty;
+
+        Ok(ProofTaskResult {
+            task,
+            actual_difficulty,
+        })
     }
 
     async fn submit_proof(

@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -51,7 +51,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -84,7 +84,8 @@ jobs:
         working-directory: clients/cli
         run: cargo build --release --target x86_64-unknown-linux-gnu
         env:
-          RUSTFLAGS: "-C target-feature=+crt-static"
+          # Override config.toml target-cpu=native with generic for precompiled builds
+          RUSTFLAGS: "-C target-cpu=generic -C target-feature=+crt-static"
 
       # Rename the binary to indicate the target OS
       - name: Rename binary
@@ -93,7 +94,7 @@ jobs:
 
       # Upload the binary as an artifact
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: nexus-network-linux-x86_64 # Name of the artifact
           path: clients/cli/target/x86_64-unknown-linux-gnu/release/nexus-network-linux-x86_64 # Path to file to upload
@@ -104,7 +105,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -150,7 +151,8 @@ jobs:
           export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
           cargo build -Zbuild-std=std,panic_abort --release --target aarch64-unknown-linux-gnu
         env:
-          RUSTFLAGS: "-C target-feature=+crt-static"
+          # Override config.toml target-cpu=native with generic for precompiled builds
+          RUSTFLAGS: "-C target-cpu=generic -C target-feature=+crt-static"
 
       # Rename the binary to indicate the target OS
       - name: Rename binary
@@ -159,7 +161,7 @@ jobs:
 
       # Upload the binary as an artifact
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: nexus-network-linux-arm64 # Name of the artifact
           path: clients/cli/target/aarch64-unknown-linux-gnu/release/nexus-network-linux-arm64 # Path to file to upload
@@ -170,7 +172,7 @@ jobs:
     #    needs: build-linux   # Ensure Linux job (and release creation) runs first
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -212,7 +214,8 @@ jobs:
         env:
           RUSTUP_TOOLCHAIN: ${{ env.RUSTUP_TOOLCHAIN }}
           RUSTC_BOOTSTRAP: 1
-          RUSTFLAGS: "-C target-feature=+sse4.2,+avx,+avx2"
+          # Override config.toml target-cpu=native with generic for precompiled builds
+          RUSTFLAGS: "-C target-cpu=generic -C target-feature=+sse4.2,+avx,+avx2"
 
       # Rename the binary to indicate the target OS
       - name: Rename binary
@@ -222,7 +225,7 @@ jobs:
 
       # Upload the binary as an artifact
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: nexus-network-macos-x86_64 # Name of the artifact
           path: clients/cli/target/x86_64-apple-darwin/release/nexus-network-macos-x86_64 # Path to file to upload
@@ -234,7 +237,7 @@ jobs:
     #    needs: build-linux   # Ensure Linux job (and release creation) runs first
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -268,7 +271,8 @@ jobs:
         working-directory: clients/cli
         run: cargo build --release --target=aarch64-apple-darwin
         env:
-          RUSTFLAGS: "-C target-feature=+neon,+fp-armv8,+crc"
+          # Override config.toml target-cpu=native with apple-m1 for precompiled builds
+          RUSTFLAGS: "-C target-cpu=apple-m1 -C target-feature=+neon,+fp-armv8,+crc"
 
       # Rename the binary to indicate the target OS and platform
       - name: Rename binary
@@ -277,7 +281,7 @@ jobs:
 
       # Upload the binary as an artifact
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: nexus-network-macos-arm64 # Name of the artifact
           path: clients/cli/target/aarch64-apple-darwin/release/nexus-network-macos-arm64 # Path to file to upload
@@ -289,7 +293,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -320,7 +324,8 @@ jobs:
         working-directory: clients/cli
         run: cargo build --release --target=x86_64-pc-windows-msvc
         env:
-          RUSTFLAGS: "-C target-feature=+sse4.2,+avx,+avx2"
+          # Override config.toml target-cpu=native with generic for precompiled builds
+          RUSTFLAGS: "-C target-cpu=generic -C target-feature=+sse4.2,+avx,+avx2"
 
       # Rename the binary to indicate the target OS and platform
       - name: Rename binary
@@ -329,7 +334,7 @@ jobs:
 
       # Upload the binary as an artifact
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: nexus-network-windows-x86_64.exe # Name of the artifact
           path: clients/cli/target/x86_64-pc-windows-msvc/release/nexus-network-windows-x86_64.exe # Path to file to upload
@@ -341,10 +346,10 @@ jobs:
     if: github.event.inputs.create_release == 'true' || github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           path: artifacts
           merge-multiple: true

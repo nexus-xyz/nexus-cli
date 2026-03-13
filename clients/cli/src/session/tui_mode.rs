@@ -25,6 +25,7 @@ use std::{error::Error, io};
 /// # Arguments
 /// * `session` - Session data from setup
 /// * `with_background` - Whether to enable background colors
+/// * `show_mock_notification` - [Debug] Show rewards overlay on startup for testing
 ///
 /// # Returns
 /// * `Ok(())` - TUI mode completed successfully
@@ -32,6 +33,7 @@ use std::{error::Error, io};
 pub async fn run_tui_mode(
     session: SessionData,
     with_background: bool,
+    show_mock_notification: bool,
 ) -> Result<(), Box<dyn Error>> {
     // Print session start message
     print_session_starting("TUI", session.node_id);
@@ -65,6 +67,7 @@ pub async fn run_tui_mode(
         session.num_workers,
         version_update_available,
         latest_version,
+        show_mock_notification,
     );
 
     let app = ui::App::new(

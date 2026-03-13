@@ -19,6 +19,8 @@ pub struct UIConfig {
     pub num_threads: usize,
     pub update_available: bool,
     pub latest_version: Option<String>,
+    /// [Debug] Show rewards overlay on startup for testing
+    pub show_mock_notification: bool,
 }
 
 impl UIConfig {
@@ -27,12 +29,14 @@ impl UIConfig {
         num_threads: usize,
         update_available: bool,
         latest_version: Option<String>,
+        show_mock_notification: bool,
     ) -> Self {
         Self {
             with_background_color,
             num_threads,
             update_available,
             latest_version,
+            show_mock_notification,
         }
     }
 }
@@ -84,6 +88,9 @@ pub struct App {
 
     /// Latest version available, if any.
     latest_version: Option<String>,
+
+    /// [Debug] Show rewards overlay on startup for testing
+    show_mock_notification: bool,
 }
 
 impl App {
@@ -108,6 +115,7 @@ impl App {
             num_threads: ui_config.num_threads,
             version_update_available: ui_config.update_available,
             latest_version: ui_config.latest_version,
+            show_mock_notification: ui_config.show_mock_notification,
         }
     }
 
@@ -120,6 +128,7 @@ impl App {
             self.num_threads,
             self.version_update_available,
             self.latest_version.clone(),
+            self.show_mock_notification,
         );
         let state = DashboardState::new(
             node_id,
@@ -172,6 +181,7 @@ pub async fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::i
                     app.num_threads,
                     app.version_update_available,
                     app.latest_version.clone(),
+                    app.show_mock_notification,
                 );
                 app.current_screen = Screen::Dashboard(Box::new(DashboardState::new(
                     app.node_id,
@@ -207,6 +217,7 @@ pub async fn run<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::i
                                 app.num_threads,
                                 app.version_update_available,
                                 app.latest_version.clone(),
+                                app.show_mock_notification,
                             );
                             app.current_screen = Screen::Dashboard(Box::new(DashboardState::new(
                                 app.node_id,

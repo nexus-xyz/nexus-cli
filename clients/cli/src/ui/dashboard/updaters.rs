@@ -45,6 +45,7 @@ impl DashboardState {
             Worker::TaskFetcher => self.handle_task_fetcher_event(event),
             Worker::Prover(_) => self.handle_prover_event(event),
             Worker::ProofSubmitter => self.handle_proof_submitter_event(event),
+            Worker::Rewards => self.handle_rewards_event(event),
         }
 
         // Handle state changes regardless of worker
@@ -101,8 +102,8 @@ impl DashboardState {
     /// Handle Prover events
     fn handle_prover_event(&mut self, event: &WorkerEvent) {
         if matches!(event.event_type, EventType::Success) {
-            // Track Step 3 completion (proof generated)
-            if event.msg.contains("Step 3 of 4: Proof generated for task") {
+            // Track proof generation completion (completes Step 2)
+            if event.msg.contains("Proof generated for task") {
                 if let Some(start_time) = self.step2_start_time {
                     self.zkvm_metrics.zkvm_runtime_secs += start_time.elapsed().as_secs();
                     self.zkvm_metrics.last_task_status = "Proved".to_string();
@@ -138,6 +139,12 @@ impl DashboardState {
         } else if matches!(event.event_type, EventType::Error) {
             self.zkvm_metrics.last_task_status = "Submit Failed".to_string();
         }
+    }
+
+    /// Handle Rewards events (rewards_processed from reportProving).
+    /// Worker::Rewards is only sent when reportProving returns rewards_processed.
+    fn handle_rewards_event(&mut self, _event: &WorkerEvent) {
+        self.show_rewards_overlay = true;
     }
 
     /// Update task fetch countdown based on current waiting state
@@ -212,6 +219,6 @@ impl DashboardState {
     /// Check if event indicates fetching activity start
     fn is_fetching_start_event(event: &WorkerEvent) -> bool {
         matches!(event.worker, Worker::TaskFetcher)
-            && event.msg.contains("Step 1 of 4: Requesting task...")
+            && event.msg.contains("Step 1 of 4: Fetching task...")
     }
 }

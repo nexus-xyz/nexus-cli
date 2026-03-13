@@ -1,5 +1,6 @@
 //! Simplified runtime for coordinating authenticated workers
 
+use crate::analytics::set_rewards_event_sender;
 use crate::environment::Environment;
 use crate::events::Event;
 use crate::orchestrator::OrchestratorClient;
@@ -20,6 +21,7 @@ pub async fn start_authenticated_worker(
     client_id: String,
     max_tasks: Option<u32>,
     max_difficulty: Option<crate::nexus_orchestrator::TaskDifficulty>,
+    num_workers: usize,
 ) -> (
     mpsc::Receiver<Event>,
     Vec<JoinHandle<()>>,
@@ -27,8 +29,12 @@ pub async fn start_authenticated_worker(
 ) {
     let mut config = WorkerConfig::new(environment, client_id);
     config.max_difficulty = max_difficulty;
+    config.num_workers = num_workers;
     let (event_sender, event_receiver) =
         mpsc::channel::<Event>(crate::consts::cli_consts::EVENT_QUEUE_SIZE);
+
+    // Allow analytics to send rewards_processed notifications to the TUI
+    set_rewards_event_sender(event_sender.clone());
 
     // Create a separate shutdown sender for max tasks completion
     let (shutdown_sender, _) = broadcast::channel(1);
