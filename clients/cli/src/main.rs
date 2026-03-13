@@ -193,6 +193,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
 /// * `check_mem` - Whether to check risky memory usage.
 /// * `with_background` - Whether to use the alternate TUI background color.
 /// * `max_tasks` - Optional maximum number of tasks to prove.
+
+fn validate_difficulty(difficulty_str: &str) -> Option<crate::nexus_orchestrator::TaskDifficulty> {
+    match difficulty_str.trim().to_ascii_uppercase().as_str() {
+        "SMALL" => Some(crate::nexus_orchestrator::TaskDifficulty::Small),
+        "SMALL_MEDIUM" => Some(crate::nexus_orchestrator::TaskDifficulty::SmallMedium),
+        "MEDIUM" => Some(crate::nexus_orchestrator::TaskDifficulty::Medium),
+        "LARGE" => Some(crate::nexus_orchestrator::TaskDifficulty::Large),
+        "EXTRA_LARGE" => Some(crate::nexus_orchestrator::TaskDifficulty::ExtraLarge),
+        _ => None,
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 async fn start(
     node_id: Option<u64>,
@@ -215,13 +227,10 @@ async fn start(
     // 3. Session setup (authenticated worker only)
     // Parse and validate difficulty override (case-insensitive)
     let max_difficulty_parsed = if let Some(difficulty_str) = &max_difficulty {
-        match difficulty_str.trim().to_ascii_uppercase().as_str() {
-            "SMALL" => Some(crate::nexus_orchestrator::TaskDifficulty::Small),
-            "SMALL_MEDIUM" => Some(crate::nexus_orchestrator::TaskDifficulty::SmallMedium),
-            "MEDIUM" => Some(crate::nexus_orchestrator::TaskDifficulty::Medium),
-            "LARGE" => Some(crate::nexus_orchestrator::TaskDifficulty::Large),
-            "EXTRA_LARGE" => Some(crate::nexus_orchestrator::TaskDifficulty::ExtraLarge),
-            invalid => {
+        match validate_difficulty(difficulty_str) {
+            Some(difficulty) => Some(difficulty),
+            None => {
+                let invalid = difficulty_str.trim();
                 eprintln!("Error: Invalid difficulty level '{}'", invalid);
                 eprintln!("Valid difficulty levels are:");
                 eprintln!("  SMALL");
@@ -258,6 +267,7 @@ async fn start(
 
 #[cfg(test)]
 mod tests {
+    use super::validate_difficulty;
     use crate::nexus_orchestrator::TaskDifficulty;
 
     #[test]
@@ -290,16 +300,5 @@ mod tests {
         assert_eq!(validate_difficulty("   "), None);
         assert_eq!(validate_difficulty("SMALL_MEDIUM_EXTRA"), None);
         assert_eq!(validate_difficulty("123"), None);
-    }
-
-    fn validate_difficulty(difficulty_str: &str) -> Option<TaskDifficulty> {
-        match difficulty_str.trim().to_ascii_uppercase().as_str() {
-            "SMALL" => Some(TaskDifficulty::Small),
-            "SMALL_MEDIUM" => Some(TaskDifficulty::SmallMedium),
-            "MEDIUM" => Some(TaskDifficulty::Medium),
-            "LARGE" => Some(TaskDifficulty::Large),
-            "EXTRA_LARGE" => Some(TaskDifficulty::ExtraLarge),
-            _ => None,
-        }
     }
 }
