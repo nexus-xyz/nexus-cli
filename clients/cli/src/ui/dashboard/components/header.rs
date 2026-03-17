@@ -17,14 +17,9 @@ pub fn render_header(f: &mut Frame, area: ratatui::layout::Rect, state: &Dashboa
         .constraints([Constraint::Length(2), Constraint::Length(2)])
         .split(area);
 
-    // Title section: rewards notification takes priority, then version update, else default
+    // Title section: version update takes priority, else default
     let version = env!("CARGO_PKG_VERSION");
-    let (title_text, title_color) = if state.show_rewards_overlay {
-        (
-            crate::consts::cli_consts::REWARDS_PROCESSED_MESSAGE.to_string(),
-            Color::Rgb(255, 193, 7), // Amber/gold
-        )
-    } else if state.update_available {
+    let (title_text, title_color) = if state.update_available {
         let text = if let Some(latest) = &state.latest_version {
             format!("NEXUS PROVER v{} -> {} UPDATE AVAILABLE", version, latest)
         } else {
