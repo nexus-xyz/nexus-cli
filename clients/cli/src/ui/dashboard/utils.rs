@@ -11,7 +11,6 @@ pub fn get_worker_color(worker: &Worker) -> Color {
         Worker::TaskFetcher => Color::Cyan,
         Worker::Prover(_) => Color::Yellow,
         Worker::ProofSubmitter => Color::Green,
-        Worker::Rewards => Color::LightYellow,
     }
 }
 

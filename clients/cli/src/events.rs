@@ -14,8 +14,6 @@ pub enum Worker {
     Prover(usize),
     /// Worker that submits proofs to the orchestrator.
     ProofSubmitter,
-    /// System-level notifications (e.g., rewards processed from reportProving).
-    Rewards,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, strum::Display)]
@@ -107,10 +105,6 @@ impl Event {
         log_level: LogLevel,
     ) -> Self {
         Self::new(Worker::Prover(thread_id), msg, event_type, log_level)
-    }
-
-    pub fn rewards_with_level(msg: String, event_type: EventType, log_level: LogLevel) -> Self {
-        Self::new(Worker::Rewards, msg, event_type, log_level)
     }
 
     pub fn should_display(&self) -> bool {
