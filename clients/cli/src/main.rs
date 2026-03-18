@@ -339,5 +339,4 @@ mod tests {
         assert_eq!(validate_difficulty("SMALL_MEDIUM_EXTRA"), None);
         assert_eq!(validate_difficulty("123"), None);
     }
-
 }
