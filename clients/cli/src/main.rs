@@ -241,22 +241,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 /// * `check_mem` - Whether to check risky memory usage.
 /// * `with_background` - Whether to use the alternate TUI background color.
 /// * `max_tasks` - Optional maximum number of tasks to prove.
-
-fn validate_difficulty(difficulty_str: &str) -> Option<crate::nexus_orchestrator::TaskDifficulty> {
-    match difficulty_str.trim().to_ascii_uppercase().as_str() {
-        "SMALL" => Some(crate::nexus_orchestrator::TaskDifficulty::Small),
-        "SMALL_MEDIUM" => Some(crate::nexus_orchestrator::TaskDifficulty::SmallMedium),
-        "MEDIUM" => Some(crate::nexus_orchestrator::TaskDifficulty::Medium),
-        "LARGE" => Some(crate::nexus_orchestrator::TaskDifficulty::Large),
-        "EXTRA_LARGE" => Some(crate::nexus_orchestrator::TaskDifficulty::ExtraLarge),
-        "EXTRA_LARGE_2" => Some(crate::nexus_orchestrator::TaskDifficulty::ExtraLarge2),
-        "EXTRA_LARGE_3" => Some(crate::nexus_orchestrator::TaskDifficulty::ExtraLarge3),
-        "EXTRA_LARGE_4" => Some(crate::nexus_orchestrator::TaskDifficulty::ExtraLarge4),
-        "EXTRA_LARGE_5" => Some(crate::nexus_orchestrator::TaskDifficulty::ExtraLarge5),
-        _ => None,
-    }
-}
-
 /// * `show_mock_notification` - [Debug] Show rewards overlay on startup for testing.
 #[allow(clippy::too_many_arguments)]
 async fn start(
@@ -356,15 +340,4 @@ mod tests {
         assert_eq!(validate_difficulty("123"), None);
     }
 
-    fn validate_difficulty(difficulty_str: &str) -> Option<TaskDifficulty> {
-        match difficulty_str.trim().to_ascii_uppercase().as_str() {
-            "SMALL" => Some(TaskDifficulty::Small),
-            "SMALL_MEDIUM" => Some(TaskDifficulty::SmallMedium),
-            "MEDIUM" => Some(TaskDifficulty::Medium),
-            "LARGE" => Some(TaskDifficulty::Large),
-            "EXTRA_LARGE" => Some(TaskDifficulty::ExtraLarge),
-            "EXTRA_LARGE_2" => Some(TaskDifficulty::ExtraLarge2),
-            _ => None,
-        }
-    }
 }
