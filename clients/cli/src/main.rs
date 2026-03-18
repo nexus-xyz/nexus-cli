@@ -255,6 +255,10 @@ fn validate_difficulty(difficulty_str: &str) -> Option<crate::nexus_orchestrator
         "MEDIUM" => Some(crate::nexus_orchestrator::TaskDifficulty::Medium),
         "LARGE" => Some(crate::nexus_orchestrator::TaskDifficulty::Large),
         "EXTRA_LARGE" => Some(crate::nexus_orchestrator::TaskDifficulty::ExtraLarge),
+        "EXTRA_LARGE_2" => Some(crate::nexus_orchestrator::TaskDifficulty::ExtraLarge2),
+        "EXTRA_LARGE_3" => Some(crate::nexus_orchestrator::TaskDifficulty::ExtraLarge3),
+        "EXTRA_LARGE_4" => Some(crate::nexus_orchestrator::TaskDifficulty::ExtraLarge4),
+        "EXTRA_LARGE_5" => Some(crate::nexus_orchestrator::TaskDifficulty::ExtraLarge5),
         _ => None,
     }
 }
