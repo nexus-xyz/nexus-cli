@@ -76,7 +76,7 @@ message GetProofTaskRequest {
   // The type of this node.
   NodeType node_type = 2;
 
-  // The client's Ed25519 public key for proof authentication.Add commentMore actions
+  // The client's Ed25519 public key for proof authentication.
   bytes ed25519_public_key = 3;
 
   // The maximum difficulty level the client wants to handle
@@ -193,7 +193,7 @@ enum TaskType {
   PROOF_HASH = 1;
 
   // Task does not require a proof to be submitted,
-  // but alll proof hashes should be sent.
+  // but all proof hashes should be sent.
   ALL_PROOF_HASHES = 2;
 }
 
