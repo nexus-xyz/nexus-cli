@@ -109,7 +109,7 @@ echo " "
 sleep 30
 
 # Create new version with higher number than 0.3.5
-# This section represents what may happen in the wild: the code is updated on github with a new tag
+# This section represents what may happen in the wild: the code is updated on GitHub with a new tag
 echo " "
 echo -e "${ORANGE}[test-updater script] (8 / 18) Adding new code to test auto-update...${NC}"
 echo "updated" >test.txt
