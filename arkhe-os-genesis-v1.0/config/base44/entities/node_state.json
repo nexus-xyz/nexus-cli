@@ -1,0 +1,9 @@
+{
+  "name": "NodeState",
+  "properties": {
+    "nodeId": { "type": "string", "required": true },
+    "coherence": { "type": "number" },
+    "satoshi": { "type": "number" },
+    "timestamp": { "type": "number" }
+  }
+}

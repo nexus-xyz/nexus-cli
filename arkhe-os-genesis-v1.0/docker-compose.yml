@@ -1,0 +1,43 @@
+services:
+  arkhe-core:
+    build: ./src/arkhe_core
+    container_name: arkhe-core
+    volumes:
+      - ./config:/config
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ID=${NODE_ID}
+      - PRIVATE_KEY=${PRIVATE_KEY}
+    restart: unless-stopped
+
+  base44-worker:
+    image: node:18-alpine
+    container_name: base44-worker
+    working_dir: /app
+    volumes:
+      - ./src/base44_sdk:/app
+      - ./config/base44:/config
+    command: node index.js
+    depends_on:
+      - arkhe-core
+    restart: unless-stopped
+
+  glp-server:
+    build: ./src/glp_interface
+    container_name: glp-server
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./config/glp:/model
+    restart: unless-stopped
+
+  swarm-controller:
+    build: ./src/swarm
+    container_name: swarm-controller
+    volumes:
+      - ./config:/config
+    environment:
+      - NODE_ID=${NODE_ID}
+    restart: unless-stopped

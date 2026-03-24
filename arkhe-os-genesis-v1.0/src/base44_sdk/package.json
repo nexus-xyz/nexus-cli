@@ -1,0 +1,10 @@
+{
+  "name": "base44-worker",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "@base44/sdk": "latest",
+    "axios": "^1.6.0",
+    "dotenv": "^16.0.0"
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "name": "arkhe-node-NODE_ID_PLACEHOLDER",
+  "version": "1.0.0",
+  "geodesic": {
+    "target": "production",
+    "stability_threshold": 0.95,
+    "max_fluctuation": 0.05,
+    "handover_timeout_ms": 30000
+  },
+  "providers": {
+    "ethereum": {
+      "rpc": "https://mainnet.infura.io/v3/INFURA_PROJECT_ID_PLACEHOLDER",
+      "chainId": 1,
+      "contracts": {
+        "ArkheLedger": "0x..." // será preenchido após deploy
+      }
+    },
+    "linux": {
+      "sensors": ["/proc/stat", "/proc/meminfo"]
+    }
+  },
+  "entities": [
+    {
+      "name": "NodeState",
+      "properties": {
+        "nodeId": { "type": "string", "required": true },
+        "coherence": { "type": "number" },
+        "satoshi": { "type": "number" },
+        "timestamp": { "type": "number" }
+      }
+    }
+  ],
+  "functions": [
+    {
+      "name": "updateState",
+      "entry": "functions/updateState.js",
+      "trigger": "webhook",
+      "inputs": { "coherence": "number", "satoshi": "number" },
+      "outputs": { "status": "string", "tx": "string" }
+    }
+  ],
+  "agents": [
+    {
+      "name": "StateMonitor",
+      "description": "Monitora coerência e ajusta parâmetros",
+      "functions": ["updateState"],
+      "access": ["entities.NodeState.*"]
+    }
+  ],
+  "connectors": [
+    {
+      "name": "ethereum",
+      "type": "ethereum",
+      "config": {
+        "network": "mainnet",
+        "infuraProjectId": "INFURA_PROJECT_ID_PLACEHOLDER"
+      }
+    }
+  ],
+  "automations": [
+    {
+      "name": "heartbeat",
+      "cron": "*/5 * * * *",
+      "action": "updateState",
+      "inputs": {
+        "coherence": "$(curl -s http://localhost:8080/status | jq .coherence)",
+        "satoshi": "$(curl -s http://localhost:8080/status | jq .satoshi)"
+      }
+    }
+  ]
+}

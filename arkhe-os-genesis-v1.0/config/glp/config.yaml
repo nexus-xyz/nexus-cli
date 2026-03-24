@@ -1,0 +1,8 @@
+model:
+  path: /model/model.pt
+  input_dim: 128
+  hidden_dim: 64
+  meta_neurons: 128
+server:
+  host: 0.0.0.0
+  port: 5000

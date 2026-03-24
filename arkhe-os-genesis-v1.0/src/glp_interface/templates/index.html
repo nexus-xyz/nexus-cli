@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ARKHE OS // MERKABAH-7 INTERFACE</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; color: #0f0; font-family: 'Courier New', monospace; }
+        #hud { position: absolute; top: 10px; left: 10px; pointer-events: none; z-index: 5; }
+        #controls { position: absolute; bottom: 10px; left: 10px; z-index: 10; }
+        #start-btn { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10; padding: 20px; background: #000; border: 1px solid #0f0; color: #0f0; cursor: pointer; }
+        button { background: #000; border: 1px solid #0f0; color: #0f0; cursor: pointer; margin-right: 5px; }
+        #status-box { color: cyan; }
+        #evolution-box { position: absolute; top: 10px; right: 10px; text-align: right; background: rgba(0,0,0,0.5); padding: 5px; }
+        .trait-row { font-size: 10px; }
+    </style>
+</head>
+<body>
+
+<div id="hud">
+    <div>MERKABAH-7 // PINEAL_LINK: <span id="status">OFFLINE</span></div>
+    <div>COH: <span id="coh-val">0.00</span> | JIT: <span id="jit-val">0.00</span></div>
+    <div id="status-box">MODO: LIVE</div>
+</div>
+
+<div id="evolution-box">
+    <div>GENOMA EVOLUTIVO (Ω)</div>
+    <div id="char-matrix"></div>
+</div>
+
+<div id="controls">
+    <button onclick="requestReplay()">REPLAY SESSION</button>
+    <button onclick="exportGrimoire()">EXPORT GRIMOIRE</button>
+</div>
+
+<button id="start-btn" onclick="initAudio()">INICIAR SINTETIZADOR</button>
+
+<script>
+    let socket = io();
+    let pineal = { coherence: 0.5, jitter: 0.1 };
+    let currentInsight = "";
+    let textAlpha = 0;
+    let fullText = "";
+    let displayedText = "";
+    let charIndex = 0;
+
+    // Áudio (Tone.js)
+    let synth, drone;
+    let audioReady = false;
+
+    async function initAudio() {
+        await Tone.start();
+        drone = new Tone.Oscillator(110, "sine").toDestination().start();
+        drone.volume.value = -20;
+        synth = new Tone.PolySynth(Tone.FMSynth).toDestination();
+        document.getElementById('start-btn').style.display = 'none';
+        audioReady = true;
+    }
+
+    function requestReplay() {
+        document.getElementById('status-box').innerText = "MODO: REPLAY";
+        socket.emit('trigger_replay');
+    }
+
+    function exportGrimoire() {
+        socket.emit('trigger_export');
+        alert("Exporting grimoire... Check server logs.");
+    }
+
+    socket.on('replay_end', () => {
+        document.getElementById('status-box').innerText = "MODO: LIVE";
+    });
+
+    socket.on('connect', () => { document.getElementById('status').innerText = "ONLINE"; });
+
+    async function updateEvolution() {
+        try {
+            const res = await fetch('/character/evolution');
+            const data = await res.json();
+            let html = "";
+            data.nodes.forEach((node, i) => {
+                let traits = data.matrix[i].map(v => v.toFixed(2)).join(" | ");
+                html += `<div class="trait-row">${node}: ${traits}</div>`;
+            });
+            document.getElementById('char-matrix').innerHTML = html;
+        } catch(e) {}
+    }
+    setInterval(updateEvolution, 2000);
+
+    socket.on('pineal_data', (data) => {
+        pineal = data;
+        document.getElementById('coh-val').innerText = data.coherence.toFixed(2);
+        document.getElementById('jit-val').innerText = data.jitter.toFixed(2);
+
+        if(audioReady) {
+            let freq = 55 + (data.coherence * 110);
+            drone.frequency.rampTo(freq, 0.1);
+            drone.detune.value = (Math.random() - 0.5) * data.jitter * 1000;
+        }
+    });
+
+    socket.on('new_insight', (data) => {
+        fullText = data.text;
+        displayedText = "";
+        charIndex = 0;
+        textAlpha = 255;
+
+        if(audioReady) {
+            let notes = data.intensity > 0.5 ? ["C4", "E4", "G#4"] : ["C3", "G3", "C4"];
+            synth.triggerAttackRelease(notes, "2n");
+        }
+    });
+
+    // p5.js Visuals
+    let myShader;
+    const vert = `
+    attribute vec3 aPosition;
+    attribute vec2 aTexCoord;
+    varying vec2 vTexCoord;
+    void main() {
+        vTexCoord = aTexCoord;
+        vec4 positionVec4 = vec4(aPosition, 1.0);
+        positionVec4.xy = positionVec4.xy * 2.0 - 1.0;
+        gl_Position = positionVec4;
+    }`;
+
+    const frag = `
+    precision mediump float;
+    varying vec2 vTexCoord;
+    uniform float u_time;
+    uniform float u_coherence;
+    uniform float u_jitter;
+
+    void main() {
+        vec2 uv = vTexCoord;
+        float noise = sin(uv.y * 50.0 + u_time * 10.0) * u_jitter * 0.05;
+        uv.x += noise;
+        vec3 colorBlue = vec3(0.0, u_coherence, 1.0);
+        vec3 colorRed = vec3(1.0, 0.0, 0.0);
+        vec3 finalColor = mix(colorRed, colorBlue, u_coherence);
+        float dist = distance(uv, vec2(0.5));
+        float rings = sin(dist * 20.0 - u_time * 2.0);
+        finalColor += rings * 0.2;
+        gl_FragColor = vec4(finalColor, 1.0);
+    }`;
+
+    function setup() {
+        createCanvas(windowWidth, windowHeight, WEBGL);
+        myShader = createShader(vert, frag);
+    }
+
+    function draw() {
+        shader(myShader);
+        myShader.setUniform("u_time", millis() / 1000.0);
+        myShader.setUniform("u_coherence", pineal.coherence);
+        myShader.setUniform("u_jitter", pineal.jitter);
+        rect(0,0,width, height);
+
+        if (textAlpha > 0) {
+            if (charIndex < fullText.length && frameCount % 3 === 0) {
+                displayedText += fullText[charIndex];
+                charIndex++;
+            }
+            push();
+            resetMatrix();
+            translate(-width/2, -height/2);
+            fill(255, textAlpha);
+            textSize(24);
+            textAlign(CENTER, CENTER);
+            text(displayedText, width/2, height/2);
+            if (charIndex >= fullText.length) textAlpha -= 1;
+            pop();
+        }
+    }
+
+    function windowResized() { resizeCanvas(windowWidth, windowHeight); }
+</script>
+</body>
+</html>
